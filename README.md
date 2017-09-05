@@ -55,7 +55,8 @@ fun(a,b,x)->return a*x+b; end
 * Functions never have names, no matter the syntax suger.
 * Lists are curly brackets containing comma separated elements which must have the same type: { 1,2,3 }, {"a","foo","gurgle"}
 * Dictionaries are like lists, but contain key-value pairs connected with a => (all keys must be of the same type and all values as well): { 1=>"a",2=>"b",3=>"c" }
-* Dictionary lookup uses the [] operator which returns a maybe variant: d["a"]
+* Dictionary lookup uses the [] operator which returns a maybe variant on lookup: d["a"]. Can also be used for assignment
+d["x"]<-6;
 * lists and dictionaries may also have one expression for element or key-value pair, followed by a pipe 
 symbol | and a generator statement. See below
 * Records contain an arbitrar number of fields, which are labeled by an identifier. Fields may have distinct types.
@@ -83,6 +84,7 @@ Variables must always be initialized explicitely when defined: var x<-3; var f<-
 * Some syntax sugar is provided for declarations of variables with function types, removing the "<-fun":
 var line(slope,offset)->return fun(x)->return slope*x+offset; end; end;
 * Conditions use the common if...then...else with the last branch ending with an end, additional conditions use the single word eslif
+
 if x==1 then # do someting
 
 elsif x==2 then # do something else
@@ -90,6 +92,7 @@ elsif x==2 then # do something else
 else #give up
 
 end;
+
 
 if error then # panic
 
