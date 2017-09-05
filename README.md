@@ -17,6 +17,8 @@ tested with
 Requires LLVM 4 installed, check the solutions path under windows to make sure it points the right way.
 Building tests requires google-test installed - MSVC will try to build tests by default. Again, check project directories.
 
+To modify the grammar, you will need COCO/R installed - use namespace "parser" and the frame files in subdirectory coco.
+
 # Main Features (as of V0.1):
 * Small language focusing on fundamental programming language concepts, with syntax hopefully promoting readable code
 * Strict static typing based on type inference (Hindley-Milner with Records and Subtyping a.k.a F1sub)
