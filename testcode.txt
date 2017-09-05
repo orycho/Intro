@@ -1,0 +1,44 @@
+1+2*3;
+var waste(f,t,b)-> var x<-f; while x < t do yield x; x<-x+b; done; yield done; end;
+{x | x in waste(2,10,3)};
+{y | y in waste(2,20,4)};
+var d<-{"a"=>1, "b"=>2, "c"=>3, "d"=>4};
+d["x"]<-20;
+"d is ${d}";
+var empty(l)-> for e in l do return false; done; return true; end;
+empty("la");
+empty("");
+var has(s,e) -> for ee in s do if e==ee then return true; end; done; return false; end;
+has("abcde","d");
+has("abc","z");
+var one(a)-> yield a; yield done; end;
+var two(a,b)-> yield a; yield b; yield done; end;
+var three(a,b,c)-> yield a; yield b; yield c; yield done; end;
+{[x<-1;],[x<-3;],[x<-5;]}[1:1];
+var triple(x,y,z)->return [a<-x;b<-y;c<-z;]; end;
+var cond(a,b,c)->return a*a+b*b==c*c; end;
+var l<-{triple(a,b,c)|a from 1 to 10 && b from a to 10 && c from b to 10 ?? cond(a,b,c) };
+l;
+var f(a)-> case a of A x then return x; | B a b then return a+b; end; end;
+f([:A x<-3;]);
+f([:B a<-3; b<-4;]);
+
+var listify(s)->return {i|i in s}; end;
+listify("Hello World");
+
+var count_gen(s)-> var c<-0; for x in s do yield [value<-x; count<-c; ]; c<-c+1; done; yield done; end;
+{x | x in count_gen({"a","b","c","d","e"})};
+
+var idgen(s)->for x in s do yield x; done; yield done; end;
+
+var append(s1,s2)->for x in s1 do yield x; done; for x in s2 do yield x; done; yield done; end;
+append("Hello ","World");
+{x | x in append("Hello ","World")};
+
+var filter(s,c) -> return {x | x in s ?? c(x)}; end;
+filter({x | x from 1 to 10},fun(x)->return x%2==0; end);
+
+var line(slope,offset)->return fun(x)->return slope*x+offset; end; end;
+
+var l1<-line(2,3);
+var l2<-line(1.2,.3);

@@ -1,0 +1,235 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{CCF01A45-A0DC-411E-A64B-48E356D54156}</ProjectGuid>
+    <RootNamespace>IntroTest</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>14.0.25431.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
+    <IntDir>$(Configuration)\</IntDir>
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+    <LinkIncremental>true</LinkIncremental>
+    <IncludePath>C:\gtest\include;C:\llvm\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\gtest\lib_dbg;C:\llvm\Debug\lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
+    <IntDir>$(Configuration)\</IntDir>
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+    <LinkIncremental>false</LinkIncremental>
+    <IncludePath>C:\gtest\include;C:\llvm\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\gtest\lib;C:\llvm\Release\lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)gtest;$(SolutionDir)Intro\third;$(SolutionDir)\llvm\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_TEST;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <PrecompiledHeader />
+      <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <DisableSpecificWarnings>4127;4996 ;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>$(SolutionDir)gtest\gtestd.lib;$(SolutionDir)\llvm\lib\Debug\LLVMJIT.lib;$(SolutionDir)\llvm\lib\Debug\LLVMInterpreter.lib;$(SolutionDir)\llvm\lib\Debug\LLVMX86CodeGen.lib;$(SolutionDir)\llvm\lib\Debug\LLVMX86AsmParser.lib;$(SolutionDir)\llvm\lib\Debug\LLVMX86Disassembler.lib;$(SolutionDir)\llvm\lib\Debug\LLVMRuntimeDyld.lib;$(SolutionDir)\llvm\lib\Debug\LLVMExecutionEngine.lib;$(SolutionDir)\llvm\lib\Debug\LLVMAsmPrinter.lib;$(SolutionDir)\llvm\lib\Debug\LLVMSelectionDAG.lib;$(SolutionDir)\llvm\lib\Debug\LLVMX86Desc.lib;$(SolutionDir)\llvm\lib\Debug\LLVMMCParser.lib;$(SolutionDir)\llvm\lib\Debug\LLVMCodeGen.lib;$(SolutionDir)\llvm\lib\Debug\LLVMX86AsmPrinter.lib;$(SolutionDir)\llvm\lib\Debug\LLVMX86Info.lib;$(SolutionDir)\llvm\lib\Debug\LLVMObjCARCOpts.lib;$(SolutionDir)\llvm\lib\Debug\LLVMScalarOpts.lib;$(SolutionDir)\llvm\lib\Debug\LLVMX86Utils.lib;$(SolutionDir)\llvm\lib\Debug\LLVMInstCombine.lib;$(SolutionDir)\llvm\lib\Debug\LLVMTransformUtils.lib;$(SolutionDir)\llvm\lib\Debug\LLVMipa.lib;$(SolutionDir)\llvm\lib\Debug\LLVMAnalysis.lib;$(SolutionDir)\llvm\lib\Debug\LLVMTarget.lib;$(SolutionDir)\llvm\lib\Debug\LLVMCore.lib;$(SolutionDir)\llvm\lib\Debug\LLVMMC.lib;$(SolutionDir)\llvm\lib\Debug\LLVMObject.lib;$(SolutionDir)\llvm\lib\Debug\LLVMSupport.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <TargetMachine>MachineX86</TargetMachine>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Midl>
+      <TargetEnvironment>X64</TargetEnvironment>
+    </Midl>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)gtest;$(SolutionDir)Intro\third;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>gtest.lib;LLVMDemangle.lib;LLVMSupport.lib;LLVMTableGen.lib;LLVMCore.lib;LLVMIRReader.lib;LLVMCodeGen.lib;LLVMSelectionDAG.lib;LLVMAsmPrinter.lib;LLVMMIRParser.lib;LLVMGlobalISel.lib;LLVMBitReader.lib;LLVMBitWriter.lib;LLVMTransformUtils.lib;LLVMInstrumentation.lib;LLVMInstCombine.lib;LLVMScalarOpts.lib;LLVMipo.lib;LLVMVectorize.lib;LLVMObjCARCOpts.lib;LLVMCoroutines.lib;LLVMLinker.lib;LLVMAnalysis.lib;LLVMLTO.lib;LLVMMC.lib;LLVMMCParser.lib;LLVMMCDisassembler.lib;LLVMObject.lib;LLVMObjectYAML.lib;LLVMOption.lib;LLVMDebugInfoDWARF.lib;LLVMDebugInfoMSF.lib;LLVMDebugInfoCodeView.lib;LLVMDebugInfoPDB.lib;LLVMSymbolize.lib;LLVMExecutionEngine.lib;LLVMInterpreter.lib;LLVMMCJIT.lib;LLVMOrcJIT.lib;LLVMRuntimeDyld.lib;LLVMTarget.lib;LLVMAArch64CodeGen.lib;LLVMAArch64Info.lib;LLVMAArch64AsmParser.lib;LLVMAArch64Disassembler.lib;LLVMAArch64AsmPrinter.lib;LLVMAArch64Desc.lib;LLVMAArch64Utils.lib;LLVMAMDGPUCodeGen.lib;LLVMAMDGPUAsmParser.lib;LLVMAMDGPUAsmPrinter.lib;LLVMAMDGPUDisassembler.lib;LLVMAMDGPUInfo.lib;LLVMAMDGPUDesc.lib;LLVMAMDGPUUtils.lib;LLVMARMCodeGen.lib;LLVMARMInfo.lib;LLVMARMAsmParser.lib;LLVMARMDisassembler.lib;LLVMARMAsmPrinter.lib;LLVMARMDesc.lib;LLVMBPFCodeGen.lib;LLVMBPFDisassembler.lib;LLVMBPFAsmPrinter.lib;LLVMBPFInfo.lib;LLVMBPFDesc.lib;LLVMHexagonCodeGen.lib;LLVMHexagonAsmParser.lib;LLVMHexagonInfo.lib;LLVMHexagonDesc.lib;LLVMHexagonDisassembler.lib;LLVMLanaiCodeGen.lib;LLVMLanaiAsmParser.lib;LLVMLanaiInfo.lib;LLVMLanaiDesc.lib;LLVMLanaiInstPrinter.lib;LLVMLanaiDisassembler.lib;LLVMMipsCodeGen.lib;LLVMMipsAsmPrinter.lib;LLVMMipsDisassembler.lib;LLVMMipsInfo.lib;LLVMMipsDesc.lib;LLVMMipsAsmParser.lib;LLVMMSP430CodeGen.lib;LLVMMSP430AsmPrinter.lib;LLVMMSP430Info.lib;LLVMMSP430Desc.lib;LLVMNVPTXCodeGen.lib;LLVMNVPTXInfo.lib;LLVMNVPTXAsmPrinter.lib;LLVMNVPTXDesc.lib;LLVMPowerPCCodeGen.lib;LLVMPowerPCAsmParser.lib;LLVMPowerPCDisassembler.lib;LLVMPowerPCAsmPrinter.lib;LLVMPowerPCInfo.lib;LLVMPowerPCDesc.lib;LLVMRISCVCodeGen.lib;LLVMRISCVInfo.lib;LLVMRISCVDesc.lib;LLVMSparcCodeGen.lib;LLVMSparcInfo.lib;LLVMSparcDesc.lib;LLVMSparcAsmPrinter.lib;LLVMSparcAsmParser.lib;LLVMSparcDisassembler.lib;LLVMSystemZCodeGen.lib;LLVMSystemZAsmParser.lib;LLVMSystemZDisassembler.lib;LLVMSystemZAsmPrinter.lib;LLVMSystemZInfo.lib;LLVMSystemZDesc.lib;LLVMX86CodeGen.lib;LLVMX86AsmParser.lib;LLVMX86Disassembler.lib;LLVMX86AsmPrinter.lib;LLVMX86Desc.lib;LLVMX86Info.lib;LLVMX86Utils.lib;LLVMXCoreCodeGen.lib;LLVMXCoreDisassembler.lib;LLVMXCoreAsmPrinter.lib;LLVMXCoreInfo.lib;LLVMXCoreDesc.lib;LLVMAsmParser.lib;LLVMLineEditor.lib;LLVMProfileData.lib;LLVMCoverage.lib;LLVMPasses.lib;LLVMLibDriver.lib;LLVMXRay.lib;LTO.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <TargetMachine>MachineX64</TargetMachine>
+      <ProgramDatabaseFile>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDatabaseFile>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <AdditionalIncludeDirectories>$(SolutionDir)gtest;$(SolutionDir)Intro\third;$(SolutionDir)\llvm\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_TEST;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeader />
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DisableSpecificWarnings>4127;4996 ;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>$(SolutionDir)gtest\gtest.lib;..\llvm\lib\LLVMJIT.lib;..\llvm\lib\LLVMInterpreter.lib;..\llvm\lib\LLVMX86CodeGen.lib;..\llvm\lib\LLVMX86AsmParser.lib;..\llvm\lib\LLVMX86Disassembler.lib;..\llvm\lib\LLVMRuntimeDyld.lib;..\llvm\lib\LLVMExecutionEngine.lib;..\llvm\lib\LLVMAsmPrinter.lib;..\llvm\lib\LLVMSelectionDAG.lib;..\llvm\lib\LLVMX86Desc.lib;..\llvm\lib\LLVMMCParser.lib;..\llvm\lib\LLVMCodeGen.lib;..\llvm\lib\LLVMX86AsmPrinter.lib;..\llvm\lib\LLVMX86Info.lib;..\llvm\lib\LLVMObjCARCOpts.lib;..\llvm\lib\LLVMScalarOpts.lib;..\llvm\lib\LLVMX86Utils.lib;..\llvm\lib\LLVMInstCombine.lib;..\llvm\lib\LLVMTransformUtils.lib;..\llvm\lib\LLVMipa.lib;..\llvm\lib\LLVMAnalysis.lib;..\llvm\lib\LLVMTarget.lib;..\llvm\lib\LLVMCore.lib;..\llvm\lib\LLVMMC.lib;..\llvm\lib\LLVMObject.lib;..\llvm\lib\LLVMSupport.lib;..\llvm\lib\LLVMExecutionEngine.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <TargetMachine>MachineX86</TargetMachine>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Midl>
+      <TargetEnvironment>X64</TargetEnvironment>
+    </Midl>
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <AdditionalIncludeDirectories>$(SolutionDir)gtest;$(SolutionDir)Intro\third;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>gtest.lib;LLVMDemangle.lib;LLVMSupport.lib;LLVMTableGen.lib;LLVMCore.lib;LLVMIRReader.lib;LLVMCodeGen.lib;LLVMSelectionDAG.lib;LLVMAsmPrinter.lib;LLVMMIRParser.lib;LLVMGlobalISel.lib;LLVMBitReader.lib;LLVMBitWriter.lib;LLVMTransformUtils.lib;LLVMInstrumentation.lib;LLVMInstCombine.lib;LLVMScalarOpts.lib;LLVMipo.lib;LLVMVectorize.lib;LLVMObjCARCOpts.lib;LLVMCoroutines.lib;LLVMLinker.lib;LLVMAnalysis.lib;LLVMLTO.lib;LLVMMC.lib;LLVMMCParser.lib;LLVMMCDisassembler.lib;LLVMObject.lib;LLVMObjectYAML.lib;LLVMOption.lib;LLVMDebugInfoDWARF.lib;LLVMDebugInfoMSF.lib;LLVMDebugInfoCodeView.lib;LLVMDebugInfoPDB.lib;LLVMSymbolize.lib;LLVMExecutionEngine.lib;LLVMInterpreter.lib;LLVMMCJIT.lib;LLVMOrcJIT.lib;LLVMRuntimeDyld.lib;LLVMTarget.lib;LLVMAArch64CodeGen.lib;LLVMAArch64Info.lib;LLVMAArch64AsmParser.lib;LLVMAArch64Disassembler.lib;LLVMAArch64AsmPrinter.lib;LLVMAArch64Desc.lib;LLVMAArch64Utils.lib;LLVMAMDGPUCodeGen.lib;LLVMAMDGPUAsmParser.lib;LLVMAMDGPUAsmPrinter.lib;LLVMAMDGPUDisassembler.lib;LLVMAMDGPUInfo.lib;LLVMAMDGPUDesc.lib;LLVMAMDGPUUtils.lib;LLVMARMCodeGen.lib;LLVMARMInfo.lib;LLVMARMAsmParser.lib;LLVMARMDisassembler.lib;LLVMARMAsmPrinter.lib;LLVMARMDesc.lib;LLVMBPFCodeGen.lib;LLVMBPFDisassembler.lib;LLVMBPFAsmPrinter.lib;LLVMBPFInfo.lib;LLVMBPFDesc.lib;LLVMHexagonCodeGen.lib;LLVMHexagonAsmParser.lib;LLVMHexagonInfo.lib;LLVMHexagonDesc.lib;LLVMHexagonDisassembler.lib;LLVMLanaiCodeGen.lib;LLVMLanaiAsmParser.lib;LLVMLanaiInfo.lib;LLVMLanaiDesc.lib;LLVMLanaiInstPrinter.lib;LLVMLanaiDisassembler.lib;LLVMMipsCodeGen.lib;LLVMMipsAsmPrinter.lib;LLVMMipsDisassembler.lib;LLVMMipsInfo.lib;LLVMMipsDesc.lib;LLVMMipsAsmParser.lib;LLVMMSP430CodeGen.lib;LLVMMSP430AsmPrinter.lib;LLVMMSP430Info.lib;LLVMMSP430Desc.lib;LLVMNVPTXCodeGen.lib;LLVMNVPTXInfo.lib;LLVMNVPTXAsmPrinter.lib;LLVMNVPTXDesc.lib;LLVMPowerPCCodeGen.lib;LLVMPowerPCAsmParser.lib;LLVMPowerPCDisassembler.lib;LLVMPowerPCAsmPrinter.lib;LLVMPowerPCInfo.lib;LLVMPowerPCDesc.lib;LLVMRISCVCodeGen.lib;LLVMRISCVInfo.lib;LLVMRISCVDesc.lib;LLVMSparcCodeGen.lib;LLVMSparcInfo.lib;LLVMSparcDesc.lib;LLVMSparcAsmPrinter.lib;LLVMSparcAsmParser.lib;LLVMSparcDisassembler.lib;LLVMSystemZCodeGen.lib;LLVMSystemZAsmParser.lib;LLVMSystemZDisassembler.lib;LLVMSystemZAsmPrinter.lib;LLVMSystemZInfo.lib;LLVMSystemZDesc.lib;LLVMX86CodeGen.lib;LLVMX86AsmParser.lib;LLVMX86Disassembler.lib;LLVMX86AsmPrinter.lib;LLVMX86Desc.lib;LLVMX86Info.lib;LLVMX86Utils.lib;LLVMXCoreCodeGen.lib;LLVMXCoreDisassembler.lib;LLVMXCoreAsmPrinter.lib;LLVMXCoreInfo.lib;LLVMXCoreDesc.lib;LLVMAsmParser.lib;LLVMLineEditor.lib;LLVMProfileData.lib;LLVMCoverage.lib;LLVMPasses.lib;LLVMLibDriver.lib;LLVMXRay.lib;LTO.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <TargetMachine>MachineX64</TargetMachine>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\Intro\city.cxx" />
+    <ClCompile Include="..\Intro\CodeGen.cxx" />
+    <ClCompile Include="..\Intro\CodeGenEnvironment.cxx" />
+    <ClCompile Include="..\Intro\Environment.cxx" />
+    <ClCompile Include="..\Intro\Expression.cxx" />
+    <ClCompile Include="..\Intro\Parser.cpp" />
+    <ClCompile Include="..\Intro\PerfHash.cxx" />
+    <ClCompile Include="..\Intro\Runtime.cxx" />
+    <ClCompile Include="..\Intro\Scanner.cpp" />
+    <ClCompile Include="..\Intro\Type.cxx" />
+    <ClCompile Include="..\Intro\TypeGraph.cxx" />
+    <ClCompile Include="IntroTest.cxx" />
+    <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="TypeTests.cxx" />
+    <ClCompile Include="UtilityTests.cpp" />
+    <ClCompile Include="utils.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\Intro\city.h" />
+    <ClInclude Include="..\Intro\CodeGen.h" />
+    <ClInclude Include="..\Intro\CodeGenEnvironment.h" />
+    <ClInclude Include="..\Intro\Environment.h" />
+    <ClInclude Include="..\Intro\Expression.h" />
+    <ClInclude Include="..\Intro\Generators.h" />
+    <ClInclude Include="..\Intro\Intro.h" />
+    <ClInclude Include="..\Intro\JIT.h" />
+    <ClInclude Include="..\Intro\Parser.h" />
+    <ClInclude Include="..\Intro\PerfHash.h" />
+    <ClInclude Include="..\Intro\RTType.h" />
+    <ClInclude Include="..\Intro\Runtime.h" />
+    <ClInclude Include="..\Intro\Scanner.h" />
+    <ClInclude Include="..\Intro\Statement.h" />
+    <ClInclude Include="..\Intro\Type.h" />
+    <ClInclude Include="..\Intro\TypeGraph.h" />
+    <ClInclude Include="..\Intro\TypePath.h" />
+    <ClInclude Include="..\Intro\Utility.h" />
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="targetver.h" />
+    <ClInclude Include="utils.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Intro\Intro.vcxproj">
+      <Project>{c1915644-43a6-48d8-a8c2-ceebb3ff78e2}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

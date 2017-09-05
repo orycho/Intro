@@ -1,0 +1,1286 @@
+#include <string>
+#include <map>
+#include <vector>
+#include <stack>
+#include <sstream>
+#include <iostream>
+#include "Expression.h"
+#include "TypeExpression.h"
+#include "Statement.h"
+#include "Type.h"
+#include "CodeGen.h"
+#include "Environment.h"
+#include "Module.h"
+
+COMPILER Intro
+
+	/// This vector is treated as a stack, passing statements between grammar rule functions
+	std::vector<intro::Expression*> exprstack;
+	/// Push an expression onto the expression stack (asserts non-NULL statement
+	void pushExpr(intro::Expression *expr)
+	{
+		if (expr==NULL)
+		{
+			SemErr(L"NULL pushed on expression stack! Out of Memory?");
+		};
+		exprstack.push_back(expr);
+	};
+	/// Pop an expression from the expression stack (returns NULL if empty)
+	intro::Expression *popExpr(void)
+	{
+		if (exprstack.empty())
+			return NULL;
+		intro::Expression *retval=exprstack.back();
+		exprstack.pop_back();
+		return retval;
+	};
+	/// Get the top expression from the stack without popping it (returns NULL if empty).
+	intro::Expression *topExpr(void)
+	{
+		if (exprstack.empty())
+			return NULL;
+		return exprstack.back();
+	};
+
+	/// This vector is treated as a stack, passing statements between grammar rule functions.
+	std::vector<intro::Statement*> statementstack;
+	/// Push a statement onto the statement stack (returns NULL if empty).
+	void pushStatement(intro::Statement *statement)
+	{
+		if (statement==NULL)
+		{
+			SemErr(L"NULL pushed on statement stack! Out of Memory?");
+		};
+		statementstack.push_back(statement);
+	};
+	/// Pop a statement from the statement stack (returns NULL if empty)
+	intro::Statement *popStatement(void)
+	{
+		if (statementstack.empty())
+			return NULL;
+		intro::Statement *retval=statementstack.back();
+		statementstack.pop_back();
+		return retval;
+	};
+	/// Return the top statement from the statement stack without popping it (returns NULL if empty).
+	intro::Statement *topStatement(void)
+	{
+		if (statementstack.empty())
+			return NULL;
+		return statementstack.back();
+	};
+	/// The Global environment (todo: move out of here to where evaluation heppens)
+	intro::Environment global;
+	/// Member granting access to environment
+	inline intro::Environment *getEnv(void) {return &global; };
+	/// List contiaining the ASTs of the parsed program.
+	std::list<intro::Statement*> parseResult;
+	/// Iterator Type for result list.
+	typedef std::list<intro::Statement*>::iterator iterator;
+	/// This stack remembers which function scope were in (for return and yield statements)
+	std::stack<intro::Function*> functions;
+	/// This stack remembers which loop scope were in (for break and continue statements)
+	std::stack<intro::LoopStatement*> loops;
+	/// Stack used for constructing types
+	std::stack<intro::TypeExpression*> types;
+	/// Stack used for constructing Modules
+	std::stack<intro::ModuleStatement*> modules;
+	/// This map is used during a type expression to assign the same variable to the same name - must be cleared after the type is complete
+	std::map<std::wstring,intro::TypeVariable*> tvarmap;
+	/// Get a type variable with the given name, create if not existant yet.
+	intro::TypeVariable *getTypeVariable(const std::wstring &name)
+	{
+		std::map<std::wstring,intro::TypeVariable*>::iterator iter=tvarmap.find(name);
+		if (iter==tvarmap.end())
+		{
+			iter=tvarmap.insert(make_pair(name,intro::Environment::fresh(name))).first;
+		}
+		return iter->second;
+	};
+	/// The type variable map must be cleared before each type definition (module exports section only).
+	void clearTypeVariables(void)
+	{ tvarmap.clear(); };
+	/// Indicates we are in interactive mode
+	bool isInteractive;
+	
+	bool inferTypes(intro::Environment *env)
+	{
+		iterator iter;
+		if (errors->count>0)
+		{
+			std::cout << "Found " << errors->count << " errors while parsing!\n";
+			return false;
+		}
+		for (iter=parseResult.begin();iter!=parseResult.end();iter++)
+		{
+			(*iter)->makeType(env);
+			(*iter)->print(std::wcout);
+			std::wcout << std::endl << std::endl;
+		}
+		return true;
+	}
+
+	void deleteStatements(void)
+	{
+		iterator iter;
+		for (iter=parseResult.begin();iter!=parseResult.end();iter++)
+			delete *iter; 
+	}
+	
+	void executeStmt(intro::Statement *stmt)
+	{
+		if (errors->count>0)
+		{
+			std::wcout << L"Found " << errors->count << L" errors while parsing!\n";
+			return;
+		}
+		bool isOk=stmt->makeType(getEnv());
+		if (isOk) 
+		{
+			//stmt->print(std::wcout);
+			//std::wcout << std::endl;
+			intro::executeStatement(stmt);
+		}
+		else
+		{
+			std::wcout << L"Type errors detected!\n";
+		}
+		//delete stmt;
+		// may be better to remember stamtements for their types?
+		parseResult.push_back(stmt);
+	}
+	
+	void Init(void)
+	{
+		isInteractive=false;
+	}
+CHARACTERS
+	letter = 'A'..'Z' + 'a'..'z'.
+	digit = "0123456789".
+	notquote = ANY - '"'.
+	quote = '"'.
+	squote = '\''.
+	cr = '\r'.
+	lf = '\n'.
+	tab='\t'.
+	
+
+TOKENS
+	ident =( '_' | letter ) {letter | digit | '_'}.
+	typevar ='?' ( '_' | letter ) {letter | digit | '_'}.
+	integer = digit {digit}.
+	real = { digit  } '.' digit { digit  }.
+	string = quote { notquote } quote.
+	assign = "<-".
+
+PRAGMAS
+// Add pragma declarations here.
+// Example:
+//   switch = '$' { digit | letter }. (. Optional semantic action .)
+
+
+	COMMENTS FROM "/*" TO "*/" NESTED
+	COMMENTS FROM "#" TO lf	
+
+	IGNORE cr + lf + tab
+
+
+PRODUCTIONS
+
+//////////////////////////////////////////////////////////////////////
+// Basic Values
+//
+
+Identifier<std::wstring &val>=
+	ident (. val.assign(t->val); .)
+.
+
+Integer=
+	integer 
+	(. 
+		//long val=_wtol(t->val); 
+		pushExpr(new intro::IntegerConstant(t->line,t->pos,t->val));
+	.)
+.
+
+Boolean=
+	("true" (. pushExpr(new intro::BooleanConstant(t->line,t->pos,true)); .)
+	|
+	"false" (. pushExpr(new intro::BooleanConstant(t->line,t->pos,false)); .)
+	)
+.
+
+Real=
+	real 
+	(. 
+		pushExpr(new intro::RealConstant(t->line,t->pos,t->val));
+	.)
+.
+
+String=
+	string 
+	(.
+		pushExpr(new intro::StringConstant(t->line,t->pos,t->val));
+	.)
+.
+
+//////////////////////////////////////////////////////////////////////
+// Compound Values
+//
+
+Generator=
+	(.
+		std::wstring ident;
+	.)
+	Identifier<ident>
+	(
+		"in"
+		Expression // Container contents: This expression should be of type list or dictionary (i.e. <: Container), or generator...
+		(.
+			pushStatement(new intro::ContainerGen(t->line,t->pos,ident,popExpr()));
+		.)
+	|
+		(.
+			intro::Expression *from=NULL, *to=NULL, *by=NULL;
+		.)
+		"from"	// Range: All expressions here should be integers (or numbers?)
+		Expression	(. from=popExpr(); .)
+		"to"
+		Expression (. to=popExpr(); .)
+		[
+			"by"
+			Expression (. by=popExpr(); .)
+		]
+		(.
+			pushStatement(new intro::RangeGen(t->line,t->pos,ident,from,to,by));
+		.)
+	)
+.
+
+GeneratorStatement=
+	(.
+		intro::GeneratorStatement *gen=new intro::GeneratorStatement(t->line,t->pos);
+	.)
+	Generator
+	(.
+		gen->addGenerator((intro::Generator*) popStatement());
+	.)
+
+	{
+		"&&" // This symbol introduces a nested generator
+		Generator
+		(.
+			gen->addGenerator((intro::Generator*) popStatement());
+		.)
+	|	"??" // This symbol introduces a condition, must be Boolean
+		Expression
+		(.
+			gen->addCondition(popExpr());
+		.)
+	}
+	(.
+		pushStatement(gen);
+	.)
+.
+
+ContainerElement<intro::Expression *&value, intro::Expression *&key,bool &isConstant>=
+	(. key=NULL; value=NULL; isConstant=false; .)
+	( Expression	(. value=popExpr(); .)
+    [
+      // This arrow identifies this as a Dictionary entry
+      "=>" (. isConstant=true; .)
+      Expression
+      // We've seen it's a dictionary entry, first expression is now the key, and the value follows.
+      (.
+        key=value; 
+        value=popExpr();
+      .)
+    ]
+   )
+	
+.
+
+Container= 
+	(. 
+		intro::Expression *value=NULL, *key=NULL;
+		intro::GeneratorStatement *gen=NULL;
+		std::list<std::pair<intro::Expression*,intro::Expression*> > dict_elem; 
+		std::list<intro::Expression*> list_elem; 
+		bool isDictionary=false;
+	.)
+	'{'
+	(
+		ContainerElement<value,key,isDictionary> // Fix kind of container to list or dictionary
+		(. 
+			if (isDictionary) 
+			{
+				if (key!=NULL)// SemErr(L"Expected dictionary entry as indicated by first entry in element list");
+					dict_elem.push_back(std::make_pair(key,value));
+				//else 
+			}
+			else list_elem.push_back(value);
+		.)
+		(
+		
+			{
+				',' ContainerElement<value,key,isDictionary>
+				(.
+					if (isDictionary) 
+					{
+						if (key==NULL) SemErr(L"Expected dictionary entry as indicated by first entry in element list");
+						else dict_elem.push_back(std::make_pair(key,value));
+					}
+					else list_elem.push_back(value);
+				.)
+
+			}
+		|	'|'
+			GeneratorStatement
+			(.
+				gen=dynamic_cast<intro::GeneratorStatement*>(popStatement());
+			.)
+		)
+	|	"=>" (. isDictionary=true; .) /* Empty Dictionary */
+	| 	/* Empty List */
+	)
+	'}'
+	(.
+		if (isDictionary)
+		{
+			intro::DictionaryConstant *dict=new intro::DictionaryConstant(t->line,t->pos,dict_elem);
+			if (gen!=NULL) dict->setGenerators(gen);
+			pushExpr(dict);
+		}
+		else
+		{
+			intro::ListConstant *list=new intro::ListConstant(t->line,t->pos,list_elem);
+			if (gen!=NULL) list->setGenerators(gen);
+			pushExpr(list);
+		}
+	.)
+.
+
+RecordField<intro::RecordExpression *record>=
+	(. 
+		std::wstring str; 
+	.)
+	Identifier<str>
+	(	
+		
+		"<-" Expression
+		(.
+			intro::Expression *expr=popExpr();
+			record->addMember(str,expr);
+		.)
+	|	
+		'('
+		(.
+			intro::Function *fun=new intro::Function(t->line,t->pos);
+		.)
+		[
+			Parameter<(*fun).getParameters()>
+			{
+			','
+			Parameter<(*fun).getParameters()>
+			}
+		]	
+		')' 
+		"->"
+			Block (. fun->setBody((intro::BlockStatement*)popStatement()); .)
+		"end"
+		
+		(.
+			record->addMember(str,fun);
+		.)
+
+	)
+.
+
+Record=
+	(.
+		int l=t->line,p=t->pos;
+		intro::RecordExpression *expr=new  intro::RecordExpression(t->line,t->pos);
+		std::wstring tag; 
+	.)
+	'['
+	[
+    ':' Identifier<tag>
+	]
+	{
+		 RecordField<expr> ';'
+	}
+	']'
+	(.
+		if (!tag.empty())
+		{
+			intro::VariantExpression *variant=new intro::VariantExpression(l,p);
+			variant->setVariant(tag,expr);
+			pushExpr(variant);
+		}
+		else pushExpr(expr);
+	.)
+.
+
+Function=
+	"fun" 
+	'('
+	(.
+		intro::Function *fun=new intro::Function(t->line,t->pos);
+		functions.push(fun);
+	.)
+	[
+		Parameter<(*fun).getParameters()>
+		{
+		','
+		Parameter<(*fun).getParameters()>
+		}
+	]	
+	')' 
+	"->"
+	Block (. fun->setBody((intro::BlockStatement*)popStatement()); .)
+	"end"
+	
+	(.
+		functions.pop();
+		pushExpr(fun);
+	.)
+.
+
+//////////////////////////////////////////////////////////////////////
+// General Expressions
+//
+
+Atom= 
+	(. std::wstring str; .)
+	(Boolean
+	| Integer 
+	| Real
+	| String
+	| 	// Instead of simple identifiers, we use module scope paths
+		(. bool rel=true; std::list<std::wstring> path; .)
+		[ 
+			"::"  (. rel=false; .)
+		]
+		Identifier<str>  (. path.push_back(str); .)
+		{ 
+			"::" Identifier<str>  (. path.push_back(str); .)
+		}
+		
+		(.
+			str=path.back();
+			path.pop_back();
+		.)
+
+		(.
+			{
+				pushExpr(new intro::Variable(t->line,t->pos,rel,str,path));
+			}
+		.)
+	| '(' Expression ')'
+	| Container
+	| Record
+	| Function
+	)
+.
+
+Expr7=
+	(. 
+		std::wstring str; 
+		intro::Expression *expr;
+		bool isSplice=false;
+	.)
+	Atom 
+	// Possible record access operations
+	{
+		'.' 
+		Identifier<str>
+		(.
+			expr=popExpr();
+			intro::RecordAccess *ra=new intro::RecordAccess(t->line,t->pos,expr,str);
+			pushExpr(ra);
+		.)
+	}
+	// We could also be erasing elements from a dict
+	{
+		(.
+			expr=popExpr(); // The dictionary on the lhs
+		.)
+		'\\'
+		Atom
+		(.
+			intro::Expression *keyexpr=popExpr();
+			intro::DictionaryErase *de=new intro::DictionaryErase(t->line,t->pos,expr,keyexpr);
+			pushExpr(de);
+		.)
+		
+	}
+	// Finally, dict erase returns the dict, so we could access
+	[
+		'['
+		(.
+			expr=popExpr();
+			intro::Expression *op,*op2=NULL;
+		.)
+		Expression
+		(.
+			op=popExpr();
+		.)
+		[
+			':' 
+			(
+				Expression		
+				(.
+					op2=popExpr();
+				.)
+			)
+			(. isSplice=true; .)
+
+		]
+		(.
+			//intro::Extraction *ext=new intro::Extraction(t->line,t->pos,expr,op,op2);
+			//pushExpr(ext);
+			intro::Expression *result;
+			if (isSplice) result=new intro::Splice(t->line,t->pos,expr,op,op2);
+			else result=new intro::Extraction(t->line,t->pos,expr,op);
+			pushExpr(result);
+		.)
+		']'
+	]
+.
+
+Expr6=
+	(. bool negate=false; .)
+	[
+		"-" 
+		(. negate=true; .)
+	]
+
+	Expr7 
+	{
+		'('
+		(.
+			intro::Application *app=new intro::Application(t->line,t->pos);
+			app->setFunction(popExpr());
+		.)
+		[
+			Expression (. app->appendParam(popExpr()); .)
+			{
+				',' Expression (. app->appendParam(popExpr()); .)
+			}
+		]
+		')'
+		(.
+			pushExpr(app);
+		.)
+		
+	}
+	(.
+		if (negate) 
+		{
+			intro::Expression *expr=popExpr(); 
+			pushExpr(new intro::UnaryOperation(t->line,t->pos,intro::UnaryOperation::Negate,expr));
+		}
+	.)
+.
+
+Expr5=
+	Expr6
+	{
+		(. 
+			intro::ArithmeticBinary::OpType op=intro::ArithmeticBinary::Mul;
+			intro::Expression *expr1=popExpr(); 
+		.)
+		( "*" (. op=intro::ArithmeticBinary::Mul; .)
+		| "/" (. op=intro::ArithmeticBinary::Div; .)
+		| "%" (. op=intro::ArithmeticBinary::Mod; .)
+		)
+		Expr6
+		(.
+			intro::Expression *expr2=popExpr();
+			pushExpr(new intro::ArithmeticBinary(t->line,t->pos,op,expr1,expr2));
+		.)		
+
+	}
+.
+
+
+Expr4=
+	Expr5 
+	(
+		{
+			(. 
+				intro::ArithmeticBinary::OpType op=intro::ArithmeticBinary::Add;
+				intro::Expression *expr1=popExpr(); 
+			.)
+			( "+" (. op=intro::ArithmeticBinary::Add; .)
+			| "-" (. op=intro::ArithmeticBinary::Sub; .)
+			)
+			Expr5
+			(.
+				intro::Expression *expr2=popExpr();
+				pushExpr(new intro::ArithmeticBinary(t->line,t->pos,op,expr1,expr2));
+			.)		
+
+		}
+	)
+.
+
+Expr3=
+	Expr4 
+	{
+		(. 
+			intro::Expression *expr1=popExpr(); 
+			intro::CompareOperation::OpType op=intro::CompareOperation::Equal; 
+		.)
+		( ">=" (. op=intro::CompareOperation::GreaterEqual; .)
+		| "<=" (. op=intro::CompareOperation::LessEqual; .)
+		| ">"  (. op=intro::CompareOperation::Greater; .)
+		| "<"  (. op=intro::CompareOperation::Less; .)
+		| "!=" (. op=intro::CompareOperation::Different; .)
+		| "==" (. op=intro::CompareOperation::Equal; .)
+		) 
+		Expr4
+		(.
+			intro::Expression *expr2=popExpr();
+			pushExpr(new intro::CompareOperation(t->line,t->pos,op,expr1,expr2));
+		.)		
+	}
+.
+
+Expr2=
+  (. bool negate=false; .)
+	[
+		"not" 
+		(. negate=true; .)
+	]
+	Expr3
+	(.
+		if (negate) 
+		{
+			intro::Expression *expr=popExpr(); 
+			pushExpr(new intro::UnaryOperation(t->line,t->pos,intro::UnaryOperation::Not,expr));
+		}
+	.)
+.
+
+Expr1=
+	Expr2 
+	{ 
+		(. intro::Expression *expr1=popExpr(); .)
+		"and" 
+		Expr2
+		(.
+			intro::Expression *expr2=popExpr();
+			pushExpr(new intro::BooleanBinary(t->line,t->pos,intro::BooleanBinary::And,expr1,expr2));
+		.)		
+	}
+.
+
+Expr0=
+  (. intro::BooleanBinary::OpType op; .)
+	Expr1 
+	{ 
+		(. intro::Expression *expr1=popExpr(); .)
+		("or" (. op=intro::BooleanBinary::Or; .)
+		| "xor" (. op=intro::BooleanBinary::Xor; .)
+		)
+		 Expr1
+		(.
+			intro::Expression *expr2=popExpr();
+			pushExpr(new intro::BooleanBinary(t->line,t->pos,op,expr1,expr2));
+		.)		
+	}
+	
+.
+
+Expression=
+	Expr0
+	[ 
+		(. intro::Expression *expr1=popExpr(); .)
+		"<-" Expr0 
+		(.
+			intro::Expression *expr2=popExpr();
+			pushExpr(new intro::Assignment(t->line,t->pos,expr1,expr2));
+		.)		
+	]
+.
+
+//////////////////////////////////////////////////////////////////////
+// Statements
+//
+
+Parameter<intro::Function::ParameterList &params>=
+	(. 
+		std::wstring str; 
+		intro::Variable::Modifier mod=intro::Variable::ReadOnly;
+	.)
+	[	"in"	// Default value does not change preset
+	|	"inout" (. mod=intro::Variable::Unrestricted; .)
+	|	"out" (. mod=intro::Variable::WriteOnly; .)
+	]
+	Identifier<str>
+//	[ ":" TypeExpr ]
+	(.
+		params.push_back(intro::Function::Parameter(str,NULL));
+	.)
+.
+
+Variable=
+	(. 
+		std::wstring str; bool isconst=false;
+	.)
+	(	"var" 
+	|	"const" (. isconst=true; .)
+	)
+	Identifier<str>
+	(.
+	.)
+	(	
+		
+		"<-" Expression
+		(.
+			intro::Expression *expr=popExpr();
+			pushStatement(new intro::ValueStatement(t->line,t->pos,str,expr,isconst,isInteractive));
+		.)
+	|	
+		'('
+		(.
+			intro::Function *fun=new intro::Function(t->line,t->pos);
+			functions.push(fun);
+		.)
+		[
+			Parameter<(*fun).getParameters()>
+			{
+			','
+			Parameter<(*fun).getParameters()>
+			}
+		]	
+		')' 
+		"->"
+		Block (. fun->setBody((intro::BlockStatement*)popStatement()); .)
+		"end"
+		
+		(.
+			functions.pop();
+			pushStatement(new intro::ValueStatement(t->line,t->pos,str,fun,isconst,isInteractive));
+		.)
+
+	)
+.
+
+Conditional=
+	(.
+		intro::Expression *cond;
+		intro::Statement *stmt;
+		intro::IfStatement *cs = new intro::IfStatement(t->line,t->pos);
+	.)
+	"if"
+	Expression (. cond=popExpr(); .)
+	"then"
+	Block (. stmt=popStatement(); cs->appendCondition(cond,stmt); .)
+	{
+		"elsif"
+		Expression (. cond=popExpr(); .)
+		"then"
+		Block (. stmt=popStatement(); cs->appendCondition(cond,stmt); .)
+	}
+	[
+		"else" Block (. stmt=popStatement(); cs->setOtherwise(stmt); .)
+	]
+	"end"
+	(.
+		pushStatement(cs);
+	.)
+.
+
+ForIter=
+	(.
+		intro::ForStatement *fs = new intro::ForStatement(t->line,t->pos);
+		loops.push(fs);
+	.)
+	"for"
+	GeneratorStatement (. fs->setGenerators((intro::GeneratorStatement*)popStatement()); .)
+	"do"
+	Block (. fs->setBody((intro::BlockStatement*)popStatement()); .)
+	"done"
+	(.
+		loops.pop();
+		pushStatement(fs);
+	.)
+.
+
+WhileIter=
+	(.
+		intro::WhileStatement *ws = new intro::WhileStatement(t->line,t->pos);
+		loops.push(ws);
+	.)
+	"while"
+	Expression (. ws->setCondition(popExpr()); .)
+	"do"
+	Block (. ws->setBody((intro::BlockStatement*)popStatement()); .)
+	"done"
+	(.
+		loops.pop();
+		pushStatement(ws);
+	.)
+.
+
+Block=
+	(.
+		intro::BlockStatement *bs=new intro::BlockStatement(t->line,t->pos);
+		intro::Statement *stmt;
+	.)
+	
+	// Allow return statement only as last statement in block
+	(	
+		Return ';'
+		(. stmt=popStatement(); bs->appendBody(stmt); .)
+	|
+		NonReturnStatement ';'
+		(. stmt=popStatement(); bs->appendBody(stmt); .)
+		{
+			NonReturnStatement ';'
+			(. stmt=popStatement(); bs->appendBody(stmt); .)
+		}
+		[
+			Return ';'
+			(. stmt=popStatement(); bs->appendBody(stmt); .)
+		]
+	)
+	(. pushStatement(bs); .)
+.
+
+Scope=
+	"begin"
+	Block
+	"end"
+.
+
+Return=
+	"return" 
+	(.
+		intro::Expression *expr=NULL;
+		if (functions.empty()) SemErr(L"Found 'return' statement outside of function body!");
+	.)
+	[ 
+		Expression (. expr=popExpr(); .)
+	]
+	(.
+		pushStatement(new intro::ReturnStatement(t->line,t->pos,expr));
+	.)
+.
+
+Yield=
+	"yield" 
+	(.
+		intro::Expression *expr=NULL;
+		if (functions.empty()) SemErr(L"Found 'return' statement outside of function body.");
+	.)
+	( 
+		Expression (. expr=popExpr(); .)
+	|	"done" // Leave expr on NULL, indicates the generator has generated all values.
+	)
+	(.
+		pushStatement(new intro::YieldStatement(t->line,t->pos,expr));
+	.)
+.
+
+FlowControl=
+	(.
+		bool isContinue=false;
+	.)
+
+	(	"break"
+	|	"continue"
+	)
+	(.
+		if (loops.empty()) 
+		{
+			if (isContinue) SemErr(L"Found 'continue' statement outside of loop body.");
+			else SemErr(L"Found 'break' statement outside of loop body.");
+		}
+	.)
+	.
+
+Source=
+	(. std::wstring path; .)
+	"source" string
+	(.
+		//t->line,t->pos,
+		path.assign(t->val);
+	.)
+.
+
+Import=
+	(. 
+		bool rel=true; 
+		std::list<std::wstring> path; 
+		//std::wstring val;
+		
+	.)
+	"import"
+	[ 
+		"::"  (. rel=false; .)
+	]
+	ident (. path.push_back(t->val); /*val.assign(t->val);*/ .)
+	{ 
+		"::" ident (. path.push_back(t->val); .)
+	}
+	(.
+		pushStatement(new intro::ImportStatement(t->line,t->pos,rel,path));
+	.)
+.
+
+// TBD: Use Blocks instrad of statement lists - 
+// or should branch inherit block to handle additional vars?
+// Maybe best to have a BlockStatement in the case as member.
+CaseBranch<intro::CaseStatement *parent>=
+	(.
+		intro::CaseStatement::Case *branch= new intro::CaseStatement::Case();
+		std::wstring str;
+	.)
+	Identifier<str> // Tag
+	(.
+		branch->tag=str;
+	.)
+	{
+		Identifier<str> // label binder
+		(.
+			branch->params.push_back(str);
+		.)
+	}
+	"then"
+	Block
+	(.
+		branch->body=(intro::BlockStatement*)popStatement();
+		//branch->body.push_back(popStatement());
+	.)
+	(.
+		parent->appendCase(branch);
+	.)
+.
+
+Case=
+	(.
+		intro::CaseStatement *casestmt=new intro::CaseStatement(t->line,t->pos);
+	.)
+	"case" 
+	Expression 
+	(.
+		casestmt->setCaseOfExpr(popExpr());
+	.)
+	"of"
+	CaseBranch<casestmt>
+	{
+		"|" CaseBranch<casestmt>
+	}
+	"end"
+	(.
+		pushStatement(casestmt);
+	.)
+.
+
+/*  Statements are "actions": they do not produce values but cause 
+	change in the environment of perform flow control
+*/
+NonReturnStatement=
+  	( Variable
+  	| Conditional
+  	| Scope
+  	| ForIter
+  	| WhileIter
+//  	| Return
+  	| Yield
+  	| FlowControl
+  	| Source
+  	| Import
+  	| Case
+  	| Expression
+		(.  
+			intro::Statement *stmt;
+			intro::Expression *expr;
+			expr=popExpr(); 
+			stmt=new intro::ExpressionStatement(t->line,t->pos,expr,isInteractive); 
+			pushStatement(stmt); 
+		.)
+  	)
+.
+
+//////////////////////////////////////////////////////////////////////
+// Modules
+//
+
+TypeVariable=
+	typevar 
+	(.
+		types.push(new intro::TypeVariableExpression(t->line,t->pos,t->val));
+	.)
+.
+
+TypeList=
+	(. std::wstring str; intro::TypeExpression *buf; .)
+	"List" '(' Type ')'
+	(.
+		buf=types.top();
+		types.pop();
+		types.push(new intro::TypeListExpression(t->line,t->pos,buf));
+	.)
+.
+
+TypeGenerator=
+	(. std::wstring str; intro::TypeExpression *buf; .)
+	"Generator" '(' Type ')'
+	(.
+		buf=types.top();
+		types.pop();
+		types.push(new intro::TypeGeneratorExpression(t->line,t->pos,buf));
+	.)
+.
+
+TypeDictionary=
+	(. std::wstring str; intro::TypeExpression *buf; .)
+	"Dictionary" 
+	'(' Type 
+	(.
+		buf=types.top();
+		types.pop();
+	.)
+	',' Type 
+	')'
+	(.
+		intro::TypeExpression *buf2=types.top();
+		types.pop();
+		types.push(new intro::TypeDictionaryExpression(t->line,t->pos,buf,buf2));
+	.)
+.
+
+TypeRecord=
+	(. std::wstring str; intro::TypeExpression *buf; .)
+	'['
+	(.	intro::TypeRecordExpression *rec=new intro::TypeRecordExpression(t->line,t->pos);
+	.)
+	{
+		Identifier<str> ':' Type ';'
+		(.
+			buf=types.top();
+			types.pop();
+			rec->addMember(str,buf);
+		.)
+	}
+	']'
+	(. types.push(rec); .)
+.
+
+TypeOpaque=
+	(. std::wstring str; .)
+	Identifier<str>
+	(. 	
+		intro::TypeOpaqueExpression *opaque=new intro::TypeOpaqueExpression(t->line,t->pos,str);
+	.)
+
+	[
+		'('
+		Type (. opaque->addParameter(types.top()); types.pop(); .)
+		{
+			',' Type (. opaque->addParameter(types.top()); types.pop(); .)
+		}
+		')'
+	]
+	(.
+		types.push(opaque);
+	.)
+.
+
+TypeFunction=
+	(. 
+		std::wstring str;
+		intro::TypeFunctionExpression *fun=new intro::TypeFunctionExpression(t->line,t->pos);
+	.)
+	'('
+	[
+		Type (. fun->addParameter(types.top()); types.pop(); .)
+		{ 
+			',' Type (. fun->addParameter(types.top()); types.pop(); .)
+		}
+	]
+	')' 
+	"->" Type 
+	(. 
+		fun->setReturnType(types.top()); 
+		types.pop(); 
+		types.push(fun); .)
+.
+
+
+//TBD:Variant Type
+Type=
+	(. std::wstring str; .)
+	(	"Boolean"	(. types.push(new intro::TypeSimpleExpression(t->line,t->pos,intro::Type::Boolean)); .)
+	|	"Integer"	(. types.push(new intro::TypeSimpleExpression(t->line,t->pos,intro::Type::Integer)); .)
+	|	"Real"		(. types.push(new intro::TypeSimpleExpression(t->line,t->pos,intro::Type::Real)); .)
+	|	"String"	(. types.push(new intro::TypeSimpleExpression(t->line,t->pos,intro::Type::String)); .)
+	|	"Unit"		(. types.push(new intro::TypeSimpleExpression(t->line,t->pos,intro::Type::Unit)); .)
+	|	TypeList
+	|	TypeGenerator
+	|	TypeDictionary
+	|	TypeRecord
+	|	TypeOpaque
+	|	TypeVariable
+	|	TypeFunction
+	)
+.
+
+ExportedName=
+	(.
+		std::wstring str;
+	.)
+	Identifier<str> 
+	(. int line=t->line,pos=t->pos; .)
+	':'	
+	Type
+	(.
+		intro::TypeExpression *buf=types.top();
+		types.pop();
+		modules.top()->addExport(line,pos,str,buf);
+	.)	
+.
+
+AbstractType=
+	(.
+		std::wstring str,name;
+		std::list<intro::TypeExpression*> parameters;
+	.)
+	"type"
+	Identifier<name>
+	(. 	
+		int line=t->line,pos=t->pos;
+	.)
+	[
+		'('
+		TypeVariable
+		(.
+			parameters.push_back(types.top());
+			types.pop();
+		.)
+		{
+			',' TypeVariable
+			(.
+				parameters.push_back(types.top());
+				types.pop();
+			.)
+		}
+		')'
+	]
+	(.
+		modules.top()->addOpaque(line,pos,name,parameters);
+	.)
+.
+
+Module=
+	(.
+		std::wstring name;
+		bool rel=true; 
+		std::list<std::wstring> path; 
+	.)
+	"module" 
+	[ 
+		"::"  (. rel=false; .)
+	]
+	ident (. path.push_back(t->val); .)
+	{ 
+		"::" ident (. path.push_back(t->val); .)
+	}
+	(.
+		intro::ModuleStatement *module=new intro::ModuleStatement(t->line,t->pos,rel,path);
+		modules.push(module);
+	.)
+	"exports"
+	{
+		(. clearTypeVariables(); .)
+		(	ExportedName
+		|	AbstractType
+		) ';'
+	}
+	"from"
+	{
+		NonReturnStatement
+		(.
+			intro::Statement *s=popStatement();
+			module->addContent(s);
+		.)
+		';'
+	|	Module '.'
+		(.
+			module->addModule(modules.top());
+			modules.pop();
+		.)
+	}
+	"end" 
+.
+
+//////////////////////////////////////////////////////////////////////
+// Entry Point for the language
+//
+
+Intro=
+	(.
+		// Make sure we can do a lot of work before having to reallocate space for stacks. 
+		exprstack.reserve(30); 
+		statementstack.reserve(30); 
+	.)
+	(
+		NonReturnStatement
+		(.
+			intro::Statement *s=popStatement();
+			if (s!=NULL)
+			{
+				// if interactive, execute statement, otherwise queue. 
+				if (isInteractive)
+					executeStmt(s);
+				else parseResult.push_back(s);			
+			}
+		.)
+		';'
+	|	Module
+		(.
+			intro::ModuleStatement *mod=modules.top(); modules.pop();
+			//if (mod->makeType(getEnv()))
+			//	mod->print(std::wcout);
+			if (isInteractive)
+			{
+				// process parse result, then pop front;
+			}
+			else parseResult.push_back(mod);	
+		.)
+		'.'
+	)
+	{ 
+		NonReturnStatement
+		(.
+			intro::Statement *s=popStatement();
+			if (s!=NULL)
+			{
+				// if interactive, execute statement, otherwise queue. 
+				if (isInteractive)
+					executeStmt(s);
+				else parseResult.push_back(s);
+			}
+		.)
+		';'
+	|	Module
+		(.
+			intro::ModuleStatement *mod=modules.top(); modules.pop();
+			//if (mod->makeType(getEnv()))
+			//	mod->print(std::wcout);
+			printf("push result\n");
+			if (isInteractive)
+			{
+				// process parse result, then pop front;
+			}
+			else parseResult.push_back(mod);
+		.)
+		'.'
+	}
+.
+
+END Intro.
