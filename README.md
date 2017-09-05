@@ -32,7 +32,7 @@ That said, only the core trait of inheritance cannot be emulated,
 as higher order functions with closures can be placed in records
 and records are structurally subtyped.
 
-# Super hort quick start guide
+# Super short quick start guide
 
 All statements are terminated by a semicolon (except modules, but those are not implemented yet).
 Single line comments begin with a pound sign (hastag) #
