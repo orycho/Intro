@@ -14,7 +14,7 @@ tested with
 * MSVC 2015: use solution file
 * cygwin gcc: use makefile
 
-Requires LLVM installed, check the solutions path under windows to make sure it points the right way.
+Requires LLVM 4 installed, check the solutions path under windows to make sure it points the right way.
 Building tests requires google-test installed - MSVC will try to build tests by default. Again, check project directories.
 
 # Main Features (as of V0.1):
