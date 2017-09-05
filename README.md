@@ -73,7 +73,6 @@ Variables must always be initialized explicitely when defined: var x<-3; var f<-
 * Some syntax sugar is provided for declarations of variables with function types, remofing the "<-fun":
 var line(slope,offset)->return fun(x)->return slope*x+offset; end; end;
 * Conditions use the common if...then...else with the last branch ending with an end, additional conditions use the single word eslif
-
 if x==1 then # do someting
 
 elsif x==2 then # do something else
@@ -83,7 +82,11 @@ else #give up
 end;
 
 if error then # panic
+
 end;
+* while loops: while condition do bla done;
+* for loops
+* case statements
 
 Generators Statements: 
 soon... see cheatsheat in docs
