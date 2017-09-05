@@ -9,7 +9,15 @@ This is version 0.1 and a few things are still missing:
 * generated code leaks memory
 * standard library, I/O especially
 
-Main Features (as of V0.1):
+# Building the source
+tested with 
+* MSVC 2015: use solution file
+* cygwin gcc: use makefile
+
+Requires LLVM installed, check the solutions path under windows to make sure it points the right way.
+Building tests requires google-test installed - MSVC will try to build tests by default. Again, check project directories.
+
+# Main Features (as of V0.1):
 * Small language focusing on fundamental programming language concepts, with syntax hopefully promoting readable code
 * Strict static typing based on type inference (Hindley-Milner with Records and Subtyping a.k.a F1sub)
 * Higher order functions and parametric polymorphism
