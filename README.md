@@ -78,7 +78,7 @@ Statements (must end with a semicolon):
 * Every expression is a statement.
 * variable definitions are "var" followed by an identifier followed by "<-" followed by an initializer expression.
 Variables must always be initialized explicitely when defined: var x<-3; var f<-fun(a,b)->return a*a+b*b; end;
-* Some syntax sugar is provided for declarations of variables with function types, remofing the "<-fun":
+* Some syntax sugar is provided for declarations of variables with function types, removing the "<-fun":
 var line(slope,offset)->return fun(x)->return slope*x+offset; end; end;
 * Conditions use the common if...then...else with the last branch ending with an end, additional conditions use the single word eslif
 if x==1 then # do someting
