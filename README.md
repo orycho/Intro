@@ -45,64 +45,63 @@ Multiline comments are like in C, from  /* to */
 All values in Intro are just written out, each built in type has distinct syntax.
 
 Simple types:
-* Booleans can be: true, false
-* Strings are in quotes: "some string", "abc"
-* Integers consist of only digits: 0, 123, 400246
-* Reals have at least one dot between digits: .0, 1.23, 2360897.
+* Booleans can be: <pre>true, false</pre>
+* Strings are in quotes: <pre>"some string", "abc"</pre>
+* Integers consist of only digits: <pre>0, 123, 400246</pre>
+* Reals have at least one dot between digits: <pre>.0, 1.23, 2360897.</pre>
 
 Compound types:
 * Functions begin with the keyword "fun" followed by a list of comma separated identifiers in parentheses (parameters)
-followed by "->" and the body. They must end on a return or return  like statement, and are terminated with the keyword end:
-fun(a,b,x)->return a*x+b; end
+followed by <pre>-></pre> and the body. They must end on a return or return  like statement, and are terminated with the keyword end:
+<pre>fun(a,b,x)->return a*x+b; end</pre>
 * Functions never have names, no matter the syntax sugar.
-* a function (e.g. from a variable) is called by following the function with the parameters as comma separated expressions in parentheses. The correct number of parameters and their types, as wel as the return type, are specified by the functions type.: sin(2*pi), foo(1-a,1/a)
-* Lists are curly brackets containing comma separated elements which must have the same type: { 1,2,3 }, {"a","foo","gurgle"}
-* Dictionaries are like lists, but contain key-value pairs connected with a => (all keys must be of the same type and all values as well): { 1=>"a",2=>"b",3=>"c" }
-* Dictionary lookup uses the [] operator which returns a maybe variant on lookup: d["a"]. Can also be used for assignment
-d["x"]<-6;
-* Elements can be remoced from dictionaries using the "\" operator (backslash), it can be chained: d\"a"\"b"
+* a function (e.g. from a variable) is called by following the function with the parameters as comma separated expressions in parentheses. The correct number of parameters and their types, as wel as the return type, are specified by the functions type.: <pre>sin(2*pi)
+foo(1-a,1/a)</pre>
+* Lists are curly brackets containing comma separated elements which must have the same type: <pre>{ 1,2,3 }, {"a","foo","gurgle"}</pre>
+* Dictionaries are like lists, but contain key-value pairs connected with a => (all keys must be of the same type and all values as well): <pre>{ 1=>"a",2=>"b",3=>"c" }</pre>
+* Dictionary lookup uses the [] operator which returns a maybe variant on lookup: <pre>d["a"]</pre> Can also be used for assignment
+<pre>d["x"]<-6;</pre>
+* Elements can be remoced from dictionaries using the "\" operator (backslash), it can be chained: <pre>d\"a"\"b"</pre>
 * lists and dictionaries may also have one expression for element or key-value pair, followed by a pipe 
 symbol | and a generator statement. See below
 * Records contain an arbitrar number of fields, which are labeled by an identifier. Fields may have distinct types.
 The records consists of square brackets with semicolon terminated field assignments identifier <- Expression; e.g.
-[ x<-1; y<-2; active<-false; name<-"foobar";]
+<pre>[ x<-1; y<-2; active<-false; name<-"foobar";]</pre>
 * Record elements can be accessed by label with the . operator
-* Variants are written like records, but the begin with a colon and an identifier: [:Vec2 x<-1; y<-2;]
-* The dot oprator does not work on variants, instead the case statemetn must be used.
+* Variants are written like records, but the begin with a colon and an identifier: <pre>[:Vec2 x<-1; y<-2;]</pre>
+* The dot oprator does not work on variants, instead the case statement must be used.
 * Generators look like functions, but instead of return they use the keyword yield. Repeated applications of a generator
 continue after the last executed yield statement, unless it is a "yield done". Generators can only be used in generator statements:
-fun(a,b,c)->yield a; yield b; yield c; yield done; end;
+<pre>fun(a,b,c)->yield a; yield b; yield c; yield done; end;</pre>
 * Lists, dictionaries and strings are all generators that range over the contents of the value. For lists, the elements, for strings the characters, and for dictionaries records with labels key and value with the contents accordingly.
 
 The maybe variant hsa type {[:None]+[:Some value:?Key]}.
 
 Other expressions:
-* Arithmetic (integer and real): +,*,-,/,%
-* boolean: and, or, xor, not
-* compares: ==, != (all types) and >, <, >=, <= (only string, integer, real)
-* list and string splice: l[1:last] (new list without the first element)
+* Arithmetic (integer and real): <pre>+,*,-,/,%</pre>
+* boolean: <pre>and, or, xor, not</pre>
+* compares: <pre>==, !=</pre> (all types) and <pre>>, <, >=, <=</pre> (only string, integer, real)
+* list and string splice: <pre>l[1:last]</pre> (new list without the first element)
 
 Statements (must end with a semicolon):
 * Every expression is a statement. No other statements return values.
 * variable definitions are "var" followed by an identifier followed by "<-" followed by an initializer expression.
-Variables must always be initialized explicitely when defined: var x<-3; var f<-fun(a,b)->return a*a+b*b; end;
+Variables must always be initialized explicitely when defined: 
+<pre>var x<-3; 
+var f<-fun(a,b)->return a*a+b*b; end;</pre>
 * Some syntax sugar is provided for declarations of variables with function types, removing the "<-fun":
-var line(slope,offset)->return fun(x)->return slope*x+offset; end; end;
-* Conditions use the common if...then...else with the last branch ending with an end, additional conditions use the single word elsif
-
+<pre>var line(slope,offset)->return fun(x)->return slope*x+offset; end; end;</pre>
+* Conditions use the common if...then...else with the last branch ending with an end, additional conditions use the single word elsif:
+<pre>
 if x==1 then # do someting
-
 elsif x==2 then # do something else
-
 else #give up
-
 end;
-
 
 if error then # panic
-
 end;
-* while loops: while condition do work(); morework(); done;
+</pre>
+* while loops: <pre>while condition do work(); morework(); done;<pre>
 * for loops: are basically a wrapper for generator statements and will be discussed there
 * case statements are conditionals that branch not on a boolean condition, but on variant tags. The keyword case
 is followed by an expression that must be a variant, and the word "of".
@@ -110,10 +109,10 @@ Each branch begins with a tag and is followed by labels that must exist in the v
 (otherwise there will be a type error). Those labels are bound to the corresponding fields in the variant. 
 After the tag and labels comes the word "then", followed by the branche's statements. 
 The branches are separated by pipe symbols "|":
-case variantExpr of 
+<pre>case variantExpr of 
 A x then return x; 
 | B a b then return a+b; 
-end;
+end;</pre>
 
 Generators Statements: 
 Generators can only be used in these statemens, which are actually always part of another construct: 
@@ -121,38 +120,71 @@ in list or dictionary expressions, they provide the values that are turned into 
 The for statements just combines a generator statements with a list of statemetns that operate on each set of values generated.
 
 Generator statements consist of statements that bind a variable (name) to a generator's result valeues using the infix keyword "in":
-* x in somelist
-* char in string
+* <pre>x in somelist</pre>
+* <pre>char in string</pre>
 
 Special syntax sugar is provided for generating integer values:
 x from startvalue to endvalue by stepvalue
 Where s ranges from start value to at most endvalue and is incremented by stepvalue. Stepvalue is optional and defaults to one,
 e.g. to generate all values from 1 to 10:
-x from 1 to 10
+<pre>x from 1 to 10</pre>
 
 Multiple values can be generated in one staement, each additional value begins with the operator "&&", and generator
 applications (maybe better instantiation) can use the variables introduced to their left:
 
-x from 1 to 10 && y from x to 10 && z from y to 10
+<pre>x from 1 to 10 && y from x to 10 && z from y to 10</pre>
 
 A generator value is moved to the next every time the generator to the left (if there) has cmopleted a full cycle.
 So the above example generates x=1, y=1, z=1, then z=2 and so on. Once z is 10, y is increased then z is reset to the new y.
 It is probably easiest to type it into the repl as a list to see the result:
 
-{ {a<-x; b<-y; c<-z;] | x from 1 to 10 && y from x to 10 && z from y to 10};
+<pre>{ {a<-x; b<-y; c<-z;] | x from 1 to 10 && y from x to 10 && z from y to 10};</pre>
 
 Finally, anywhere after the first generator binding conditions can be introduced by the operator "??", and it can use all
 generator values defined to their left. Any value combination for which the condition is false will be skipped, which
 includes any generators to the right. So here is a list of right triangles, without isomorphism and with the hypothenuse
 always in c (in the records in the resulting list):
 
-{ [a<-x; b<-y; c<-z;] | x from 1 to 10 && y from x to 10 && z from y to 10 ?? x * x + y * y == z * z};
+<pre>{ [a<-x; b<-y; c<-z;] | x from 1 to 10 && y from x to 10 && z from y to 10 ?? x * x + y * y == z * z};</pre>
 
+The for statement consists of the word "for" followed by a generator statement followed by "do", then a list of statements
+that will be executed for each group of values generated, and then the keyword "done":
+<pre>for x in somelist do process(x); done;</pre>
 
 Modules
 
 Are not implemented yet!
 
+# Example Session
+
+<pre>
+$ build/intro.exe
+> var triple(x,y,z)->return [a<-x;b<-y;c<-z;]; end;
+triple:(?T2<:Top,?T3<:Top,?T4<:Top) -> [ a : ?T2<:Top; b : ?T3<:Top; c : ?T4<:Top; ]
+> var cond(a,b,c)->return a*a+b*b==c*c; end;
+cond:(?asup<:Number,?asup<:Number,?asup<:Number) -> Boolean
+> var l<-{triple(a,b,c)|a from 1 to 10 && b from a to 10 && c from b to 10 ?? cond(a,b,c) };
+l:List([ a : Integer; b : Integer; c : Integer; ])
+> l;
+ = {[ a<-3; b<-4; c<-5; ], [ a<-6; b<-8; c<-10; ]}
+> var f(a)-> case a of A x then return x; | B a b then return a+b; end; end;
+f:(?T25sup<:{ [ :A x : ?asupsubst<:Number; ] + [ :B a : ?asupsubst<:Number; b : ?asupsubst<:Number; ]}) -> ?asup<:Number
+> f([:A x<-3;]);
+ = 3
+> f([:B a<-3; b<-4;]);
+ = 7
+> var append(s1,s2)->for x in s1 do yield x; done; for x in s2 do yield x; done; yield done; end;
+append:(?T36sup<:Generator(?T35subst<:Top),?T38sup<:Generator(?T37subst<:Top)) -> Generator(?T35<:Top)
+> {x | x in append("Hello ","World")};
+ = {H, e, l, l, o,  , W, o, r, l, d}
+> var d<-{"a"=>1, "b"=>2, "c"=>3, "d"=>4};
+d:Dictionary(String,Integer)
+> d["x"]<-20;
+ = 20
+> "d is ${d}";
+ = d is {d=>4, x=>20, c=>3, a=>1, b=>2}
+>
+</pre>
 
 Questions for Ory:
 * Does case allow mutating a variant? could be useful
