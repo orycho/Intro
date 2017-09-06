@@ -54,7 +54,7 @@ Compound types:
 * Functions begin with the keyword "fun" followed by a list of comma separated identifiers in parentheses (parameters)
 followed by "->" and the body. They must end on a return or return  like statement, and are terminated with the keyword end:
 fun(a,b,x)->return a*x+b; end
-* Functions never have names, no matter the syntax suger.
+* Functions never have names, no matter the syntax sugar.
 * a function (e.g. from a variable) is called by following the function with the parameters as comma separated expressions in parentheses. The correct number of parameters and their types, as wel as the return type, are specified by the functions type.: sin(2*pi), foo(1-a,1/a)
 * Lists are curly brackets containing comma separated elements which must have the same type: { 1,2,3 }, {"a","foo","gurgle"}
 * Dictionaries are like lists, but contain key-value pairs connected with a => (all keys must be of the same type and all values as well): { 1=>"a",2=>"b",3=>"c" }
