@@ -60,6 +60,7 @@ fun(a,b,x)->return a*x+b; end
 * Dictionaries are like lists, but contain key-value pairs connected with a => (all keys must be of the same type and all values as well): { 1=>"a",2=>"b",3=>"c" }
 * Dictionary lookup uses the [] operator which returns a maybe variant on lookup: d["a"]. Can also be used for assignment
 d["x"]<-6;
+* Elements can be remoced from dictionaries using the "\" operator (backslash), it can be chained: d\"a"\"b"
 * lists and dictionaries may also have one expression for element or key-value pair, followed by a pipe 
 symbol | and a generator statement. See below
 * Records contain an arbitrar number of fields, which are labeled by an identifier. Fields may have distinct types.
