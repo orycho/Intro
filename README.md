@@ -2,7 +2,7 @@
 Intro is a programming language intended to be easy to learn. It is a script language, 
 and like most such languages it provides a read-eval-print loop. (Currenly the only way to produce output.)
 
-It is also supposed to be a useful language throughout a programmers career.
+It is also supposed to be a useful language throughout a programmer's career.
 
 This is version 0.1 and a few things are still missing:
 * Modules
