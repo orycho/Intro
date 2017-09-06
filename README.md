@@ -120,7 +120,7 @@ Generators can only be used in these statemens, which are actually always part o
 in list or dictionary expressions, they provide the values that are turned into the contents of the containers.
 The for statements just combines a generator statements with a list of statemetns that operate on each set of values generated.
 
-Generator statemetns consist of statements that bind a variable (name) to a generator's result valeues using the infix keyword "in":
+Generator statements consist of statements that bind a variable (name) to a generator's result valeues using the infix keyword "in":
 * x in somelist
 * char in string
 
