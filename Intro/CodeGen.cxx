@@ -368,10 +368,8 @@ namespace intro {
 		else if (!ExprSymbol.getAddress()) printf("ExprSymbol has no address!\n");
 		else 
 		{
-std::wcout << L"call root function...\n";
 			void(*FP)()=(void(*)())(intptr_t)ExprSymbol.getAddress();
 			FP();
-std::wcout << L"root function finished...\n";
 		}
 	}
 	
@@ -1821,14 +1819,14 @@ std::wcout << L"root function finished...\n";
 	{
 		Expression::cgvalue val=expr->codeGen(TmpB,env);
 		// In interactive mode, we print the result
-		if (isInteractive && env->isGlobal() && expr->getType()->getKind()!=Type::Unit)
+		if (isInteractive && env->isGlobal() && expr->getType()->getKind() != Type::Unit)
 		{
 			// Allocate a string
 			llvm::Function *allocStringF = TheModule->getFunction("allocString");
-			llvm::Value *argsAlloc[]={ llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), 0,true) };
-			llvm::Value *theStr=TmpB.CreateCall(allocStringF, argsAlloc, "valstr");
+			llvm::Value *argsAlloc[] = { llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), 0,true) };
+			llvm::Value *theStr = TmpB.CreateCall(allocStringF, argsAlloc, "valstr");
 			// Serialize value into it
-			llvm::Value *argsToStr[]=
+			llvm::Value *argsToStr[] =
 			{
 				theStr,
 				val.first,
@@ -1837,14 +1835,13 @@ std::wcout << L"root function finished...\n";
 			llvm::Function *toStringF = TheModule->getFunction("toStringPoly");
 			TmpB.CreateCall(toStringF, argsToStr);
 			// Print the result
-			llvm::Value *argsPrint[] = {theStr };
+			llvm::Value *argsPrint[] = { theStr };
 			llvm::Function *subF = TheModule->getFunction("print");
 			TmpB.CreateCall(subF, argsPrint);
-			llvm::Value *argsDecr[] = {theStr, llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), rtt::String,true) };
+			llvm::Value *argsDecr[] = { theStr, llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext), rtt::String,false) };
 			// Then get rid of the allocated buffer again...
 			subF = TheModule->getFunction("decrement");
 			TmpB.CreateCall(subF, argsDecr);
-			
 		}
 		return true;
 	}
