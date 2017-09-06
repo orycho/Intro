@@ -146,7 +146,7 @@ generator values defined to their left. Any value combination for which the cond
 includes any generators to the right. So here is a list of right triangles, without isomorphism and with the hypothenuse
 always in c (in the records in the resulting list):
 
-{ {a<-x; b<-y; c<-z;] | x from 1 to 10 && y from x to 10 && z from y to 10 ?? x * x + y * y == z * z};
+{ [a<-x; b<-y; c<-z;] | x from 1 to 10 && y from x to 10 && z from y to 10 ?? x * x + y * y == z * z};
 
 
 Modules
