@@ -93,7 +93,7 @@ $(TARGETDIR):
 test : $(TARGETDIR) test_$(BIN)
 
 test_$(BIN): $(TESTOBJ)
-	$(CC) -o $(TARGETDIR)/test_$(BIN) $(TESTOBJ) $(LLFLAGS) -lgtest
+	$(CC) -o $(TARGETDIR)/test_$(BIN) $(TESTOBJ) $(LLFLAGS) -lgtest -lpthread
 
 
 ## Clean up just removes the build dir
