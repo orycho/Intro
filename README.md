@@ -61,7 +61,7 @@ foo(1-a,1/a)</pre>
 * Dictionaries are like lists, but contain key-value pairs connected with a => (all keys must be of the same type and all values as well): <pre>{ 1=>"a",2=>"b",3=>"c" }</pre>
 * Dictionary lookup uses the [] operator which returns a maybe variant on lookup: <pre>d["a"]</pre> Can also be used for assignment
 <pre>d["x"]<-6;</pre>
-* Elements can be remoced from dictionaries using the "\" operator (backslash), it can be chained: <pre>d\"a"\"b"</pre>
+* Elements can be remoced from dictionaries using the "\\" operator (backslash), it can be chained: <pre>d\\"a"\\"b"</pre>
 * lists and dictionaries may also have one expression for element or key-value pair, followed by a pipe 
 symbol | and a generator statement. See below
 * Records contain an arbitrar number of fields, which are labeled by an identifier. Fields may have distinct types.
