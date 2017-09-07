@@ -237,7 +237,7 @@ namespace intro {
 		if (relative&&path.empty())
 		{
 			t=env->get(name);
-			if (t!=NULL) original=t->copy();
+			//if (t!=NULL) original=t->copy();
 		} 
 		else
 		{
@@ -466,6 +466,7 @@ std::wcout << L"\n";
 		Type *ret=NULL;
 		std::list<Type*> pin;
 		VariableSet free,bound;
+		// TBD: supertype as member in class
 		ret=new Type(Type::Sequence);
 		ret->addParameter(Environment::fresh());
 		TypeVariable *tv=Environment::fresh(ret);
@@ -531,10 +532,9 @@ std::wcout << L"\n";
 	{
 		// Get the type of the funtion valled
 		std::list<Type*> pin;
-		myTypeParam=new Type(Type::Boolean);
-		pin.push_back(myTypeParam);
-		pin.push_back(myTypeParam);
-		myType=new FunctionType(pin,myTypeParam);
+		pin.push_back(&boolean);
+		pin.push_back(&boolean);
+		myType=new FunctionType(pin, &boolean);
 		return myType;
 	}
 
@@ -543,7 +543,6 @@ std::wcout << L"\n";
 		// Get the type of the funtion valled
 		std::list<Type*> pin;
 		Type *oper;
-		Type comparable(Type::Comparable);
 		if (op==Equal || op==Different) oper=Environment::fresh(L"?a");
 		else oper=Environment::fresh(L"?a",&comparable);
 		pin.push_back(oper);
@@ -558,8 +557,10 @@ std::wcout << L"\n";
 		// Get the type of the funtion valled
 		std::list<Type*> pin;
 		// Variables will be handled elsewhere, deletion wise.
-		Type number(Type::Number);
+		//Type number(Type::Number);
 		Type *oper=Environment::fresh(L"?a",&number);
+		// TBD: supertype as member in class
+		//Type *oper = Environment::fresh(L"?a", new Type(Type::Number));
 		pin.push_back(oper);
 		pin.push_back(oper);
 		myType=new FunctionType(pin,oper);

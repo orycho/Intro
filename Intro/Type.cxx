@@ -52,7 +52,7 @@ void combinePartialOrders(PartialOrder &accu, PartialOrder additional)
 
 Type::~Type()
 {
-	if (super != this && super != nullptr) deleteCopy(super);
+	//if (super != this && super != nullptr) deleteCopy(super);
 	if (getKind()!=Variable) 
 		TypeGraph::clearMapping(currentMapping, excludeMapping);
 	params.clear();
@@ -695,8 +695,11 @@ Type *TypeVariable::internalCopy(TypeVariableMap &conv)
 	if (iter==conv.end()) 
 	{
 		//TypeVariable *buf=Environment::fresh(numToString(variableCounter++),getSupertype()->substitute(conv));
-		//TypeVariable *buf=Environment::fresh(getName(),getSupertype()->substitute(conv));
-		TypeVariable *buf = Environment::fresh(getName(), getSupertype(),conv);
+		Type *copy = getSupertype()->substitute(conv);
+		//if (copy->getKind() != Type::Variable)
+		//	ownedtypes.push_back(copy);
+		TypeVariable *buf=Environment::fresh(getName(),copy);
+		//TypeVariable *buf = Environment::fresh(getName(), getSupertype(),conv);
 		buf->setAccessFlags(getAccessFlags());
 		iter=conv.insert(std::make_pair(this,buf)).first;
 	}

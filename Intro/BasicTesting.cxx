@@ -892,7 +892,7 @@ bool arithFunctionCodeGen(void)
 bool polyFunctionCodeGen(void)
 {
 	cout << "\n---\nPolymorphic Function Code Generation:\n";
-	const char *test=" var neg(x)->return -x; end; #var line(slope,offset,x)->return slope*x+offset; end;";
+	const char *test = "var ni<--1; var neg(x)->return -x; end; #var line(slope,offset,x)->return slope*x+offset; end;";
 	//parse::Parser parser=getParser(test);
 	cout << test << endl << endl;
 	parse::Scanner scanner((const unsigned char *)test, strlen(test));
@@ -1186,7 +1186,7 @@ bool filterCodeGen(void)
 bool typeTests(void)
 {
 	cout << "\n\tType Tests:\n";
-/*	literalTyping();
+	literalTyping();
 	expressionTyping();
 	comparisonTyping();
 	recComparisonTyping();
@@ -1200,63 +1200,65 @@ bool typeTests(void)
 	errorFunctionTypying();
 	sequenceTyping();
 	listTyping();
-*/	//recListSpliceTyping();
-	//listsAndGenerator();
-	//listsAndGeneratorRefactor();
-	//listsOfRightTriangles();
-	//forAndUpdateTyping();
-	//whileTyping();
-	//BasicRecordTyping();
-	//NestedRecordTyping();
-	//FunctionReturnsRecord();
-	//InferRecordParameter();
-	//VariantTyping();
-	//VariantParameterTyping();
-	//GeneratorDefinition();
-	//basicDictonary();	
-	//supertypeRecordMerging();
-	//containerGenList();
-	//containerGenDict();
-	//emptyDictTyping();
-	//complexDictGenFor();
-	//alternateInvertTest();
-	//basicModule();
-//	freeVariableDetection();
+	recListSpliceTyping();
+	listsAndGenerator();
+	listsAndGeneratorRefactor();
+	listsOfRightTriangles();
+	forAndUpdateTyping();
+	whileTyping();
+	BasicRecordTyping();
+	NestedRecordTyping();
+	FunctionReturnsRecord();
+	InferRecordParameter();
+	VariantTyping();
+	VariantParameterTyping();
+	GeneratorDefinition();
+	basicDictonary();	
+	supertypeRecordMerging();
+	containerGenList();
+	containerGenDict();
+	emptyDictTyping();
+	complexDictGenFor();
+	alternateInvertTest();
+	basicModule();
+	freeVariableDetection();
 	return true;
 }
 
 // Execute all code generation tests
 bool codeGenTests(void)
 {
-	constantExpressionCodeGen();
-	//globalVariablesCodeGen();
-	//stringLiteralsCodeGen();
-	//stringInterpolationCodeGen();
-	//basicFunctionCodeGen();
-	//arithFunctionCodeGen();
+//	constantExpressionCodeGen();
+//	globalVariablesCodeGen();
+//	stringLiteralsCodeGen();
+//	stringInterpolationCodeGen();
+//	basicFunctionCodeGen();
+//	arithFunctionCodeGen();
 	polyFunctionCodeGen();
+/*
+	polyClosureCodeGen();
+	recordCodeGen();
+	variantCodeGen();
+	basicCompareCodeGen();
+	polyCompareCodeGen();
+	basicListCodeGen();
+	genListCodeGen();
+	emptyGeneratorCodeGen();
+	simpleGeneratorCodeGen();
+	complexGeneratorCodeGen();
+	elementCountCodeGen();
+	conditionGeneratorCodeGen();
+	retLikeCodeGen();
+	variantsUseCodeGen();
+	filterCodeGen();
+*/
 
-	//polyClosureCodeGen();
-	//recordCodeGen();
-	//variantCodeGen();
-	//basicCompareCodeGen();
-	//polyCompareCodeGen();
-	//basicListCodeGen();
-	//genListCodeGen();
-	//emptyGeneratorCodeGen();
-	//simpleGeneratorCodeGen();
-	//complexGeneratorCodeGen();
-	//elementCountCodeGen();
-	//conditionGeneratorCodeGen();
-	//retLikeCodeGen();
-	//variantsUseCodeGen();
-	//filterCodeGen();
 	return true;
 }
 
 void runBasicTests(void)
 {
 	//checkSubtypeEnum();
-	typeTests();
+	//typeTests();
 	codeGenTests();
 }

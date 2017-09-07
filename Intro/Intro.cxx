@@ -74,7 +74,8 @@ int main(int argc, char *argv[])
 			parse::Parser parser(&scanner);
 			parser.isInteractive=true;
 			parser.Parse();
-		} 
+			parser.deleteStatements();
+		}
 		else // Run script
 		{
 			intro::initModule();
@@ -94,7 +95,12 @@ int main(int argc, char *argv[])
 				for (auto iter = parser.parseResult.begin();isOK && iter != parser.parseResult.end();iter++)
 				{
 					isOK = (*iter)->makeType(&global);
-					//(*iter)->print(std::wcout);
+					if (!isOK)
+					{
+						std::wcout << L"Error in line:\n";
+						(*iter)->print(std::wcout);
+						std::wcout << L"\n";
+					}
 				}
 				if (isOK)
 					runStatements(parser.parseResult);

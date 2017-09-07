@@ -346,7 +346,7 @@ private:
 	std::wstring name;
 	int modifiers;
 	bool relative;
-	Type *original; ///< Type loaded from env can differ from type after unification (subtyping), necessitating coercion
+	//Type *original; ///< Type loaded from env can differ from type after unification (subtyping), necessitating coercion
 
 protected:
 	virtual Type *makeType(Environment *env);
@@ -357,13 +357,13 @@ public:
 		, name(name_)
 		, modifiers(mod)
 		, relative(rel)
-		, original(nullptr)
+		//, original(nullptr)
 	{
 	};
 
 	~Variable()
 	{
-		if (original != nullptr) deleteCopy(original);
+		//if (original != nullptr) deleteCopy(original);
 	}
 	const std::wstring &getName(void) { return name; };
 	virtual void print(std::wostream &s);
@@ -689,20 +689,19 @@ public:
 protected:
 	OpType op;
 	FunctionType *myType;
-	Type *myTypeParam;
+	Type boolean;
 	virtual Type *getCalledFunctionType(Environment *);
 public:
 	BooleanBinary(int l,int p,OpType optype,Expression *op1,Expression *op2) 
 		: BinaryOperation(l,p,op1,op2)
 		, op(optype)
 		, myType(NULL)
-		, myTypeParam(NULL)
+		, boolean(Type::Boolean)
 	{};
 
 	virtual ~BooleanBinary()
 	{
 		if (myType!=NULL) delete myType; 
-		if (myTypeParam!=NULL) delete myTypeParam;
 	};
 	inline OpType getOperation(void) { return op; };
 	virtual void print(std::wostream &s);
@@ -727,6 +726,7 @@ protected:
 	OpType op;
 	FunctionType *myType;
 	Type *myTypeParam;
+	Type comparable;
 	virtual Type *getCalledFunctionType(Environment *);
 public:
 	CompareOperation(int l,int p,OpType optype,Expression *op1,Expression *op2) 
@@ -734,6 +734,7 @@ public:
 		, op(optype)
 		, myType(NULL)
 		, myTypeParam(NULL)
+		, comparable(Type::Comparable)
 	{};
 
 	virtual ~CompareOperation(void)
@@ -786,6 +787,7 @@ protected:
 	OpType op;
 	FunctionType *myType;
 	Type *myTypeParam;
+	Type number;
 	virtual Type *getCalledFunctionType(Environment *);
 public:
 	ArithmeticBinary(int l,int p,OpType optype,Expression *op1,Expression *op2) 
@@ -793,6 +795,7 @@ public:
 		, op(optype)
 		, myType(NULL)
 		, myTypeParam(NULL)
+		, number(Type::Number)
 	{ };
 
 	virtual ~ArithmeticBinary(void)

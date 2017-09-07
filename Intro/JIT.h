@@ -121,6 +121,7 @@ private:
 		auto FPM = llvm::make_unique<llvm::legacy::FunctionPassManager>(M.get());
 
 		// Add some optimizations.
+		FPM->add(llvm::createVerifierPass());
 		FPM->add(llvm::createPromoteMemoryToRegisterPass());
 		FPM->add(llvm::createInstructionCombiningPass());
 		FPM->add(llvm::createReassociatePass());
@@ -128,7 +129,6 @@ private:
 		//FPM->add(llvm::createGVNPass());
 		//FPM->add(llvm::createDeadCodeEliminationPass());
 		FPM->add(llvm::createCFGSimplificationPass());
-		FPM->add(llvm::createVerifierPass());
 		FPM->doInitialization();
 
 		// Run the optimizations over all functions in the module being added to
@@ -137,6 +137,7 @@ private:
 		{
 			FPM->run(F);
 		}
+		//M->dump();
 		return M;
 	}
 	

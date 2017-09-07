@@ -156,6 +156,7 @@ class ContainerGen : public Generator
 	Expression *container;
 	Type *mytype;
 	Type *source_type;
+	Type gentype;
 	Expression::cgvalue rawcontval;
 	Expression::cgvalue generator;
 public:
@@ -165,6 +166,7 @@ public:
 		, container(cont)
 		, mytype(nullptr)
 		, source_type(nullptr)
+		, gentype(Type::Generator)
 	{
 	};
 
@@ -183,8 +185,11 @@ public:
 	{
 		Type *t=container->getType(env)->find();
 		// The variable name in the next line is for an intermediate, and must not clash with previous one?!
-		Type gentype(Type::Generator, env->put(getVariableName()));
+		//Type gentype(Type::Generator, env->put(getVariableName()));
+		//gentype.replaceSupertype(env->put(getVariableName()));
+		gentype.addParameter(env->put(getVariableName()));
 		mytype=Environment::fresh(&gentype);
+		//mytype = Environment::fresh(new Type(Type::Generator, env->put(getVariableName())));
 		source_type=t->copy();
 		if (!t->unify(mytype)) // Make sure we can view the child expr type as a generator type
 		{

@@ -230,9 +230,10 @@ public:
 	/// Assign a new (usually more restrictive) supertype to the type.
 	inline void replaceSupertype(Type *t)
 	{
-		if (super != this) deleteCopy(super);
-		if (t != nullptr) super = t->copy();
-		else super = nullptr;
+		//if (super != this) deleteCopy(super);
+		//if (t != nullptr) super = t->copy();
+		//else super = nullptr;
+		super = t;
 	}
 	/// set the access flags (Readable and Writable, defined as enum in class Type). Use bitwise- or to combine flags.
 	virtual void setAccessFlags(int f) { flags=f; };
@@ -331,36 +332,51 @@ public:
 class TypeVariable : public Type
 {
 	std::wstring name;
+	Type top;
+	std::vector<Type*> ownedtypes;
 protected:
 	virtual Type *internalCopy(TypeVariableMap &conv);
 public:
-	TypeVariable(std::wstring n) 
+	TypeVariable(std::wstring n)
 		: Type(Type::Variable)
 		, name(n)
+		, top(Type::Top)
 	{ 
-		super = new Type(Type::Top);
+		super = &top;
 	};
 
 	TypeVariable(std::wstring n, Type *sup)
 		: Type(Type::Variable)
 		, name(n+L"sup")
+		, top(Type::Top)
 	{
-		super = sup->copy();
+		super = sup;
 	};
 
 	TypeVariable(std::wstring n,Type *sup, TypeVariableMap &conv)
 		: Type(Type::Variable)
 		, name(n+L"subst")
+		, top(Type::Top)
 	{ 
-		super=sup->substitute(conv);
+		super = sup;
 	};
 
 	TypeVariable(TypeVariable *other) 
 		: Type(Type::Variable)
 		, name(other->getName() + L"copy")
+		, top(Type::Top)
 	{
-		super=other->getSupertype()->copy();
+		Type *copy=other->super->copy();
+		//if (copy->getKind() != Type::Variable)
+			ownedtypes.push_back(copy);
+		super = copy;
 	};
+
+	~TypeVariable()
+	{
+		for (auto iter = ownedtypes.begin();iter != ownedtypes.end();++iter)
+			deleteCopy(*iter);
+	}
 
 	const std::wstring getName(void) { return name; };
 
@@ -388,8 +404,6 @@ class ErrorType : public Type
 	std::wstring message;
 	size_t line, pos;
 protected:
-	/// Compute the unification of two types, always called via public driver
-	//virtual bool internalUnify(Type *a,Type *b);
 	/// Internal variant of Return a copy of this type, calls during recursion
 	virtual Type *internalCopy(TypeVariableMap &conv);
 	/// Check the subtype relation between two types - always called via public driver
