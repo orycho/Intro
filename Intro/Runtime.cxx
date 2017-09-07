@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "Runtime.h"
+#include <cstddef>
 #include <cwchar>
 
 #include <string.h>
@@ -237,7 +238,7 @@ bool equalPoly(rtdata lhs,rtt_t lhstype,rtdata rhs,rtt_t rhstype)
 			for (size_t i=0;i<lr->size;++i)
 			{
 				//if (wcscmp(lr->labels[i],lr->labels[i])!=0) return false;
-				if (lr->fieldrtt[i]!=lr->fieldrtt[i]) return false;
+				if (lr->fieldrtt[i]!=rr->fieldrtt[i]) return false;
 				if (!equalPoly(lr->fields[i],lr->fieldrtt[i],rr->fields[i],rr->fieldrtt[i])) return false;;
 			}
 			return true;
