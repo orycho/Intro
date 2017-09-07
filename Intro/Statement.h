@@ -823,9 +823,12 @@ public:
 //		std::wcout << L"\nGenerator source Type from env: ";
 //		r->print(std::wcout);
 		
-		Type *t;
-		if (expr==NULL) t=env->fresh();
-		else t=expr->getType(env);
+		//Type *t;
+		//if (expr==NULL) t=env->fresh();
+		//else t = expr->getType(env);
+		// "yield done" does not provide additional information
+		if (expr == NULL) return true;
+		Type *t = expr->getType(env);
 		myType=new Type(Type::Generator,t);
 //		std::wcout << L"\nGenerator Type to unify against: ";
 //		myType->print(std::wcout);

@@ -578,7 +578,7 @@ bool Type::internalUnify(Type *other,bool specialize)
 	// from the dictionary and it's type parameters
 	bool retval=true;
 	//for (iter=currentMapping.begin(),oit=goal->begin();iter!=currentMapping.end() && retval;iter++,oit++)
-	for (iter = begin(), oit = goal->begin();iter != end() && retval;iter++, oit++)
+	for (iter = source->begin(), oit = goal->begin();iter != source->end() && retval;iter++, oit++)
 	{
 		retval&=(*iter)->unify(*oit);
 	}
