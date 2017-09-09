@@ -193,6 +193,24 @@ l1:(Integer) -> Integer
  = 3
 > l1(1);
  = 5
+> l1<-line(3,2);
+ = function
+> l1(0);
+ = 2
+> l1(1);
+ = 5
+> var l2<-line(1.2,2.3);
+l2:(Real) -> Real
+> l2(0.0);
+ = 2.300000
+> l2(1.0);
+ = 3.500000
+> l2(1);
+Type Error (5, 116): At least one parameter type does not fit what the function expects.!
+Type errors detected!
+> l1<-l2;
+Type Error (9, 167): Assignment between incompatible variable and expression types.!
+Type errors detected!
 >
 
 </pre>
