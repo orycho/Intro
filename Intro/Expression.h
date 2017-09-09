@@ -657,17 +657,23 @@ public:
 	};
 protected:
 	OpType op;
-	Type* valtype;
+	//Type* valtype;
+	Type boolean,number;
 	FunctionType* myType;
 	virtual Type *getCalledFunctionType(Environment *);
 public:
-	UnaryOperation(int l,int p, OpType type,Expression *operand) : Application(l,p), op(type), valtype(NULL), myType(NULL)
+	UnaryOperation(int l,int p, OpType type,Expression *operand) 
+		: Application(l,p)
+		, op(type)
+		, boolean(Type::Boolean)
+		, number(Type::Number)
+		, myType(NULL)
 	{
 		params.push_back(operand);
 	};
 	virtual ~UnaryOperation(void)
 	{
-		if (valtype!=NULL) delete valtype;
+		//if (valtype!=NULL) delete valtype;
 		if (myType!=NULL) delete myType;
 	};
 	inline OpType getOperation(void) { return op; };

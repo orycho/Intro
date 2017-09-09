@@ -75,7 +75,7 @@ continue after the last executed yield statement, unless it is a "yield done". G
 <pre>fun(a,b,c)->yield a; yield b; yield c; yield done; end;</pre>
 * Lists, dictionaries and strings are all generators that range over the contents of the value. For lists, the elements, for strings the characters, and for dictionaries records with labels key and value with the contents accordingly.
 
-The maybe variant hsa type {[:None]+[:Some value:?Key]}.
+The maybe variant has type {[:None]+[:Some value:?Key]}.
 
 Other expressions:
 * Arithmetic (integer and real): <pre>+,*,-,/,%</pre>
@@ -158,9 +158,11 @@ Are not implemented yet!
 # Example Session
 
 <pre>
-$ build/intro.exe
+$ build/intro
+>  1+2*3;
+ = 7
 > var triple(x,y,z)->return [a<-x;b<-y;c<-z;]; end;
-triple:(?T2<:Top,?T3<:Top,?T4<:Top) -> [ a : ?T2<:Top; b : ?T3<:Top; c : ?T4<:Top; ]
+triple:(?T4<:Top,?T5<:Top,?T6<:Top) -> [ a : ?T4<:Top; b : ?T5<:Top; c : ?T6<:Top; ]
 > var cond(a,b,c)->return a*a+b*b==c*c; end;
 cond:(?asup<:Number,?asup<:Number,?asup<:Number) -> Boolean
 > var l<-{triple(a,b,c)|a from 1 to 10 && b from a to 10 && c from b to 10 ?? cond(a,b,c) };
@@ -168,13 +170,13 @@ l:List([ a : Integer; b : Integer; c : Integer; ])
 > l;
  = {[ a<-3; b<-4; c<-5; ], [ a<-6; b<-8; c<-10; ]}
 > var f(a)-> case a of A x then return x; | B a b then return a+b; end; end;
-f:(?T25sup<:{ [ :A x : ?asupsubst<:Number; ] + [ :B a : ?asupsubst<:Number; b : ?asupsubst<:Number; ]}) -> ?asup<:Number
-> f([:A x<-3;]);
+f:(?T27sup<:{ [ :A x : ?asup<:Number; ] + [ :B a : ?asup<:Number; b : ?asup<:Number; ]}) -> ?asup<:Number
+>  f([:A x<-3;]);
  = 3
 > f([:B a<-3; b<-4;]);
  = 7
 > var append(s1,s2)->for x in s1 do yield x; done; for x in s2 do yield x; done; yield done; end;
-append:(?T36sup<:Generator(?T35subst<:Top),?T38sup<:Generator(?T37subst<:Top)) -> Generator(?T35<:Top)
+append:(?T38sup<:Generator(?T39<:Top),?T40sup<:Generator(?T39<:Top)) -> Generator(?T39<:Top)
 > {x | x in append("Hello ","World")};
  = {H, e, l, l, o,  , W, o, r, l, d}
 > var d<-{"a"=>1, "b"=>2, "c"=>3, "d"=>4};
@@ -183,7 +185,16 @@ d:Dictionary(String,Integer)
  = 20
 > "d is ${d}";
  = d is {d=>4, x=>20, c=>3, a=>1, b=>2}
+> var line(slope,offset)->return fun(x)->return slope*x+offset; end; end;
+line:(?asup<:Number,?asup<:Number) -> (?asup<:Number) -> ?asup<:Number
+> var l1<-line(2,3);
+l1:(Integer) -> Integer
+> l1(0);
+ = 3
+> l1(1);
+ = 5
 >
+
 </pre>
 
 Questions for Ory:

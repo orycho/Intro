@@ -714,8 +714,8 @@ namespace intro {
 		llvm::PHINode *resultrtt=nullptr;
 		if (!ignoreResult)
 		{
-			result=builder.CreatePHI(builtin_t,op_count,"result");
-			resultrtt=builder.CreatePHI(rttype_t,op_count,"resultrtt");
+			result=builder.CreatePHI(builtin_t,op_count+1,"result");
+			resultrtt=builder.CreatePHI(rttype_t,op_count+1,"resultrtt");
 			result->addIncoming(llvm::Constant::getNullValue(builtin_t),startblock);
 			resultrtt->addIncoming(llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext), rtt::Undefined,false),startblock);
 		}

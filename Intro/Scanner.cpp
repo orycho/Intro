@@ -309,7 +309,7 @@ void Buffer::SetPos(size_t value) {
 		while ((value >= fileLen) && (ReadNextStreamChunk() > 0));
 	}
 
-	if ((value < 0) || (value > fileLen)) {
+	if (value > fileLen) {
 		wprintf(L"--- buffer out of bounds access, position: %d\n", value);
 		exit(1);
 	}
@@ -353,6 +353,7 @@ size_t Buffer::ReadNextStreamChunk() {
 		char *result = fgets((char*)(buf + bufLen), free, stream );
 		if (result!=nullptr) read=strlen(result);
 		else read = 0;
+		read=strlen(result);
 	}
 	if (read > 0) {
 		fileLen = bufLen = (bufLen + read);

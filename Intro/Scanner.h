@@ -217,7 +217,7 @@ private:
 
 	Token *t;         // current token
 	wchar_t *tval;    // text of current token
-	int tvalLength;   // length of text of current token
+	size_t tvalLength;   // length of text of current token
 	size_t tlen;         // length of current token
 
 	Token *tokens;    // list of tokens already peeked (first token is a dummy)

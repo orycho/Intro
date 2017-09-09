@@ -510,15 +510,17 @@ std::wcout << L"\n";
 		return vt;
 	}
 
-	Type *UnaryOperation::getCalledFunctionType(Environment *)
+	Type *UnaryOperation::getCalledFunctionType(Environment *env)
 	{
+		Type *valtype=nullptr;
 		switch(op)
 		{
 		case Not:
-			valtype=new Type(Type::Boolean);
+			valtype=&boolean;
 			break;
 		case Negate:
-			valtype=new TypeVariable(L"?neg",new Type(Type::Number));
+			//valtype=new TypeVariable(L"?neg",new Type(Type::Number));
+			valtype = env->fresh(L"?neg", &number);
 			break;
 		};
 		std::list<Type*> pin;

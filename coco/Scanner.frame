@@ -248,7 +248,7 @@ private:
 
 	Token *t;         // current token
 	wchar_t *tval;    // text of current token
-	int tvalLength;   // length of text of current token
+	size_t tvalLength;   // length of text of current token
 	size_t tlen;         // length of current token
 
 	Token *tokens;    // list of tokens already peeked (first token is a dummy)
@@ -607,7 +607,7 @@ void Buffer::SetPos(size_t value) {
 		while ((value >= fileLen) && (ReadNextStreamChunk() > 0));
 	}
 
-	if ((value < 0) || (value > fileLen)) {
+	if (value > fileLen) {
 		wprintf(L"--- buffer out of bounds access, position: %d\n", value);
 		exit(1);
 	}
