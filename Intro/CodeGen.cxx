@@ -406,6 +406,7 @@ namespace intro {
 	void deleteRuntime(void)
 	{
 		//delete TheModule;
+		TheModule.reset();
 	}
 
 	/////////////////////////////////////////////////////////////////////
@@ -1334,7 +1335,7 @@ namespace intro {
 		llvm::IRBuilder<> builder(theContext);
 		builder.SetInsertPoint(entry);
 
-		CodeGenEnvironment local(parent,CodeGenEnvironment::LocalScope);
+		CodeGenEnvironment local(parent,CodeGenEnvironment::Closure);
 		// Set up the function specific environment (parameters and closure values)
 		local.setFunction(builder,F,parameters,returnsValue,free);
 		// For Generators, the generated function here builds the generator closure
@@ -1579,7 +1580,7 @@ namespace intro {
 		}
 		case Negate:
 			{
-				static cgcb_elem ops[] =
+				cgcb_elem ops[] =
 				{
 					{
 						rtt::Integer,
@@ -2367,7 +2368,7 @@ namespace intro {
 			CodeGenEnvironment::iterator iter=local.createVariable(name);
 			TmpB.CreateStore(env->getRTT(type),iter->second.rtt);
 		}
-		Generator *lastgen;
+		Generator *lastgen=nullptr;
 		for (size_t i=0; i!=generators.size(); ++i)
 		{
 			// generate loop code

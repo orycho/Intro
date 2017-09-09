@@ -61,6 +61,7 @@ int main(int argc, char *argv[])
 		intro::initModule();
 		runBasicTests();
 		intro::dumpModule();
+		printf("Done!\n");
 		//return 0;
 	}
 	else

@@ -50,7 +50,8 @@ namespace intro
 		// If in generator, allocate data in closure, store adress from GEP into struct
 		// index in closuresize
 		CodeGenEnvironment *env=getWrappingEnvironment();
-		if (env==nullptr) elements.end();
+		if (env==nullptr)
+			return elements.end();
 		std::string name(VarName.begin(),VarName.end());
 		name+="ingen";
 		llvm::Function *TheFunction = env->function;
@@ -151,8 +152,9 @@ namespace intro
 	void CodeGenEnvironment::setGenerator(llvm::IRBuilder<> &builder,llvm::Function *TheGenerator,
 		const std::vector<std::wstring> &free) 
 	{ 
+		assert(scope_type == Generator);
 		function=TheGenerator;
-		double_buffer=createEntryBlockAlloca(L"$double_buffer");
+		double_buffer=createEntryBlockAlloca(L"$double_bufferG");
 		llvm::Function::arg_iterator AI = function->arg_begin();
 		// only Param: generator pointer
 		AI->setName("generator_in");
@@ -174,9 +176,10 @@ namespace intro
 	void CodeGenEnvironment::setFunction(llvm::IRBuilder<> &builder,llvm::Function *TheFunction,
 		Function::ParameterList &params,bool returnsValue, const std::vector<std::wstring> &free)
 	{
-		assert(scope_type==LocalScope || scope_type==Generator);
+		//assert(scope_type==LocalScope || scope_type==Generator);
+		assert(scope_type == Closure);
 		function=TheFunction;
-		double_buffer=createEntryBlockAlloca(L"$double_buffer");
+		double_buffer=createEntryBlockAlloca(L"$double_bufferF");
 		llvm::Function::arg_iterator AI = function->arg_begin();
 		// 1st Param: Closure pointer
 		AI->setName("closure_in");

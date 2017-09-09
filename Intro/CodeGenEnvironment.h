@@ -126,7 +126,7 @@ public:
 	{
 		assert(scope_type==GlobalScope);
 		function=func;
-		double_buffer=createEntryBlockAlloca(L"$double_buffer");
+		double_buffer=createEntryBlockAlloca(L"$double_bufferA");
 	}
 	
 	llvm::AllocaInst *getDoubleBuffer()
