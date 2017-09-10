@@ -184,7 +184,8 @@ protected:
 	void setParent(Type *p) { parent=p; };
 
 	// TypeGraph traversal mappings for parameters... memory management!
-	std::set<Type*> excludeMapping,currentMapping;
+	std::vector<Type*> currentMapping;
+	std::set<Type*> excludeMapping;
 
 
 public:

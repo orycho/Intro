@@ -168,7 +168,7 @@ TypeGraph::~TypeGraph()
 
 struct state
 {
-	std::set<Type*> current;
+	std::vector<Type*> current;
 	TypeGraph::node *traverse;
 	//std::set<Type*> &exclude;
 	//Type::TypeVariableMap mapping;
@@ -183,7 +183,7 @@ struct state
 
 	void clearCurrent(std::set<Type*> &exclude)
 	{
-		for (std::set<Type*>::iterator iter=current.begin();iter!=current.end();++iter)
+		for (std::vector<Type*>::iterator iter=current.begin();iter!=current.end();++iter)
 			deleteExcept(*iter,exclude);
 		current.clear();
 	}
@@ -198,7 +198,7 @@ struct state
 	}
 };
 
-PartialOrder TypeGraph::findSupertype(Type *ta,Type*tb,std::set<Type*> &cur,std::set<Type*> &exclude)
+PartialOrder TypeGraph::findSupertype(Type *ta,Type*tb,std::vector<Type*> &cur,std::set<Type*> &exclude)
 {
 	std::vector<state> stack;
 	TypeGraph::node *start=getNode(ta->find());
@@ -237,27 +237,24 @@ PartialOrder TypeGraph::findSupertype(Type *ta,Type*tb,std::set<Type*> &cur,std:
 		param_source=tb;
 	}
 
-	// Is it correct to have an exclude set for each stack element?
-	// Should we maybe have a single one for the entire path traversal?!
-	std::vector<Type*> init;
+	// Set up the mapping for the type's parameters
+	//std::vector<Type*> init;
 	std::vector<Type*>::iterator iter;
-	param_source->getParameterTypes(init);
-	// Need to collect contained types?!
-	for (iter=init.begin();iter!=init.end();++iter)
+	stack.push_back(state(start));
+	param_source->getParameterTypes(stack.back().current);
+	// Make sure incoming types are not marked for deletion! We do not own them.
+	for (iter= stack.back().current.begin();iter!=stack.back().current.end();++iter)
 	{
 		std::set<Type*> innertypes;
 		collectAllTypes(*iter, innertypes);
 		exclude.insert(innertypes.begin(),innertypes.end());
-		//exclude.insert(init.begin(),init.end());
 	}
 	//stack.push_back(state(start,exclude));
-	stack.push_back(state(start));
 	Type::TypeVariableMap mapping;
 	std::vector<TypeVariable*>::iterator npit;
 	std::set<Type*>::iterator siter;
 	node *found=NULL;
 
-	param_source->getParameterTypes(stack.back().current);
 	
 	while (!stack.empty())
 	{
@@ -272,11 +269,11 @@ PartialOrder TypeGraph::findSupertype(Type *ta,Type*tb,std::set<Type*> &cur,std:
 				//cur.insert(s.current.begin(), s.current.end());
 				// Type variables can end up in here. These are maintained by the Environment,
 				// so we remove them from here
-				siter = cur.begin();
-				for (siter=s.current.begin();siter!= s.current.end();++siter)
+				//siter = cur.begin();
+				for (iter=s.current.begin();iter!= s.current.end();++iter)
 				{
-					if ((*siter)->getKind()!=Type::Variable)
-						cur.insert(*siter);
+					if ((*iter)->getKind()!=Type::Variable)
+						cur.push_back(*iter);
 				};
 				s.current.clear();
 				found=s.traverse;
@@ -291,18 +288,17 @@ PartialOrder TypeGraph::findSupertype(Type *ta,Type*tb,std::set<Type*> &cur,std:
 				//std::vector<Type*> next_params;
 				//next_params.reserve((*supers)->super_params.size());
 				Type::TypeVariableMap mapping;
-				for (siter=s.current.begin(),npit=s.traverse->my_params.begin();siter!=s.current.end();++siter,++npit)
+				for (iter=s.current.begin(),npit=s.traverse->my_params.begin();iter!=s.current.end();++iter,++npit)
 				{
 					// If we substitute non-variables for the variables, the types may be distributed all over
 					// That can lead to multiple deletes, so we remember what must remain - 
 					// since the type is also owned by the typegraph node itÄs contained in,
 					// we need not care abut deletion (Y)
-					mapping.insert(std::make_pair(*npit,*siter));
-					if ((*siter)->getKind()!=Type::Variable)
+					mapping.insert(std::make_pair(*npit,*iter));
+					if ((*iter)->getKind()!=Type::Variable)
 					{
 						std::set<Type*> innertypes;
-						collectAllTypes(*siter, innertypes);
-
+						collectAllTypes(*iter, innertypes);
 						exclude.insert(innertypes.begin(),innertypes.end());
 					}
 				}
@@ -310,7 +306,7 @@ PartialOrder TypeGraph::findSupertype(Type *ta,Type*tb,std::set<Type*> &cur,std:
 				stack.push_back(state(next));
 				state &buf=stack.back();
 				for (iter=(*supers)->super_params.begin();iter!=(*supers)->super_params.end();++iter)
-					buf.current.insert((*iter)->substitute(mapping));
+					buf.current.push_back((*iter)->substitute(mapping));
 			}
 		}
 		s.clearCurrent(exclude);

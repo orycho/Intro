@@ -128,6 +128,7 @@ namespace intro
 									 rtname+"!rtt");
 		}
 			break;
+		case Closure:
 		case LocalScope:
 		{
 			llvm::Function *TheFunction = currentFunction();
@@ -139,9 +140,6 @@ namespace intro
 			break;
 		case Generator:
 			return createGeneratorVariable(name);
-		case Closure: 
-			// this should assert!
-			break;
 		}
 		if (address==NULL) return elements.end();
 		address->setName(rtname);

@@ -1228,14 +1228,13 @@ bool typeTests(void)
 // Execute all code generation tests
 bool codeGenTests(void)
 {
-//	constantExpressionCodeGen();
-//	globalVariablesCodeGen();
-//	stringLiteralsCodeGen();
-//	stringInterpolationCodeGen();
-//	basicFunctionCodeGen();
-//	arithFunctionCodeGen();
+	constantExpressionCodeGen();
+	globalVariablesCodeGen();
+	stringLiteralsCodeGen();
+	stringInterpolationCodeGen();
+	basicFunctionCodeGen();
+	arithFunctionCodeGen();
 	polyFunctionCodeGen();
-/*
 	polyClosureCodeGen();
 	recordCodeGen();
 	variantCodeGen();
@@ -1251,7 +1250,6 @@ bool codeGenTests(void)
 	retLikeCodeGen();
 	variantsUseCodeGen();
 	filterCodeGen();
-*/
 
 	return true;
 }
@@ -1259,6 +1257,6 @@ bool codeGenTests(void)
 void runBasicTests(void)
 {
 	//checkSubtypeEnum();
-	//typeTests();
+	typeTests();
 	codeGenTests();
 }

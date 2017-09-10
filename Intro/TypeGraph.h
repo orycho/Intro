@@ -128,7 +128,7 @@ public:
 	*/
 	//Type *getParentType(Type *type);
 
-	PartialOrder findSupertype(Type *ta,Type*tb,std::set<Type*> &cur,std::set<Type*> &exclude);
+	PartialOrder findSupertype(Type *ta,Type*tb,std::vector<Type*> &cur,std::set<Type*> &exclude);
 
 	// Find the node that represents the passed type's position in the type hierarchy, returns NULL on failure.
 	node *getNode(Type *type); 
@@ -139,9 +139,9 @@ public:
 		return n->isAbstract;
 	}
 
-	static inline void clearMapping(std::set<Type*> &cur, std::set<Type*> &exclusions)
+	static inline void clearMapping(std::vector<Type*> &cur, std::set<Type*> &exclusions)
 	{
-		for (std::set<Type*>::iterator iter = cur.begin();iter != cur.end();++iter)
+		for (std::vector<Type*>::iterator iter = cur.begin();iter != cur.end();++iter)
 			deleteExcept(*iter, exclusions);
 	}
 

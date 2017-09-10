@@ -172,7 +172,7 @@ PartialOrder Type::checkSubtype(Type *other)
 
 PartialOrder Type::internalCheckSubtype(Type *other)
 {
-	std::set<Type*> current;
+	std::vector<Type*> current;
 	std::set<Type*> exclude;
 	PartialOrder retval=theGraph.findSupertype(this,other,current,exclude);
 	theGraph.clearMapping(current,exclude);
@@ -420,6 +420,7 @@ Type *mergeRecordTypes(RecordType *a,RecordType *b)
 Type *intersectVariantTypes(VariantType *a,VariantType *b,bool specialize)
 {
 	VariantType *result=new VariantType(); // needs to be deleted if 
+	Environment::addIntermediate(result);
 	std::wstring errmsg=std::wstring();	// Collect all errors here
 	//std::wstring errnbuff=std::wstring();
 	//std::wstringstream ws=std::wstringstream(errmsg);
@@ -544,43 +545,53 @@ bool Type::unify(Type *b,bool specialize)
 }
 
 // Simple types
-bool Type::internalUnify(Type *other,bool specialize)
+bool Type::internalUnify(Type *other, bool specialize)
 {
 	//SubtypeTraversal traverse(theGraph,this,other);
-	std::set<Type*> current;
-	std::set<Type*> exclude;
+	//std::vector<Type*> current;
+	//std::set<Type*> exclude;
 	//std::set<Type*>::iterator iter;
 	std::vector<Type*>::iterator iter;
 	std::vector<Type*>::iterator oit;
 	// First, check the type graph if a legal path actually exists
-	PartialOrder order=theGraph.findSupertype(this,other,currentMapping,excludeMapping);
+	PartialOrder order = theGraph.findSupertype(this, other, currentMapping, excludeMapping);
+	//PartialOrder order = theGraph.findSupertype(this, other, current, excludeMapping);
 
-	if (order==ERROR) return false;
-	Type *goal=this;
-	Type *source=other;
-	if (order==LESS) std::swap(goal,source); // order indepenent code hereafter ;)
+	if (order == ERROR) return false;
+	Type *goal = this;
+	Type *source = other;
+	if (order == LESS) std::swap(goal, source); // order indepenent code hereafter ;)
 
 	// Perform the actual unification by making one type the others parent,
 	// depending on wether we're specializing or not
 	if (specialize)
 	{
-		goal->parent=source;
+		goal->parent = source;
 	}
 	else
 	{
-		source->parent=goal;
+		source->parent = goal;
 	}
-	// Graph traversal may have provided additional parameters, here we check they match up with source type
-	// by realizing the modifications along the path in the graph
+	// Graph traversal may have mutated the parameters, here we check they match up with source type
+	// by unifing the result with the supertype's type
 	// The goal is to manage the relations between the types parameters, a good example is
 	// Dictionary(String,Integer) <: Generator([key:String; value:Integer;])
 	// where when expecting a generator, we have to infer the record and it's field types
 	// from the dictionary and it's type parameters
-	bool retval=true;
-	//for (iter=currentMapping.begin(),oit=goal->begin();iter!=currentMapping.end() && retval;iter++,oit++)
-	for (iter = source->begin(), oit = goal->begin();iter != source->end() && retval;iter++, oit++)
+	bool retval = true;
+	if (source->getKind() != goal->getKind())
 	{
-		retval&=(*iter)->unify(*oit);
+		for (iter = currentMapping.begin(), oit = goal->begin();iter != currentMapping.end() && retval;iter++, oit++)
+		{
+			retval &= (*iter)->unify(*oit);
+		}
+	}
+	else
+	{
+		for (iter = source->begin(), oit = goal->begin();iter != source->end() && retval;iter++, oit++)
+		{
+			retval &= (*iter)->unify(*oit);
+		}
 	}
 	return retval;
 }

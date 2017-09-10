@@ -210,8 +210,12 @@ protected:
 
 	typedef std::map<std::wstring,Type*>::iterator iterator;
 
+	/// Unique names for intermediate type variables
 	static long _fresh;
+	/// Env owns all type vars, deletes on shutdown
 	static std::set<TypeVariable*> _typevars;
+	/// Type inference can add intermediates without sensible owner here...
+	static std::set<Type*> _intermediates;
 
 public:
 	//
@@ -241,6 +245,11 @@ public:
 	{
 		return &root;
 	}
+
+	static void addIntermediate(Type *t)
+	{
+		_intermediates.insert(t); 
+	};
 	static void clearTypeVariables(void)
 	{
 		for (std::set<TypeVariable*>::iterator iter = _typevars.begin();iter != _typevars.end();iter++)
@@ -248,6 +257,10 @@ public:
 			(*iter)->replaceSupertype(nullptr);
 		}
 		for (std::set<TypeVariable*>::iterator iter = _typevars.begin();iter != _typevars.end();iter++)
+		{
+			delete *iter;
+		}
+		for (std::set<Type*>::iterator iter = _intermediates.begin();iter != _intermediates.end();iter++)
 		{
 			delete *iter;
 		}

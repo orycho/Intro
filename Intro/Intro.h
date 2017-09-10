@@ -287,7 +287,7 @@ protected:
 	/* * Might move this into CodeGenEnrvironment, and keep type variable instance management there...
 
 		Here is an example how the callback array can be defined:
-			static const cgcb_elem division[]=
+			const cgcb_elem division[]=
 			{
 				{rtt::Integer,gen_div_int},
 				{rtt::Real,gen_div_real},
