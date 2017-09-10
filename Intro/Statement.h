@@ -252,6 +252,11 @@ public:
 	{
 		// This part needs to account for preexisting name in case
 		// it is created through exporting from a module (must make sure of that, hence clumsy?!)
+
+		// IMPORTANT: When doing this, the variable name is usable in the body,
+		// but since it is not a variable, it cannot be unified there.
+		// That is desirable for the outer environment, but not the inner,
+		// so we should probabl split that...?
 		Type *t=env->put(name);
 		if (t==nullptr)
 		{
@@ -823,15 +828,15 @@ public:
 //		std::wcout << L"\nGenerator source Type from env: ";
 //		r->print(std::wcout);
 		
-		//Type *t;
-		//if (expr==NULL) t=env->fresh();
-		//else t = expr->getType(env);
+		Type *t;
+		if (expr==NULL) t=env->fresh();
+		else t = expr->getType(env);
 		// "yield done" does not provide additional information
-		if (expr == NULL) return true;
-		Type *t = expr->getType(env);
+		// But in case that the generator is empty, it is all there is.
+		// An empty generator can be concatenated with any other, so top is ok supertype?!
+		// But that could lead to an empty list with element type top...
+		// that means we cannot do much with those elements... but is it a problem?!
 		myType=new Type(Type::Generator,t);
-//		std::wcout << L"\nGenerator Type to unify against: ";
-//		myType->print(std::wcout);
 		if (!myType->unify(r))
 		{
 			return false;
