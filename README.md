@@ -8,11 +8,12 @@ This is version 0.1 and a few things are still missing:
 * Modules
 * generated code leaks memory
 * standard library, I/O especially
+* the repl is flaky, it likes to exit on syntax errors and arrow keys and the like... no getline.
 
 # Main Features (as of V0.1):
 * Small language focusing on fundamental programming language concepts, with syntax hopefully promoting readable code
 * Strict static typing based on type inference (Hindley-Milner with Records and Subtyping a.k.a F1sub)
-* Higher order functions and parametric polymorphism
+* Higher order functions, parametric polymorphism, generators
 * LLVM based code generation
 
 Note that object orientation is not considered sufficiently fundamental or necessary to be included. 
@@ -38,19 +39,27 @@ To modify the grammar, you will need COCO/R installed - use namespace "parser" a
 
 (This is so short that even the cheatsheet.pdf in docs is more in depth.)
 
-All statements are terminated by a semicolon (except modules, but those are not implemented yet).
-Single line comments begin with a pound sign (hastag) #
-Multiline comments are like in C, from  /* to */
+* All statements are terminated by a semicolon (except modules, but those are not implemented yet).
+* Single line comments begin with a pound sign (hastag) #
+* Multiline comments are like in C, from  /* to */
+* lexically scoped
 
 All values in Intro are just written out, each built in type has distinct syntax.
 
-Simple types:
+Simple types (re expessions represented by a single literal):
 * Booleans can be: <pre>true, false</pre>
 * Strings are in quotes: <pre>"some string", "abc"</pre>
+* String interpolation: any occurence of ${id}, for some variable identifier id, inside the string is 
+replaced with a string representing the value of 'id'. For instance an integer variabela with value 123
+would turn 
+<pre>"the value is ${a}!!!"</pre>
+into the output
+<pre>the value is 123!!!</pre>
+All types can be turned to strings, but for functions and generators the output is simply "function" and "generator" respectively.
 * Integers consist of only digits: <pre>0, 123, 400246</pre>
 * Reals have at least one dot between digits: <pre>.0, 1.23, 2360897.</pre>
 
-Compound types:
+Compound types (require expressions with arbitrary many literals):
 * Functions begin with the keyword "fun" followed by a list of comma separated identifiers in parentheses (parameters)
 followed by <pre>-></pre> and the body. They must end on a return or return  like statement, and are terminated with the keyword end:
 <pre>fun(a,b,x)->return a*x+b; end</pre>
@@ -61,7 +70,8 @@ foo(1-a,1/a)</pre>
 * Dictionaries are like lists, but contain key-value pairs connected with a => (all keys must be of the same type and all values as well): <pre>{ 1=>"a",2=>"b",3=>"c" }</pre>
 * Dictionary lookup uses the [] operator which returns a maybe variant on lookup: <pre>d["a"]</pre> Can also be used for assignment
 <pre>d["x"]<-6;</pre>
-* Elements can be remoced from dictionaries using the "\\" operator (backslash), it can be chained: <pre>d\\"a"\\"b"</pre>
+* Elements can be removed from dictionaries using the "\\" operator (backslash), it can be chained since the operator 
+returns the dictionary (which has ben modified): <pre>d\\"a"\\"b"</pre>
 * lists and dictionaries may also have one expression for element or key-value pair, followed by a pipe 
 symbol | and a generator statement. See below
 * Records contain an arbitrar number of fields, which are labeled by an identifier. Fields may have distinct types.
@@ -73,7 +83,7 @@ The records consists of square brackets with semicolon terminated field assignme
 * Generators look like functions, but instead of return they use the keyword yield. Repeated applications of a generator
 continue after the last executed yield statement, unless it is a "yield done". Generators can only be used in generator statements:
 <pre>fun(a,b,c)->yield a; yield b; yield c; yield done; end;</pre>
-* Lists, dictionaries and strings are all generators that range over the contents of the value. For lists, the elements, for strings the characters, and for dictionaries records with labels key and value with the contents accordingly.
+* Lists, dictionaries and strings are all generators that range over the contents of the value. For lists the elements, for strings the characters, and for dictionaries records with labels key and value with the contents accordingly.
 
 The maybe variant has type {[:None]+[:Some value:?Key]}.
 
@@ -89,6 +99,7 @@ Statements (must end with a semicolon):
 Variables must always be initialized explicitely when defined: 
 <pre>var x<-3; 
 var f<-fun(a,b)->return a*a+b*b; end;</pre>
+* Identifiers may contain of letters, digits and underscores, but may not begin with a digit. "abc", "_long_ident_344" are ok, "3d" is not.
 * Some syntax sugar is provided for declarations of variables with function types, removing the "<-fun":
 <pre>var line(slope,offset)->return fun(x)->return slope*x+offset; end; end;</pre>
 * Conditions use the common if...then...else with the last branch ending with an end, additional conditions use the single word elsif:
@@ -129,16 +140,16 @@ Where s ranges from start value to at most endvalue and is incremented by stepva
 e.g. to generate all values from 1 to 10:
 <pre>x from 1 to 10</pre>
 
-Multiple values can be generated in one staement, each additional value begins with the operator "&&", and generator
+Multiple values can be generated in one statement, each additional value begins with the operator "&&", and generator
 applications (maybe better instantiation) can use the variables introduced to their left:
 
 <pre>x from 1 to 10 && y from x to 10 && z from y to 10</pre>
 
-A generator value is moved to the next every time the generator to the left (if there) has cmopleted a full cycle.
+A generator value is moved to the next every time the generator to the left (if there) has completed a full cycle.
 So the above example generates x=1, y=1, z=1, then z=2 and so on. Once z is 10, y is increased then z is reset to the new y.
 It is probably easiest to type it into the repl as a list to see the result:
 
-<pre>{ {a<-x; b<-y; c<-z;] | x from 1 to 10 && y from x to 10 && z from y to 10};</pre>
+<pre>{ [a<-x; b<-y; c<-z;] | x from 1 to 10 && y from x to 10 && z from y to 10};</pre>
 
 Finally, anywhere after the first generator binding conditions can be introduced by the operator "??", and it can use all
 generator values defined to their left. Any value combination for which the condition is false will be skipped, which
