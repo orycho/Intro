@@ -46,7 +46,7 @@ To modify the grammar, you will need COCO/R installed - use namespace "parser" a
 
 All values in Intro are just written out, each built in type has distinct syntax.
 
-Simple types (re expessions represented by a single literal):
+Simple types (are expessions represented by a single literal):
 * Booleans can be: <pre>true, false</pre>
 * Strings are in quotes: <pre>"some string", "abc"</pre>
 * String interpolation: any occurence of ${id}, for some variable identifier id, inside the string is 
@@ -61,13 +61,13 @@ All types can be turned to strings, but for functions and generators the output 
 
 Compound types (require expressions with arbitrary many literals):
 * Functions begin with the keyword "fun" followed by a list of comma separated identifiers in parentheses (parameters)
-followed by <pre>-></pre> and the body. They must end on a return or return  like statement, and are terminated with the keyword end:
+followed by -> (read "maps to") and the body. They must end on a return or return  like statement, and are terminated with the keyword end:
 <pre>fun(a,b,x)->return a*x+b; end</pre>
 * Functions never have names, no matter the syntax sugar.
 * a function (e.g. from a variable) is called by following the function with the parameters as comma separated expressions in parentheses. The correct number of parameters and their types, as wel as the return type, are specified by the functions type.: <pre>sin(2*pi)
 foo(1-a,1/a)</pre>
 * Lists are curly brackets containing comma separated elements which must have the same type: <pre>{ 1,2,3 }, {"a","foo","gurgle"}</pre>
-* Dictionaries are like lists, but contain key-value pairs connected with a => (all keys must be of the same type and all values as well): <pre>{ 1=>"a",2=>"b",3=>"c" }</pre>
+* Dictionaries are like lists, but contain key-value pairs connected with a => (all keys must be of the same type and all values as well): <pre>{ "a"=>1,"b"=>2,"c"=>3 }</pre>
 * Dictionary lookup uses the [] operator which returns a maybe variant on lookup: <pre>d["a"]</pre> Can also be used for assignment
 <pre>d["x"]<-6;</pre>
 * Elements can be removed from dictionaries using the "\\" operator (backslash), it can be chained since the operator 
@@ -79,23 +79,33 @@ The records consists of square brackets with semicolon terminated field assignme
 <pre>[ x<-1; y<-2; active<-false; name<-"foobar";]</pre>
 * Record elements can be accessed by label with the . operator
 * Variants are written like records, but the begin with a colon and an identifier: <pre>[:Vec2 x<-1; y<-2;]</pre>
-* The dot oprator does not work on variants, instead the case statement must be used.
+* The dot operator does not work on variants, instead the case statement must be used.
 * Generators look like functions, but instead of return they use the keyword yield. Repeated applications of a generator
 continue after the last executed yield statement, unless it is a "yield done". Generators can only be used in generator statements:
 <pre>fun(a,b,c)->yield a; yield b; yield c; yield done; end;</pre>
 * Lists, dictionaries and strings are all generators that range over the contents of the value. For lists the elements, for strings the characters, and for dictionaries records with labels key and value with the contents accordingly.
 
-The maybe variant has type {[:None]+[:Some value:?Key]}.
+The maybe variant has type <pre>{[:None]+[:Some value:?Key]}</pre>
+To actually use dictionary lookup, inspect the maybe variant witj a case stament (both branches required):
+<pre>
+case d["a"] of 
+Some value then workon(value);
+| None then # throw a fit
+end;
+</pre>
+That may look verbose, but it just forces the programmer to handle lookup failures.
+
 
 Other expressions:
 * Arithmetic (integer and real): <pre>+,*,-,/,%</pre>
 * boolean: <pre>and, or, xor, not</pre>
 * compares: <pre>==, !=</pre> (all types) and <pre>>, <, >=, <=</pre> (only string, integer, real)
 * list and string splice: <pre>l[1:last]</pre> (new list without the first element)
+* Assignment "<-" returns the value that was written to the destination on the left. E.g.: <pre>y<-2</pre>
 
 Statements (must end with a semicolon):
 * Every expression is a statement. No other statements return values.
-* variable definitions are "var" followed by an identifier followed by "<-" followed by an initializer expression.
+* variable definitions are "var" followed by an identifier followed by "<-" (read "is assigned") followed by an initializer expression.
 Variables must always be initialized explicitely when defined: 
 <pre>var x<-3; 
 var f<-fun(a,b)->return a*a+b*b; end;</pre>
@@ -222,8 +232,13 @@ Type errors detected!
 > l1<-l2;
 Type Error (9, 167): Assignment between incompatible variable and expression types.!
 Type errors detected!
+> var length(s)->var retval<-0; for i in s do retval<-retval+1; done; return retval; end;
+length:(?T5sup<:Generator(?T4<:Top)) -> Integer
+> length({1,2,3});
+ = 3
+> length("Hello foo");
+ = 9
 >
-
 </pre>
 
 Questions for Ory:
