@@ -15,11 +15,11 @@ TEST(UtilityTests, CollectFunctionsTest) {
 	intro::VariableSet free,bound;
 	funcs.front()->getFreeVariables(free,bound);
 	ASSERT_EQ(free.size(),0);
-	ASSERT_EQ(bound.size(),3);
+	ASSERT_EQ(bound.size(),0);
 	free.clear();
 	bound.clear();
 	funcs.back()->getFreeVariables(free,bound);
 	ASSERT_EQ(free.size(),2);
-	ASSERT_EQ(bound.size(),1);
+	ASSERT_EQ(bound.size(),0);
 	int y=0;
 }

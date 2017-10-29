@@ -252,7 +252,7 @@ namespace intro {
 			}
 			else
 			{
-				return getError(std::wstring(L"Invaid qualified path to unknown Module"));
+				return getError(std::wstring(L"Invalid qualified path to unknown Module"));
 			}
 		}
 		if (t!=NULL) return t;
@@ -270,6 +270,7 @@ namespace intro {
 		// so we return the varibale itself so it will be restricted to a function.
 		// In  this case, the application will make sure that the variable has previously been
 		// unified with a function template of the correct arity.
+		// That is also true for applications of recursive functions
 		if (ft->getKind()==Type::Variable) calledType=ft;
 		else 
 		{
@@ -286,20 +287,24 @@ namespace intro {
 		// this can be unified with a function type!
 		// The variable can actually also be unified with a function if it's bound
 		// is a function type that is a supertype of the called function...
-		FunctionType *intermediate;//=(FunctionType*)getCalledFunctionType(env);
+		//FunctionType *intermediate;//=(FunctionType*)getCalledFunctionType(env);
+		Type *intermediate;//=(FunctionType*)getCalledFunctionType(env);
 		Type *called=getCalledFunctionType(env);
+		int flags = Type::Readable | Type::Writable;
 		if (called->getKind()==Type::Error)
 		{
 			return called;
 		}
 		else if (called->getKind()==Type::Function)
 		{
-			intermediate=(FunctionType*)called;
+			intermediate = called;
+			flags = ((FunctionType*)called)->getReturnType()->find()->getAccessFlags();
 		}
 		else if (called->getKind()==Type::Variable)
 		{
 			// Turn the incoming type variable inro a compatible function type:
 			// same number of parameters, all fresh top bound variables.
+			/*
 			std::list<Type*> p;
 			Type *retval=Environment::fresh();
 			//retval->setAccessFlags(intermediate->getReturnType()->find()->getAccessFlags());
@@ -309,8 +314,11 @@ namespace intro {
 			}
 			TypeVariable *tv=(TypeVariable*)called;
 			funvar=new FunctionType(p,retval);
-			tv->unify(funvar);
-			intermediate=(FunctionType*)tv->find();
+			// Unify supertype instead?? Then intermediate=called
+			tv->getSupertype()->unify(funvar);
+			//intermediate=(FunctionType*)tv->find();
+			*/
+			intermediate = called;
 		}
 		else
 		{
@@ -318,7 +326,8 @@ namespace intro {
 		};
 		std::list<Type*> paramtypes;
 		Type *retval=Environment::fresh();
-		retval->setAccessFlags(intermediate->getReturnType()->find()->getAccessFlags());
+		//retval->setAccessFlags(intermediate->getReturnType()->find()->getAccessFlags());
+		retval->setAccessFlags(flags);
 		// Get parameter types from application expression for function type to unify against.
 		sourceTypes.resize(params.size(),nullptr);
 		for (size_t i=0;i<params.size();++i)
@@ -356,15 +365,20 @@ namespace intro {
 			paramtypes.push_back(pt);
 		}
 		myFuncType=new FunctionType(paramtypes,retval);
+		Type *funvar = myFuncType;
+		//if (called->getKind() == Type::Variable) 
+			funvar = Environment::fresh(myFuncType);
 /*
 std::wcout << L"source type: ";
-myFuncType->find()->print(std::wcout);
+funvar->find()->print(std::wcout);
 std::wcout << L"\nintermediate: ";
 intermediate->find()->print(std::wcout);
 std::wcout << L"\n";
 */
 		// Check all is well...
-		if (!intermediate->unify(myFuncType)) {
+		//if (!intermediate->unify(myFuncType)) 
+		if (!intermediate->unify(funvar))
+		{
 			return getError(L"At least one parameter type does not fit what the function expects.");
 		}
 		return retval;

@@ -40,7 +40,7 @@ namespace intro
 	{
 		CodeGenEnvironment *env = getWrappingEnvironment();
 		if (env == nullptr) return nullptr;
-		return builder.CreateBitCast(env->generatorClosure, builtin_t, "boxed_gen");
+		return builder.CreateBitCast(env->closure, builtin_t, "boxed_gen");
 		//return env->generatorClosure; 
 	}
 
@@ -55,7 +55,7 @@ namespace intro
 		std::string name(VarName.begin(),VarName.end());
 		name+="ingen";
 		llvm::Function *TheFunction = env->function;
-		llvm::Value *generator=env->generatorClosure;
+		llvm::Value *generator=env->closure;
 		std::uint32_t field_index=(std::uint32_t)env->closuresize;
 		++(env->closuresize);
 		llvm::BasicBlock::iterator instr_iter = TheFunction->getEntryBlock().begin();
@@ -156,12 +156,12 @@ namespace intro
 		llvm::Function::arg_iterator AI = function->arg_begin();
 		// only Param: generator pointer
 		AI->setName("generator_in");
-		generatorClosure=&*AI;
-		setClosure(builder,generatorClosure,generator_t,free);
+		closure=&*AI;
+		setClosure(builder,closure,generator_t,free);
 
 		llvm::Function *getStateF = TheModule->getFunction("getStateGenerator");
 		std::vector<llvm::Value*> argsGetState { 
-			builder.CreateBitCast(generatorClosure, builtin_t, "boxed_gen")
+			builder.CreateBitCast(closure, builtin_t, "boxed_gen")
 		};
 		llvm::Value *gen_state=builder.CreateCall(getStateF, argsGetState ,"gen_state");
 		leave = llvm::BasicBlock::Create(theContext, "leave");
@@ -181,6 +181,13 @@ namespace intro
 		llvm::Function::arg_iterator AI = function->arg_begin();
 		// 1st Param: Closure pointer
 		AI->setName("closure_in");
+		closure = &*AI;
+		// If the parent is defining a name (usual case), it is this function
+		if (!parent->outerValueName.empty())
+		{
+			//elements.insert(std::make_pair(parent->outerValueName, element(closure, getRTT(rtt::Function))));
+			addParameter(builder, parent->outerValueName, closure, getRTT(rtt::Function));
+		}
 		// replace reference to myclosure with closure_t??
 		llvm::Value *closureparam=builder.CreateBitCast(&*AI,closure_t->getPointerTo(),"closurecast");
 		// 2nd Param: return value type, if a value is returned

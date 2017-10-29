@@ -26,7 +26,7 @@ std::wostream& operator<<(std::wostream& os, PartialOrder po)
 	return os;
 }
 
-/// This function is used to collect the relations of contained types into the relation in accu
+/// This function is used to collect the covariant relations of contained types into the relation in accu
 // make this inline (move to header).
 void combinePartialOrders(PartialOrder &accu, PartialOrder additional)
 {
@@ -44,8 +44,6 @@ void combinePartialOrders(PartialOrder &accu, PartialOrder additional)
 	case ERROR: accu = ERROR;
 	};
 }
-
-
 
 //////////////////////////////////////////////////////////////////////////////////
 // Type Members
@@ -191,8 +189,10 @@ PartialOrder FunctionType::internalCheckSubtype(Type *other)
 		combinePartialOrders(val,(*bi)->checkSubtype(*ai));
 	}
 	if (val==ERROR) return ERROR;
-	// Note the order of parameters in this call tocheckSubtype is opposite from above!
-	combinePartialOrders(val,getReturnType()->checkSubtype(fb->getReturnType()));
+	// Note the source functions for the return types are 
+	// switched (compared to loop), the call to checkSubtype 
+	// is thus contravariant. Same for the return statement
+	combinePartialOrders(val,fb->getReturnType()->checkSubtype(getReturnType()));
 	return val;
 }
 
@@ -271,11 +271,6 @@ PartialOrder VariantType::internalCheckSubtype(Type *other)
 			if (bi==rb->endTag()) return ERROR;
 			switch(ai->second->checkSubtype(bi->second))
 			{
-/*			case GREATER:
-				if (val==EQUAL || val==GREATER) val = GREATER;
-				else return ERROR;
-				break;
-*/
 			case EQUAL: break;
 			case LESS:
 				if (val==EQUAL || val==LESS) val = LESS;
@@ -298,11 +293,8 @@ PartialOrder VariantType::internalCheckSubtype(Type *other)
 			if (ai==endTag()) return ERROR;
 			switch(ai->second->checkSubtype(bi->second))
 			{
-/*			case LESS:
-				if (val==EQUAL || val==LESS) val = LESS;
-				else return ERROR;
-				break;
-*/			case EQUAL: break;
+			break;
+			case EQUAL: break;
 			case GREATER: 
 				if (val==EQUAL || val==GREATER) val = GREATER;
 				else return ERROR;
@@ -422,8 +414,6 @@ Type *intersectVariantTypes(VariantType *a,VariantType *b,bool specialize)
 	VariantType *result=new VariantType(); // needs to be deleted if 
 	Environment::addIntermediate(result);
 	std::wstring errmsg=std::wstring();	// Collect all errors here
-	//std::wstring errnbuff=std::wstring();
-	//std::wstringstream ws=std::wstringstream(errmsg);
 	std::wstringstream ws;
 	VariantType::iterator iter,found;
 	for (iter=a->beginTag();iter!=a->endTag();iter++)
@@ -467,9 +457,21 @@ bool Type::unify(Type *b,bool specialize)
 		mroot->parent=oroot;
 		return false;
 	}
-	if (mroot->type==Variable && oroot->type==Variable) 
+	if (mroot->type == Top)	// Everything is more specific than Top
 	{
-		switch(oroot->getSupertype()->checkSubtype(mroot->getSupertype()))
+		mroot->parent = oroot;
+		return true;
+	}
+	else if (oroot->type == Top) // Everything is more specific than Top
+	{
+		oroot->parent = mroot;
+		return true;
+	}
+	if (mroot->type==Variable && oroot->type==Variable)
+	{
+		Type *oroot_sup = oroot->getSupertype()->find();
+		Type *mroot_sup = mroot->getSupertype()->find();
+		switch (oroot_sup->checkSubtype(mroot_sup->find()))
 		{
 		case ERROR:
 			// Here, we have detected incompatible supertypes, but the
@@ -480,66 +482,56 @@ bool Type::unify(Type *b,bool specialize)
 			// a new type which contains the merged/intersected contents of both, we can take the subtype
 			// (the more restrictive type) directly.
 			// in other cases, we must stick to the type graph.
-			if (oroot->getSupertype()->getKind()==Type::Record && mroot->getSupertype()->getKind()==Type::Record)
+			if (oroot_sup->getKind() == Type::Record && mroot_sup->getKind() == Type::Record)
 			{
-				Type *merged=mergeRecordTypes(dynamic_cast<RecordType*>(oroot->getSupertype()),dynamic_cast<RecordType*>(mroot->getSupertype()));
-				if (merged->getKind()!=Type::Error) merged=Environment::fresh(merged);
-				oroot->parent=merged;
-				mroot->parent=merged;
-				return merged->getKind()!=Type::Error;
+				Type *merged = mergeRecordTypes(dynamic_cast<RecordType*>(oroot_sup), dynamic_cast<RecordType*>(mroot_sup));
+				if (merged->getKind() != Type::Error) merged = Environment::fresh(merged);
+				oroot->parent = merged;
+				mroot->parent = merged;
+				return merged->getKind() != Type::Error;
 			}
-			if (oroot->getSupertype()->getKind()==Type::Variant && mroot->getSupertype()->getKind()==Type::Variant)
+			if (oroot_sup->getKind() == Type::Variant && mroot_sup->getKind() == Type::Variant)
 			{
-				Type *intersect=intersectVariantTypes(dynamic_cast<VariantType*>(oroot->getSupertype()),dynamic_cast<VariantType*>(mroot->getSupertype()),specialize);
-				if (intersect->getKind()!=Type::Error) intersect=Environment::fresh(intersect);
-				oroot->parent=intersect;
-				mroot->parent=intersect;
-				return intersect->getKind()!=Type::Error;
+				Type *intersect = intersectVariantTypes(dynamic_cast<VariantType*>(oroot_sup), dynamic_cast<VariantType*>(mroot_sup), specialize);
+				if (intersect->getKind() != Type::Error) intersect = Environment::fresh(intersect);
+				oroot->parent = intersect;
+				mroot->parent = intersect;
+				return intersect->getKind() != Type::Error;
 			}
-			return false;
-		case LESS: 
-			mroot->parent=oroot;
-			if (mroot->getSupertype()->getKind()==Top) return true;
-			return isLessOrEqual(oroot->checkSubtype(mroot->getSupertype()));
-		case EQUAL: 
+			// if all of the above failed, the types may still be unifiable
+			if (!oroot_sup->unify(mroot_sup, specialize))
+				return false;
+			oroot->parent = mroot;
+			return true;
+			//return false;
+		case LESS:
+			if (!oroot_sup->unify(mroot_sup, specialize))
+				return false;
+			mroot->parent = oroot;
+			return true;
+		case EQUAL:
 		case GREATER:
-			oroot->parent=mroot;
-			if (oroot->getSupertype()->getKind()==Top) return true;
-			return isLessOrEqual(mroot->checkSubtype(oroot->getSupertype()));
+			if (!oroot_sup->unify(mroot_sup, specialize))
+				return false;
+			oroot->parent = mroot;
+			return true;
 		}
 	}
 	else if (mroot->type==Variable && oroot->type!=Variable)
 	{
-		switch(oroot->checkSubtype(mroot->getSupertype()))
-		{
-		case LESS:
-		case EQUAL: 
-			mroot->parent=oroot; 
-			if (mroot->getSupertype()->getKind()==Top) return true;
-			if (!isLessOrEqual(oroot->checkSubtype(mroot->getSupertype())))
-				return false;
-			else return oroot->unify(mroot->getSupertype(),specialize);
-		case GREATER: // Yes, it is an error if we expect more than is given
-		case ERROR: 
+		Type *mroot_sup = mroot->getSupertype()->find();
+		if (!mroot_sup->unify(oroot, specialize))
 			return false;
-		}
+		mroot->parent = oroot;
+		return true;
 	}
 	else if (oroot->type==Variable && mroot->type!=Variable)
 	{
-		switch(mroot->checkSubtype(oroot->getSupertype()))
-		{
-		case LESS: 
-		case EQUAL: 
-			oroot->parent=mroot; 
-			if (oroot->getSupertype()->getKind()==Top) return true;
-			if (!isLessOrEqual(mroot->checkSubtype(oroot->getSupertype())))
-				return false;
-			else return mroot->unify(oroot->getSupertype(),specialize);
-			//return true;
-		case GREATER: // Yes, it is an error if we expect more than is given
-		case ERROR: 
+		Type *oroot_sup = oroot->getSupertype()->find();
+		if (!oroot_sup->unify(mroot, specialize))
 			return false;
-		}
+		oroot->parent = mroot;
+		return true;
 	}
 	return oroot->internalUnify(mroot,specialize);
 }
@@ -548,14 +540,10 @@ bool Type::unify(Type *b,bool specialize)
 bool Type::internalUnify(Type *other, bool specialize)
 {
 	//SubtypeTraversal traverse(theGraph,this,other);
-	//std::vector<Type*> current;
-	//std::set<Type*> exclude;
-	//std::set<Type*>::iterator iter;
 	std::vector<Type*>::iterator iter;
 	std::vector<Type*>::iterator oit;
 	// First, check the type graph if a legal path actually exists
 	PartialOrder order = theGraph.findSupertype(this, other, currentMapping, excludeMapping);
-	//PartialOrder order = theGraph.findSupertype(this, other, current, excludeMapping);
 
 	if (order == ERROR) return false;
 	Type *goal = this;
@@ -588,6 +576,7 @@ bool Type::internalUnify(Type *other, bool specialize)
 	}
 	else
 	{
+		// If the types are the same, then there was no traversal - we get the identity mapping.
 		for (iter = source->begin(), oit = goal->begin();iter != source->end() && retval;iter++, oit++)
 		{
 			retval &= (*iter)->unify(*oit);
@@ -614,7 +603,8 @@ bool RecordType::internalUnify(Type *other,bool specialize)
 	RecordType *rb=dynamic_cast<RecordType*>(other);
 	if (rb==NULL) return false;
 	RecordType::iterator ai,bi;
-	if (size()!=rb->size()) return false;
+	if (size()!=rb->size()) 
+		return false;
 	for (ai=begin(),bi=rb->begin();ai!=end();ai++,bi++)
 	{
 		if (ai->first!=bi->first) return false;
@@ -623,52 +613,45 @@ bool RecordType::internalUnify(Type *other,bool specialize)
 	return true;
 }
 
-bool VariantType::internalUnify(Type *other,bool specialize)
+bool VariantType::internalUnify(Type *other, bool specialize)
 {
-	VariantType *vb=dynamic_cast<VariantType*>(other);
-	if (vb==NULL) return false;
-	VariantType::iterator ai,bi;
+	VariantType *vb = dynamic_cast<VariantType*>(other);
+	if (vb == NULL) return false;
+	VariantType::iterator ai, bi;
 	if (specialize) // excpect [:A ...] with ?a<:{[:A ...] + ...}
 	{
-		//VariantType *bigger=nullptr;
-		if (tags.size()==1)
-		{
-			ai=tags.begin();
-			bi=vb->findTag(ai->first);
-			//bigger=vb;
-		}
-		else if (vb->tags.size()==1)
-		{
-			ai=vb->beginTag();
-			bi=tags.find(ai->first);
-			//bigger=this;
-			
-		}
-		else return false;
-		ai->second->unify(bi->second);
-		//if (bigger==vb) this->setParent(ai->second);
-		//else vb->setParent(ai->second);
-
-		vb->setParent(this);
-	}
-	else
-	{	
 		// Tags present in both : 
-		for (ai=beginTag();ai!=endTag();ai++)
+		for (ai = beginTag();ai != endTag();ai++)
 		{
-			bi=vb->findTag(ai->first);
-			if (bi!=vb->endTag())
+			bi = vb->findTag(ai->first);
+			if (bi != vb->endTag())
 			{
-				if (!ai->second->unify(bi->second,specialize))
+				if (!ai->second->unify(bi->second, specialize))
 					return false;
 			}
 		}
-		for (bi=vb->beginTag();bi!=vb->endTag();bi++)
+		for (bi = vb->beginTag();bi != vb->endTag();bi++)
 		{
-			ai=findTag(bi->first);
-			if (ai==endTag())
+			ai = findTag(bi->first);
+			if (ai == endTag())
 				addTag(bi);
 		}
+		vb->setParent(this);
+	}
+	else
+	{
+		if (tags.size() == 1)
+		{
+			ai = tags.begin();
+			bi = vb->findTag(ai->first);
+		}
+		else if (vb->tags.size() == 1)
+		{
+			ai = vb->beginTag();
+			bi = tags.find(ai->first);
+		}
+		else return false;
+		ai->second->unify(bi->second);
 		vb->setParent(this);
 	}
 	return true;

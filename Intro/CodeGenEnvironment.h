@@ -71,9 +71,14 @@ private:
 	/// State based dispatch to entry points for yield statements
 	llvm::SwitchInst *generatorStateDispatch;
 	/// Generators get their cariables alloated from the closure
-	llvm::Value *generatorClosure;
+	llvm::Value *closure;
 	/// Used by boxing/unboxing helpers to get doubles from an i8*. Created in every non-localScope and hopefully not used much after optimizations
 	llvm::AllocaInst *double_buffer;
+	/// The name of the variable defined in the child environment
+	/** This is used by the variable statement to communicate the name of recursive functions
+		to the function itself.
+	*/
+	std::wstring outerValueName;
 
 	/// Return the Environment that represents a function, if any
 	inline CodeGenEnvironment *getWrappingEnvironment()
@@ -97,6 +102,9 @@ public:
 		, leave(nullptr)
 		, closuresize(0)
 		, scope_type(st)
+		, generatorStateDispatch(nullptr)
+		, closure(nullptr)
+		, double_buffer(nullptr)
 
 	{
 	}
@@ -120,6 +128,23 @@ public:
 	inline bool isGlobal(void) { return getScopeType()==GlobalScope; }
 	
 	inline CodeGenEnvironment *getParent(void) { return parent; }
+
+	inline void setOuterValueName(const std::wstring &name)
+	{
+		outerValueName = name;
+	}
+
+	inline const std::wstring &getOuterValueName()
+	{
+		return outerValueName;
+	}
+
+	inline bool isCurrentClosure(llvm::Value *val)
+	{
+		CodeGenEnvironment *env = getWrappingEnvironment();
+		if (env == nullptr) return false;
+		return env->closure != nullptr && env->closure == val;
+	}
 
 	/// Set the function wrapping the anonmyous root statement, global scope only!
 	void setAnonFunction(llvm::Function *func)

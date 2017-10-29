@@ -1182,6 +1182,22 @@ bool filterCodeGen(void)
 	return isOK;
 }
 
+bool recursiveFunctionCodeGen(void)
+{
+	cout << "\n---\n Recursive function Code Generation:\n";
+	const char *test = "var fib(n)->if n<=2 then return 1; else return fib(n-1) + fib(n-2); end; end;";
+	//parse::Parser parser=getParser(test);
+	cout << test << endl << endl;
+	parse::Scanner scanner((const unsigned char *)test, strlen(test));
+	parse::Parser parser(&scanner);
+	parser.isInteractive = false;
+	parser.Parse();
+	intro::Environment global;
+	bool isOK = parser.inferTypes(&global);
+	if (isOK) dumpGeneratedStatements(parser);
+	parser.deleteStatements();
+	return isOK;
+}
 // Execute all type tests
 bool typeTests(void)
 {
@@ -1228,29 +1244,29 @@ bool typeTests(void)
 // Execute all code generation tests
 bool codeGenTests(void)
 {
-	constantExpressionCodeGen();
-	globalVariablesCodeGen();
-	stringLiteralsCodeGen();
-	stringInterpolationCodeGen();
-	basicFunctionCodeGen();
-	arithFunctionCodeGen();
-	polyFunctionCodeGen();
-	polyClosureCodeGen();
-	recordCodeGen();
-	variantCodeGen();
-	basicCompareCodeGen();
-	polyCompareCodeGen();
-	basicListCodeGen();
-	genListCodeGen();
-	emptyGeneratorCodeGen();
-	simpleGeneratorCodeGen();
-	complexGeneratorCodeGen();
-	elementCountCodeGen();
-	conditionGeneratorCodeGen();
-	retLikeCodeGen();
-	variantsUseCodeGen();
+	//constantExpressionCodeGen();
+	//globalVariablesCodeGen();
+	//stringLiteralsCodeGen();
+	//stringInterpolationCodeGen();
+	//basicFunctionCodeGen();
+	//arithFunctionCodeGen();
+	//polyFunctionCodeGen();
+	//polyClosureCodeGen();
+	//recordCodeGen();
+	//variantCodeGen();
+	//basicCompareCodeGen();
+	//polyCompareCodeGen();
+	//basicListCodeGen();
+	//genListCodeGen();
+	//emptyGeneratorCodeGen();
+	//simpleGeneratorCodeGen();
+	//complexGeneratorCodeGen();
+	//elementCountCodeGen();
+	//conditionGeneratorCodeGen();
+	//retLikeCodeGen();
+	//variantsUseCodeGen();
 	filterCodeGen();
-
+	recursiveFunctionCodeGen();
 	return true;
 }
 

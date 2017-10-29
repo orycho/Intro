@@ -127,8 +127,9 @@ private:
 		FPM->add(llvm::createReassociatePass());
 		//FPM->add(llvm::createJumpThreadingPass());
 		//FPM->add(llvm::createGVNPass());
-		//FPM->add(llvm::createDeadCodeEliminationPass());
+		FPM->add(llvm::createDeadCodeEliminationPass());
 		FPM->add(llvm::createCFGSimplificationPass());
+		FPM->add(llvm::createVerifierPass());
 		FPM->doInitialization();
 
 		// Run the optimizations over all functions in the module being added to

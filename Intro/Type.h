@@ -227,7 +227,7 @@ public:
 	/// The kind of a type, as defined by the Types enumeration, is used to determine subclass, quickly compare inequality for types, and more...
 	inline Types getKind(void) { return type; };
 	/// Returns a pointer to this types supertype (constraint).To convert a type to it's supertype @see TypeGraph::getParentType().
-	inline Type *getSupertype(void) { return super; };
+	inline Type *getSupertype(void) { return super->find(); };
 	/// Assign a new (usually more restrictive) supertype to the type.
 	inline void replaceSupertype(Type *t)
 	{

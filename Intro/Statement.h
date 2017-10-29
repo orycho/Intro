@@ -263,7 +263,7 @@ public:
 			std::wcout << L"The identifier \"" << name.c_str() << "\" already names a variable in this scope!\n";
 			return false;
 		}
-		// @TODO: When adding constants in the future, so it here...
+		// @TODO: When adding constants in the future, do it here...
 		if (!constant) t->setAccessFlags(Type::Readable|Type::Writable);
 		Type *et=value->getType(env);
 		et->setAccessFlags(t->getAccessFlags());
@@ -376,14 +376,14 @@ public:
 		iterator iter=conditions.begin();
 		s << "if ";
 		iter->first->print(s);
-		s << "then\n";
+		s << " then\n";
 		iter->second->print(s);
 		iter++;
 		for (;iter!=conditions.end();iter++)
 		{
 			s << "elseif";
 			iter->first->print(s);
-			s << "then\n";
+			s << " then\n";
 			iter->second->print(s);
 		}
 		if (otherwise!=NULL)
@@ -770,10 +770,10 @@ public:
 	{
 		Type *t;
 		if (expr!=NULL) t=expr->getType(env);
-		//else t=new Type(Type::Unit);
 		else t = &unit;
 		Type *r=env->get(L"!return");
-		return t->unify(r);
+		// Return is contravariant
+		return t->unify(r,true);
 	};
 
 	virtual void print(std::wostream &s)

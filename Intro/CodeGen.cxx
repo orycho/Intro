@@ -1239,6 +1239,8 @@ namespace intro {
 	{
 		// Totall need the free variables, and maybe also the bound ones.
 		VariableSet free,bound;
+		if (!env->getOuterValueName().empty())
+			bound.insert(env->getOuterValueName());
 		getFreeVariables(free,bound);
 		std::vector<std::wstring> variables(free.begin(),free.end());
 		// Allocate closure with space for all free variables
@@ -1263,7 +1265,14 @@ namespace intro {
 	/// internal helper function to convert an Intro Function Type to an LLVM Function Type
 	static llvm::FunctionType *buildFunctionType(Type *somefun)
 	{
-		FunctionType *fun=dynamic_cast<FunctionType*>(somefun);
+		FunctionType *fun;
+		if (somefun->getKind() == Type::Variable)
+		{
+			TypeVariable *var = dynamic_cast<TypeVariable *>(somefun);
+			fun= dynamic_cast<FunctionType*>(var->getSupertype()->find());
+		}
+		else 
+			fun=dynamic_cast<FunctionType*>(somefun);
 		bool returnsValue = fun->getReturnType()->find()->getKind()!=Type::Unit;
 		// Create LLVM Function type, and Function with entry block
 		std::vector<llvm::Type*> paramtypes;
@@ -1384,9 +1393,19 @@ namespace intro {
 		// 2) Create type for called function to bit cast i8* to
 		llvm::FunctionType *FT=buildFunctionType(func->getType());
 		// 3) Extract function pointer from closure and bitcast to function type
-		llvm::Value *funptr=TmpB.CreateStructGEP(closure_t,closure,ClosureFunction,"funptr_in_closure");
-		llvm::Value *fun=TmpB.CreateLoad(funptr,"funbuf");
-		fun=TmpB.CreateBitCast(fun,FT->getPointerTo(),"function");
+		// Unless this is a recusrive call, in that case we know the function!
+		llvm::Value *fun;
+		// A little optimization for recursive functions,
+		// where the current function can just be picked from the environment.
+		// The env also knows the current closure, so this is all super simple:
+		if (env->isCurrentClosure(rtfun.first))
+			fun = env->currentFunction();
+		else
+		{
+			llvm::Value *funptr = TmpB.CreateStructGEP(closure_t, closure, ClosureFunction, "funptr_in_closure");
+			fun = TmpB.CreateLoad(funptr, "funbuf");
+			fun = TmpB.CreateBitCast(fun, FT->getPointerTo(), "function");
+		}
 		std::vector<Value*> ArgsV;
 		// Build array of arguments for function call
 		ArgsV.reserve(myFuncType->parameterCount()*2+2);	// parameters with rtt plus closure + reserving one more should not hurt...
@@ -1856,9 +1875,18 @@ namespace intro {
 			t->find()->print(std::wcout);
 			std::wcout << std::endl;
 		}
-		CodeGenEnvironment::iterator iter=env->createVariable(name);
-		if (iter==env->end()) return false;
+		// For recursive functions, set name of function in env (pass to function)
+		// => Check if t is function (and if this variable's name is free in the expression?)
+		if (t->find()->getKind() == Type::Function)
+		{
+			env->setOuterValueName(name);
+		}
 		Expression::cgvalue rhs=value->codeGen(TmpB,env);
+		// Clear function name in CGEnv...
+		env->setOuterValueName(L"");
+		// Create actual variable
+		CodeGenEnvironment::iterator iter = env->createVariable(name);
+		if (iter == env->end()) return false;
 		TmpB.CreateStore(rhs.first, iter->second.address);
 		TmpB.CreateStore(rhs.second, iter->second.rtt);
 		return true;
@@ -1879,7 +1907,9 @@ namespace intro {
 		{
 			alternatives.push_back(BasicBlock::Create(theContext, "test_if"));
 		}
-		llvm::BasicBlock *post_ite=BasicBlock::Create(theContext, "post_ite");
+		llvm::BasicBlock *post_ite;
+		if (isReturnLike()) post_ite = env->getExitBlock();
+		else post_ite = BasicBlock::Create(theContext, "post_ite");
 		if (otherwise!=NULL)
 			alternatives.push_back(BasicBlock::Create(theContext, "else"));
 		else 
@@ -1904,7 +1934,7 @@ namespace intro {
 			TheFunction->getBasicBlockList().push_back(block);
 			TmpB.SetInsertPoint(block);
 			iter->second->codeGen(TmpB,&local);
-			if (!iter->second->isReturnLike())
+			if (post_ite != env->getExitBlock())
 				TmpB.CreateBr(post_ite);
 		}
 		if (otherwise!=NULL)
@@ -1913,10 +1943,13 @@ namespace intro {
 			CodeGenEnvironment local(env);
 			TheFunction->getBasicBlockList().push_back(alternatives.back());
 			TmpB.SetInsertPoint(alternatives.back());
-			iter->second->codeGen(TmpB,&local);
-			TmpB.CreateBr(post_ite);
+			//iter->second->codeGen(TmpB,&local);
+			otherwise->codeGen(TmpB, &local);
+			if (post_ite != env->getExitBlock())
+				TmpB.CreateBr(post_ite);
 		}
-		TheFunction->getBasicBlockList().push_back(post_ite);
+		if (post_ite!=env->getExitBlock())
+			TheFunction->getBasicBlockList().push_back(post_ite);
 		TmpB.SetInsertPoint(post_ite);
 			
 		return true;

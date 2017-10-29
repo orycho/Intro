@@ -12,7 +12,7 @@ This is version 0.1 and a few things are still missing:
 
 # Main Features (as of V0.1):
 * Small language focusing on fundamental programming language concepts, with syntax hopefully promoting readable code
-* Strict static typing based on type inference (Hindley-Milner with Records and Subtyping a.k.a F1sub)
+* Strict static typing based on type inference (Hindley-Milner with Records and Subtyping a.k.a. F1sub)
 * Higher order functions, parametric polymorphism, generators
 * LLVM based code generation
 
@@ -32,8 +32,10 @@ tested with
 
 Requires LLVM 4 installed, check the solutions path under windows to make sure it points the right way.
 Building tests requires google-test installed - MSVC will try to build tests by default. Again, check project directories.
+When using MSVC, the Visual Leak Detector is used in debug mode.
 
 To modify the grammar, you will need COCO/R installed - use namespace "parser" and the frame files in subdirectory coco.
+(or uncomment the action in makefile under unix).
 
 # Super short quick start guide
 
@@ -49,6 +51,8 @@ All values in Intro are just written out, each built in type has distinct syntax
 Simple types (are expessions represented by a single literal):
 * Booleans can be: <pre>true, false</pre>
 * Strings are in quotes: <pre>"some string", "abc"</pre>
+* The backspace \ character in strings has special meaning to insert special characters (e.g. "\\n" new line, 
+"\\t" tabulator, "\\\\" backslash, "\\"" quote), check the cheatsheet for a list.
 * String interpolation: any occurence of ${id}, for some variable identifier id, inside the string is 
 replaced with a string representing the value of 'id'. For instance an integer variabela with value 123
 would turn 
@@ -57,7 +61,7 @@ into the output
 <pre>the value is 123!!!</pre>
 All types can be turned to strings, but for functions and generators the output is simply "function" and "generator" respectively.
 * Integers consist of only digits: <pre>0, 123, 400246</pre>
-* Reals have at least one dot between digits: <pre>.0, 1.23, 2360897.</pre>
+* Reals have at exactly one dot amongst the digits: <pre>.0, 1.23, 2360897.</pre>
 
 Compound types (require expressions with arbitrary many literals):
 * Functions begin with the keyword "fun" followed by a list of comma separated identifiers in parentheses (parameters)
@@ -71,10 +75,10 @@ foo(1-a,1/a)</pre>
 * Dictionary lookup uses the [] operator which returns a maybe variant on lookup: <pre>d["a"]</pre> Can also be used for assignment
 <pre>d["x"]<-6;</pre>
 * Elements can be removed from dictionaries using the "\\" operator (backslash), it can be chained since the operator 
-returns the dictionary (which has ben modified): <pre>d\\"a"\\"b"</pre>
+returns the dictionary (which has been modified): <pre>d\\"a"\\"b"</pre>
 * lists and dictionaries may also have one expression for element or key-value pair, followed by a pipe 
 symbol | and a generator statement. See below
-* Records contain an arbitrar number of fields, which are labeled by an identifier. Fields may have distinct types.
+* Records contain an arbitrary number of fields, which are labeled by an identifier. Fields may have distinct types.
 The records consists of square brackets with semicolon terminated field assignments identifier <- Expression; e.g.
 <pre>[ x<-1; y<-2; active<-false; name<-"foobar";]</pre>
 * Record elements can be accessed by label with the . operator
@@ -85,8 +89,8 @@ continue after the last executed yield statement, unless it is a "yield done". G
 <pre>fun(a,b,c)->yield a; yield b; yield c; yield done; end;</pre>
 * Lists, dictionaries and strings are all generators that range over the contents of the value. For lists the elements, for strings the characters, and for dictionaries records with labels key and value with the contents accordingly.
 
-The maybe variant has type <pre>{[:None]+[:Some value:?Key]}</pre>
-To actually use dictionary lookup, inspect the maybe variant witj a case stament (both branches required):
+The maybe variant has type <pre>{[:None]+[:Some value:?Value]}</pre>
+To actually use dictionary lookup, inspect the maybe variant with a case stament (both branches required):
 <pre>
 case d["a"] of 
 Some value then workon(value);
@@ -100,8 +104,10 @@ Other expressions:
 * Arithmetic (integer and real): <pre>+,*,-,/,%</pre>
 * boolean: <pre>and, or, xor, not</pre>
 * compares: <pre>==, !=</pre> (all types) and <pre>>, <, >=, <=</pre> (only string, integer, real)
-* list and string splice: <pre>l[1:last]</pre> (new list without the first element)
-* Assignment "<-" returns the value that was written to the destination on the left. E.g.: <pre>y<-2</pre>
+* sequence (list and string) splice returns a subsequence based on identifiers. Inside the square brackets, 
+a special variable "last" holds the index of the last element in the input sequence : <pre>l[1:last]</pre> 
+(new list without the first element)
+* Assignment "<-" (read: "is assigned") returns the value that was written to the destination on the left. E.g.: <pre>y<-2</pre>
 
 Statements (must end with a semicolon):
 * Every expression is a statement. No other statements return values.
@@ -109,7 +115,8 @@ Statements (must end with a semicolon):
 Variables must always be initialized explicitely when defined: 
 <pre>var x<-3; 
 var f<-fun(a,b)->return a*a+b*b; end;</pre>
-* Identifiers may contain of letters, digits and underscores, but may not begin with a digit. "abc", "_long_ident_344" are ok, "3d" is not.
+* Identifiers may consist of letters, digits and underscores, but may not begin with a digit. "abc", "_long_ident_344" are ok, "3d" is not.
+(Quotes for readabilty only!)
 * Some syntax sugar is provided for declarations of variables with function types, removing the "<-fun":
 <pre>var line(slope,offset)->return fun(x)->return slope*x+offset; end; end;</pre>
 * Conditions use the common if...then...else with the last branch ending with an end, additional conditions use the single word elsif:
@@ -140,20 +147,20 @@ Generators can only be used in these statemens, which are actually always part o
 in list or dictionary expressions, they provide the values that are turned into the contents of the containers.
 The for statements just combines a generator statements with a list of statemetns that operate on each set of values generated.
 
-Generator statements consist of statements that bind a variable (name) to a generator's result valeues using the infix keyword "in":
+Generator statements consist of statements that bind a variable (name) to a generator's result values using the infix keyword "in":
 * <pre>x in somelist</pre>
 * <pre>char in string</pre>
 
 Special syntax sugar is provided for generating integer values:
-x from startvalue to endvalue by stepvalue
-Where s ranges from start value to at most endvalue and is incremented by stepvalue. Stepvalue is optional and defaults to one,
-e.g. to generate all values from 1 to 10:
+identifier "from" startvalue "to" endvalue "by" stepvalue.
+Where the values generated starts at start value, goes up to at most endvalue and is incremented by stepvalue. 
+Stepvalue is optional and defaults to one, e.g. to generate all values from 1 to 10 in variable x:
 <pre>x from 1 to 10</pre>
 
 Multiple values can be generated in one statement, each additional value begins with the operator "&&", and generator
 applications (maybe better instantiation) can use the variables introduced to their left:
 
-<pre>x from 1 to 10 && y from x to 10 && z from y to 10</pre>
+<pre>i from 1 to 10 && y from x to 10 && z from y to 10</pre>
 
 A generator value is moved to the next every time the generator to the left (if there) has completed a full cycle.
 So the above example generates x=1, y=1, z=1, then z=2 and so on. Once z is 10, y is increased then z is reset to the new y.
@@ -162,7 +169,7 @@ It is probably easiest to type it into the repl as a list to see the result:
 <pre>{ [a<-x; b<-y; c<-z;] | x from 1 to 10 && y from x to 10 && z from y to 10};</pre>
 
 Finally, anywhere after the first generator binding conditions can be introduced by the operator "??", and it can use all
-generator values defined to their left. Any value combination for which the condition is false will be skipped, which
+generator values defined to its left. Any value combination for which the condition is false will be skipped, which
 includes any generators to the right. So here is a list of right triangles, without isomorphism and with the hypothenuse
 always in c (in the records in the resulting list):
 
