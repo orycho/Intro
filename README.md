@@ -22,7 +22,7 @@ and records are structurally subtyped.
 
 This is version 0.2 and a few things are still missing:
 * generated code leaks memory
-* standard library, I/O especially
+* standard library currently limited to read from and print to text terminal.
 * the repl is flaky, it likes to exit on syntax errors and arrow keys and the like... no getline.
 
 ## Building the source
@@ -408,7 +408,7 @@ for example into a function or loop body, and not clash with identifiers outside
 
 # ::sio (Simple Input Output)
 
-This is the first module of the run time library (RTL). Is provides a very simple example of implementing RLT modules,
+This is the first module of the run time library (RTL). Is provides a very simple example of implementing RTL modules,
 as well as the simplest possible input and output support.
 
 ## print
