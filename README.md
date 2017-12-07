@@ -318,7 +318,7 @@ The path may end with a module name where a module is expected, or with a member
 Wether or not the the last identifier in a path refers to a module is context dependant: in an import statement or module name, 
 it ends with a module, otherwise it is a prefixed identifier.
 
-
+## Defining Modules
 The syntax for modules is:
 <pre>
 "module" path "exports"
@@ -361,6 +361,7 @@ This can happen for example with 3D vectors which have three numbers of the same
 NOTE TO ORY: how about using the opaque type's supertype, e.g. Vector3(?a&lt;:Number)&lt;:[x:?a;y:?a;z:?a;]!
 May work, but seems kludgy...
 
+## Example Module
 Here is a module that defines a pair of values in a type Pair.
 It has two parameters representing the types of the two values in the pair,
 and a few operations:
