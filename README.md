@@ -30,7 +30,8 @@ tested with
 * MSVC 2015: use solution file to build.
 * cygwin gcc: use makefile. Just type "make" in the shell, from the project root directory.
 
-* Requires [LLVM 4 or higher](http://llvm.org/) to be installed, check the solutions path under windows to make sure it points the right way.
+To build from source, some libraries are needed:
+* [LLVM 4 or higher](http://llvm.org/) to be installed, check the solutions path under windows to make sure it points the right way.
 * Building tests requires [google-test](https://github.com/google/googletest) installed - MSVC will try to build tests by default. Again, check project directories.
 * When using MSVC, the [Visual Leak Detector](https://vld.codeplex.com/) is used in debug mode.
 * To modify the grammar, you will need [COCO/R](http://www.ssw.uni-linz.ac.at/Coco/) installed - use namespace "parser" and the frame files in subdirectory coco, or check makefile/solution
