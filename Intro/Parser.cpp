@@ -1186,12 +1186,19 @@ void Parser::Intro() {
 			Module();
 			intro::ModuleStatement *mod=modules.top(); modules.pop();
 			//if (mod->makeType(getEnv()))
-			//	mod->print(std::wcout);
+			{
 			if (isInteractive)
 			{
-			// process parse result, then pop front;
+				// process parse result
+				executeStmt(mod);
 			}
-			else parseResult.push_back(mod);	
+			else parseResult.push_back(mod);
+			}
+			/*else
+			{
+			printf("Error in Module definition!");
+			}
+			*/
 			
 			Expect(30 /* "." */);
 		} else SynErr(93);
@@ -1212,13 +1219,18 @@ void Parser::Intro() {
 				Module();
 				intro::ModuleStatement *mod=modules.top(); modules.pop();
 				//if (mod->makeType(getEnv()))
-				//	mod->print(std::wcout);
-				printf("push result\n");
+				{
 				if (isInteractive)
 				{
-				// process parse result, then pop front;
+					// process parse result
+					executeStmt(mod);
 				}
 				else parseResult.push_back(mod);
+				}
+				/*else
+				{
+				printf("Error in Module definition!");
+				}*/
 				
 				Expect(30 /* "." */);
 			}

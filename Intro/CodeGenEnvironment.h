@@ -27,6 +27,8 @@ namespace intro
 // We need this from CodeGen.cxx to assign types to variables
 llvm::Type *toTypeLLVM(intro::Type *type);
 
+class CodeGenModule;
+
 class CodeGenEnvironment
 {
 public:
@@ -51,6 +53,13 @@ public:
 			: address(address_)
 			, rtt(rtt_)
 			, isParameter(isParam)
+		{
+		};
+
+		element(const element &other)
+			: address(other.address)
+			, rtt(other.rtt)
+			, isParameter(other.isParameter)
 		{
 		};
 	};
@@ -112,13 +121,19 @@ public:
 	~CodeGenEnvironment()
 	{}
 
+	virtual CodeGenModule *getCurrentModule(void)
+	{
+		if (parent == nullptr) return nullptr;
+		return parent->getCurrentModule();
+	}
 
 	/// Used by interpreter to add elements of the global scope to mdoules for each line.
 	void addExternalsForGlobals(void);
 	/// 
 	//inline void setParent(CodeGenEnvironment *p) { parent=p; }
 
-	inline ScopeType getScopeType(void) { 
+	inline ScopeType getScopeType(void) 
+	{ 
 		CodeGenEnvironment *env=getWrappingEnvironment();
 		if (env==nullptr) 
 			return scope_type; // either global or local, but not in any function or generator
@@ -228,9 +243,16 @@ public:
 	/// Get a types runtime encoding
 	llvm::Value *getRTT(rtt::RTType rtt);
 	llvm::Value *getRTT(Type *type);
+
 	/// Create a new variable in the current scope (global or local)
 	iterator createVariable(const std::wstring &name);
-	/// Create lcoal variable holding a function call's return type
+	/// Import a variable that resides in an module
+	iterator importElement(const std::wstring &name, const element &elem)
+	{
+		//return elements.insert(std::make_pair(name, element(elem.address, elem.rtt))).first;
+		return elements.insert(std::make_pair(name, elem)).first;
+	};
+	/// Create local variable holding a function call's return type
 	llvm::AllocaInst *createRetValRttDest(void);
 	
 	void setFunction(llvm::IRBuilder<> &builder,llvm::Function *TheFunction,

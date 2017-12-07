@@ -57,6 +57,9 @@
     <ClCompile Include="city.cxx">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="CodeGenModule.cxx">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CodeGen.h">
@@ -120,6 +123,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="JIT.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CodeGenModule.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

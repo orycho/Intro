@@ -263,7 +263,18 @@ struct rtclosure
 	rtclosure_field fields[1];
 };
 
+#define MKCLOSURE(name,codeptr) rtclosure name = { \
+	{false, gcdata::Octarine, 1}, \
+	(void*)codeptr, 1, \
+	{ 0ll, 0} };
+
 FORCE_EXPORT rtclosure *allocClosure(std::uint32_t freevarcont);
+
+FORCE_EXPORT void sioPrint_(rtclosure *closure, rtdata data, rtt_t rtt);
+FORCE_EXPORT rtstring *sioRead_(rtclosure *closure, rtt_t *retvalrtt);
+
+FORCE_EXPORT extern rtclosure sioPrint;
+FORCE_EXPORT extern rtclosure sioRead;
 
 ///@}
 

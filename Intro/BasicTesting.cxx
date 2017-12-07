@@ -1198,6 +1198,26 @@ bool recursiveFunctionCodeGen(void)
 	parser.deleteStatements();
 	return isOK;
 }
+
+bool moduleCodeGen(void)
+{
+	cout << "\n---\n Module Code Generation:\n";
+	const char *test = "module Pair exports type Pair(?a,?b); first:(Pair(?a,?b))-> ?a; second:(Pair(?a,?b))-> ?b; swap:(Pair(?a,?b))->Pair(?b,?a); from var Pair(a,b)->return [first<-a;second<-b;]; end; var first(a)-> return a.first; end; var second(a)-> return a.second; end; var swap(a)->return [first<-a.second;second<-a.first;]; end; end."
+		" var p<-Pair::Pair(1,true); "
+		"import Pair; var q<-swap(p); var b<-first(p)==second(q);"
+		;
+	//parse::Parser parser=getParser(test);
+	cout << test << endl << endl;
+	parse::Scanner scanner((const unsigned char *)test, strlen(test));
+	parse::Parser parser(&scanner);
+	parser.isInteractive = false;
+	parser.Parse();
+	intro::Environment global;
+	bool isOK = parser.inferTypes(&global);
+	if (isOK) dumpGeneratedStatements(parser);
+	parser.deleteStatements();
+	return isOK;
+}
 // Execute all type tests
 bool typeTests(void)
 {
@@ -1267,6 +1287,7 @@ bool codeGenTests(void)
 	//variantsUseCodeGen();
 	filterCodeGen();
 	recursiveFunctionCodeGen();
+	moduleCodeGen();
 	return true;
 }
 

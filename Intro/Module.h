@@ -231,14 +231,14 @@ public:
 				MemberTypeDeclaration *mt=dynamic_cast<MemberTypeDeclaration*>(*exported);
 				module->addExport((*exported)->getName(),mt->getExposedType());
 			}
-			else	// Opaque Type declaration<
+			else	// Opaque Type declaration
 			{
 				// Look for variable of same name in environment
 				OpaqueType *ot=dynamic_cast<OpaqueType*>(exptype);
 				Type *inside=localenv.get(ot->getName());
 				if (inside==NULL)
 				{
-					// Need error message!
+					// Need error message? Or is it ok if there is no "standard"-ctor?
 					success=false;
 					continue;
 				}
@@ -266,13 +266,23 @@ public:
 		return success;
 	};
 
+	inline void printPath(std::wostream &s)
+	{
+		if (!relative) s << "::";
+		std::list<std::wstring>::iterator pit = path.begin();
+		s << *pit;
+		for (pit++;pit != path.end();pit++) s << "::" << *pit;
+	}
+
 	void print(std::wostream &s)
 	{
 		s << "module ";
-		if (!relative) s << "::";
+		/*if (!relative) s << "::";
 		std::list<std::wstring>::iterator pit=path.begin();
 		s << *pit;
 		for	(pit++;pit!=path.end();pit++) s << "::" << *pit;
+		*/
+		printPath(s);
 		s << " exports\n";
 		std::list<ExportDeclaration*>::iterator eit;	
 		for (eit=exports.begin();eit!=exports.end();eit++)

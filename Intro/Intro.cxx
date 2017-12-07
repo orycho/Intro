@@ -27,7 +27,6 @@ namespace intro
 	void initRuntime(void);
 	void deleteRuntime(void);
 	void dumpModule(void);
-	//llvm::Function * generateCode(const std::list<intro::Statement*> &statements);
 	void runStatements(const std::list<intro::Statement*> &statements);
 
 	extern llvm::LLVMContext theContext;

@@ -353,7 +353,6 @@ size_t Buffer::ReadNextStreamChunk() {
 		char *result = fgets((char*)(buf + bufLen), free, stream );
 		if (result!=nullptr) read=strlen(result);
 		else read = 0;
-		read=strlen(result);
 	}
 	if (read > 0) {
 		fileLen = bufLen = (bufLen + read);

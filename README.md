@@ -4,17 +4,12 @@ and like most such languages it provides a read-eval-print loop. (Currenly the o
 
 It is also supposed to be a useful language throughout a programmer's career.
 
-This is version 0.1 and a few things are still missing:
-* Modules
-* generated code leaks memory
-* standard library, I/O especially
-* the repl is flaky, it likes to exit on syntax errors and arrow keys and the like... no getline.
-
-# Main Features (as of V0.1):
+## Main Features (as of V0.2):
 * Small language focusing on fundamental programming language concepts, with syntax hopefully promoting readable code
 * Strict static typing based on type inference (Hindley-Milner with Records and Subtyping a.k.a. F1sub)
 * Higher order functions, parametric polymorphism, generators
-* LLVM based code generation
+* Simple Module system to help organize larger projects (probably buggy, and only basic opaque type features work)
+* LLVM based code generation - performance is not a primary conern, yet decent despite some features incurring overhead (e.g. polymorphism, closures).
 
 Note that object orientation is not considered sufficiently fundamental or necessary to be included. 
 Its application is complex enough that beginners are usually not able to say when it is needed, 
@@ -25,12 +20,17 @@ That said, only the core trait of inheritance cannot be emulated,
 as higher order functions with closures can be placed in records
 and records are structurally subtyped.
 
-# Building the source
-tested with 
-* MSVC 2015: use solution file
-* cygwin gcc: use makefile
+This is version 0.2 and a few things are still missing:
+* generated code leaks memory
+* standard library, I/O especially
+* the repl is flaky, it likes to exit on syntax errors and arrow keys and the like... no getline.
 
-Requires LLVM 4 installed, check the solutions path under windows to make sure it points the right way.
+## Building the source
+tested with 
+* MSVC 2015: use solution file to build.
+* cygwin gcc: use makefile. Just type "make" in the shell, from the project root directory.
+
+Requires LLVM 4 or higher to be installed, check the solutions path under windows to make sure it points the right way.
 Building tests requires google-test installed - MSVC will try to build tests by default. Again, check project directories.
 When using MSVC, the Visual Leak Detector is used in debug mode.
 
@@ -48,7 +48,8 @@ To modify the grammar, you will need COCO/R installed - use namespace "parser" a
 
 All values in Intro are just written out, each built in type has distinct syntax.
 
-Simple types (are expessions represented by a single literal):
+## Simple types (are expessions represented by a single literal):
+
 * Booleans can be: <pre>true, false</pre>
 * Strings are in quotes: <pre>"some string", "abc"</pre>
 * The backspace \ character in strings has special meaning to insert special characters (e.g. "\\n" new line, 
@@ -56,14 +57,19 @@ Simple types (are expessions represented by a single literal):
 * String interpolation: any occurence of ${id}, for some variable identifier id, inside the string is 
 replaced with a string representing the value of 'id'. For instance an integer variabela with value 123
 would turn 
-<pre>"the value is ${a}!!!"</pre>
+>"the value is ${a}!!!"
+
 into the output
-<pre>the value is 123!!!</pre>
+>the value is 123!!!
+
 All types can be turned to strings, but for functions and generators the output is simply "function" and "generator" respectively.
+Note that only variables are allowed, while allowing expressions may be a tad more comfortable, it would quickly make
+complex string definitions unreadable. Just define intermediate variables &emdash; maybe write a helper function.
 * Integers consist of only digits: <pre>0, 123, 400246</pre>
 * Reals have at exactly one dot amongst the digits: <pre>.0, 1.23, 2360897.</pre>
 
-Compound types (require expressions with arbitrary many literals):
+## Compound types (require expressions with arbitrary many literals):
+
 * Functions begin with the keyword "fun" followed by a list of comma separated identifiers in parentheses (parameters)
 followed by -> (read "maps to") and the body. They must end on a return or return  like statement, and are terminated with the keyword end:
 <pre>fun(a,b,x)->return a*x+b; end</pre>
@@ -73,16 +79,16 @@ foo(1-a,1/a)</pre>
 * Lists are curly brackets containing comma separated elements which must have the same type: <pre>{ 1,2,3 }, {"a","foo","gurgle"}</pre>
 * Dictionaries are like lists, but contain key-value pairs connected with a => (all keys must be of the same type and all values as well): <pre>{ "a"=>1,"b"=>2,"c"=>3 }</pre>
 * Dictionary lookup uses the [] operator which returns a maybe variant on lookup: <pre>d["a"]</pre> Can also be used for assignment
-<pre>d["x"]<-6;</pre>
+<pre>d["x"]&lt;-6;</pre>
 * Elements can be removed from dictionaries using the "\\" operator (backslash), it can be chained since the operator 
 returns the dictionary (which has been modified): <pre>d\\"a"\\"b"</pre>
 * lists and dictionaries may also have one expression for element or key-value pair, followed by a pipe 
 symbol | and a generator statement. See below
 * Records contain an arbitrary number of fields, which are labeled by an identifier. Fields may have distinct types.
-The records consists of square brackets with semicolon terminated field assignments identifier <- Expression; e.g.
-<pre>[ x<-1; y<-2; active<-false; name<-"foobar";]</pre>
+The records consists of square brackets with semicolon terminated field assignments identifier &lt;- Expression; e.g.
+<pre>[ x&lt;-1; y&lt;-2; active&lt;-false; name&lt;-"foobar";]</pre>
 * Record elements can be accessed by label with the . operator
-* Variants are written like records, but the begin with a colon and an identifier: <pre>[:Vec2 x<-1; y<-2;]</pre>
+* Variants are written like records, but the begin with a colon and an identifier: <pre>[:Vec2 x&lt;-1; y&lt;-2;]</pre>
 * The dot operator does not work on variants, instead the case statement must be used.
 * Generators look like functions, but instead of return they use the keyword yield. Repeated applications of a generator
 continue after the last executed yield statement, unless it is a "yield done". Generators can only be used in generator statements:
@@ -100,24 +106,24 @@ end;
 That may look verbose, but it just forces the programmer to handle lookup failures.
 
 
-Other expressions:
+## Other expressions
 * Arithmetic (integer and real): <pre>+,*,-,/,%</pre>
 * boolean: <pre>and, or, xor, not</pre>
 * compares: <pre>==, !=</pre> (all types) and <pre>>, <, >=, <=</pre> (only string, integer, real)
 * sequence (list and string) splice returns a subsequence based on identifiers. Inside the square brackets, 
 a special variable "last" holds the index of the last element in the input sequence : <pre>l[1:last]</pre> 
 (new list without the first element)
-* Assignment "<-" (read: "is assigned") returns the value that was written to the destination on the left. E.g.: <pre>y<-2</pre>
+* Assignment "&lt;-" (read: "is assigned") returns the value that was written to the destination on the left. E.g.: <pre>y&lt;-2</pre>
 
-Statements (must end with a semicolon):
+## Statements (must end with a semicolon):
 * Every expression is a statement. No other statements return values.
-* variable definitions are "var" followed by an identifier followed by "<-" (read "is assigned") followed by an initializer expression.
+* variable definitions are "var" followed by an identifier followed by "&lt;-" (read "is assigned") followed by an initializer expression.
 Variables must always be initialized explicitely when defined: 
-<pre>var x<-3; 
-var f<-fun(a,b)->return a*a+b*b; end;</pre>
+<pre>var x&lt;-3; 
+var f&lt;-fun(a,b)->return a*a+b*b; end;</pre>
 * Identifiers may consist of letters, digits and underscores, but may not begin with a digit. "abc", "_long_ident_344" are ok, "3d" is not.
 (Quotes for readabilty only!)
-* Some syntax sugar is provided for declarations of variables with function types, removing the "<-fun":
+* Some syntax sugar is provided for declarations of variables with function types, removing the "&lt;-fun":
 <pre>var line(slope,offset)->return fun(x)->return slope*x+offset; end; end;</pre>
 * Conditions use the common if...then...else with the last branch ending with an end, additional conditions use the single word elsif:
 <pre>
@@ -142,7 +148,7 @@ A x then return x;
 | B a b then return a+b; 
 end;</pre>
 
-Generators Statements: 
+## Generator Statements
 Generators can only be used in these statemens, which are actually always part of another construct: 
 in list or dictionary expressions, they provide the values that are turned into the contents of the containers.
 The for statements just combines a generator statements with a list of statemetns that operate on each set of values generated.
@@ -166,68 +172,99 @@ A generator value is moved to the next every time the generator to the left (if 
 So the above example generates x=1, y=1, z=1, then z=2 and so on. Once z is 10, y is increased then z is reset to the new y.
 It is probably easiest to type it into the repl as a list to see the result:
 
-<pre>{ [a<-x; b<-y; c<-z;] | x from 1 to 10 && y from x to 10 && z from y to 10};</pre>
+<pre>{ [a&lt;-x; b&lt;-y; c&lt;-z;] | x from 1 to 10 && y from x to 10 && z from y to 10};</pre>
 
 Finally, anywhere after the first generator binding conditions can be introduced by the operator "??", and it can use all
 generator values defined to its left. Any value combination for which the condition is false will be skipped, which
 includes any generators to the right. So here is a list of right triangles, without isomorphism and with the hypothenuse
 always in c (in the records in the resulting list):
 
-<pre>{ [a<-x; b<-y; c<-z;] | x from 1 to 10 && y from x to 10 && z from y to 10 ?? x * x + y * y == z * z};</pre>
+<pre>{ [a&lt;-x; b&lt;-y; c&lt;-z;] | x from 1 to 10 && y from x to 10 && z from y to 10 ?? x * x + y * y == z * z};</pre>
 
 The for statement consists of the word "for" followed by a generator statement followed by "do", then a list of statements
 that will be executed for each group of values generated, and then the keyword "done":
 <pre>for x in somelist do process(x); done;</pre>
 
-Modules
-
-Are not implemented yet!
-
 # Example Session
 
+Let's run some of the syntax described above through the interpreter. It is started with e.g.
 <pre>
 $ build/intro
+</pre>
+Where "$" is the shell prompt. The interpreter uses ">".
+Starting with some arithmetic shows that for expressions, the result of the evaluation is printed out:
+<pre>
 >  1+2*3;
  = 7
-> var triple(x,y,z)->return [a<-x;b<-y;c<-z;]; end;
-triple:(?T4<:Top,?T5<:Top,?T6<:Top) -> [ a : ?T4<:Top; b : ?T5<:Top; c : ?T6<:Top; ]
+</pre>
+Let's compute a list of right angled triangles, using two helper functions and a generator statement.
+The variable definitions have their name and type printed out:
+<pre>
+ > var triple(x,y,z)->return [a&lt;-x;b&lt;-y;c&lt;-z;]; end;
+triple:(?T4&lt;:Top,?T5&lt;:Top,?T6&lt;:Top) -> [ a : ?T4&lt;:Top; b : ?T5&lt;:Top; c : ?T6&lt;:Top; ]
 > var cond(a,b,c)->return a*a+b*b==c*c; end;
-cond:(?asup<:Number,?asup<:Number,?asup<:Number) -> Boolean
-> var l<-{triple(a,b,c)|a from 1 to 10 && b from a to 10 && c from b to 10 ?? cond(a,b,c) };
+cond:(?asup&lt;:Number,?asup&lt;:Number,?asup&lt;:Number) -> Boolean
+> var l&lt;-{triple(a,b,c)|a from 1 to 10 && b from a to 10 && c from b to 10 ?? cond(a,b,c) };
 l:List([ a : Integer; b : Integer; c : Integer; ])
 > l;
- = {[ a<-3; b<-4; c<-5; ], [ a<-6; b<-8; c<-10; ]}
-> var f(a)-> case a of A x then return x; | B a b then return a+b; end; end;
-f:(?T27sup<:{ [ :A x : ?asup<:Number; ] + [ :B a : ?asup<:Number; b : ?asup<:Number; ]}) -> ?asup<:Number
->  f([:A x<-3;]);
+ = {[ a&lt;-3; b&lt;-4; c&lt;-5; ], [ a&lt;-6; b&lt;-8; c&lt;-10; ]}
+</pre>
+Here are some variants in action;
+<pre>
+ > var f(a)-> case a of A x then return x; | B a b then return a+b; end; end;
+f:(?T27sup&lt;:{ [ :A x : ?asup&lt;:Number; ] + [ :B a : ?asup&lt;:Number; b : ?asup&lt;:Number; ]}) -> ?asup&lt;:Number
+>  f([:A x&lt;-3;]);
  = 3
-> f([:B a<-3; b<-4;]);
+> f([:B a&lt;-3; b&lt;-4;]);
  = 7
+</pre>
+Moving to something more advanced, here is a generator which takes two sequences, and returns
+all elements of the first, then all elements of the second sequence.
+<pre>
 > var append(s1,s2)->for x in s1 do yield x; done; for x in s2 do yield x; done; yield done; end;
-append:(?T38sup<:Generator(?T39<:Top),?T40sup<:Generator(?T39<:Top)) -> Generator(?T39<:Top)
+append:(?T38sup&lt;:Generator(?T39&lt;:Top),?T40sup&lt;:Generator(?T39&lt;:Top)) -> Generator(?T39&lt;:Top)
 > {x | x in append("Hello ","World")};
  = {H, e, l, l, o,  , W, o, r, l, d}
-> var d<-{"a"=>1, "b"=>2, "c"=>3, "d"=>4};
+</pre>
+Note that the last command really states that a list of characters is wanted.
+
+Dictionaries are as easy: 
+<pre>
+> var d&lt;-{"a"=>1, "b"=>2, "c"=>3, "d"=>4};
 d:Dictionary(String,Integer)
-> d["x"]<-20;
+> d["x"]&lt;-20;
  = 20
 > "d is ${d}";
  = d is {d=>4, x=>20, c=>3, a=>1, b=>2}
+</pre>
+Now for some actual fun with functions. The following function line takes a slope and an offet, two numbers.
+It returns a function which computes points on that line. And the return functions type is dependend
+on the original parameters.
+<pre>
 > var line(slope,offset)->return fun(x)->return slope*x+offset; end; end;
-line:(?asup<:Number,?asup<:Number) -> (?asup<:Number) -> ?asup<:Number
-> var l1<-line(2,3);
+line:(?asup&lt;:Number,?asup&lt;:Number) -> (?asup&lt;:Number) -> ?asup&lt;:Number
+</pre>
+First, a line of integers.
+<pre>
+> var l1&lt;-line(2,3);
 l1:(Integer) -> Integer
 > l1(0);
  = 3
 > l1(1);
  = 5
-> l1<-line(3,2);
+</pre>
+Since functions are in variables, we can replace them with other fucntions with the same signature:
+<pre>
+> l1&lt;-line(3,2);
  = function
 > l1(0);
  = 2
 > l1(1);
  = 5
-> var l2<-line(1.2,2.3);
+</pre>
+But when we move to real values lines we need a new variable
+<pre>
+> var l2&lt;-line(1.2,2.3);
 l2:(Real) -> Real
 > l2(0.0);
  = 2.300000
@@ -236,17 +273,143 @@ l2:(Real) -> Real
 > l2(1);
 Type Error (5, 116): At least one parameter type does not fit what the function expects.!
 Type errors detected!
-> l1<-l2;
+> l1&lt;-l2;
 Type Error (9, 167): Assignment between incompatible variable and expression types.!
 Type errors detected!
-> var length(s)->var retval<-0; for i in s do retval<-retval+1; done; return retval; end;
-length:(?T5sup<:Generator(?T4<:Top)) -> Integer
+</pre>
+A function counting the number of elements a generator produces.
+The function is polymorphic, and is applied first to a list and then a string:
+<pre>
+> var length(s)->var retval&lt;-0; for i in s do retval&lt;-retval+1; done; return retval; end;
+length:(?T5sup&lt;:Generator(?T4&lt;:Top)) -> Integer
 > length({1,2,3});
  = 3
 > length("Hello foo");
  = 9
->
 </pre>
+The fibonacci function is a classic recursive one:
+<pre>
+> var fib(n)->if n<=2 then return 1; else return fib(n-1) + fib(n-2); end; end;
+fib:(Integer) -> Integer
+</pre>
+
+# Modules
+
+(Preliminary documentation, may change with bug fixes and some details...)
+
+Modules aim to support large scale programming, in Intro they serve two purposes:
+* the simpler one is providing a hierarchical storage for variables, similar to file systems for files.
+* the second is providing information hiding. This is done by a) defining an interface the module can be accsesed through and b) providing a wa to define opaque types.
+A script may contain multiple module definitions. If a module in anothre file is to be used, that file must first be loaded (that is TBD).
+
+Modules have a path, much like files in file systems, but double colons "::" are used as separators (spaces between identifiers and
+separators are ignored).
+
+Example relative paths:
+> Pair, foo::bar
+
+Example absolute paths:
+> ::sio, ::gui::controls::buttons, 
+
+The module at the root module is called also the global scope, and is written simply as a double colon without a prefix. 
+All variables defined outside any other module or scope are palced in here, and it is always accessible.
+If the path begins with an identifier, it is relative to the current module. 
+The path may end with a module name where a module is expected, or with a member of the modules interface.
+Wether or not the the last identifier in a path refers to a module is context dependant: in an import statement or module name, 
+it ends with a module, otherwise it is a prefixed identifier.
+
+
+The syntax for modules is:
+<pre>
+"module" path "exports"
+interface
+"from"
+body
+"end."
+</pre>
+* Note the fact that Modules end with a period "." after the closing "end", NOT a semicolon ";"! This
+distinguishes the end of a long module from another statement.
+* Also, modules can be placed in other modules via the path in their name.
+
+The interface of a module is the only place in Intro where types are explicitely written out: 
+it contains names of variables in the module and their type (or a supertype) of the variable 
+with the same name in the body of the module. Name and type are separated by a colon ":"
+just like when the REPL prints out a variable type, e.g. fib:(Integer)->Integer.
+
+The body of a module is just a sequence of statements that are executed when the module is defined.
+Any variables defined inside persist, but only those named in the interface are exposed.
+
+Interfaces may also define opaque types, i.e. types where the implementation is not known outside the module.
+An opque type definition begins with the keyword "type", a name for the type and zero or more
+parameters for the type in parentheses (just like in Dictionary(?A&lt;:Top,?B&lt;:Top)). A type with parameters is called polymorphic.
+If no parameters are used the type is called monomorphic.In that case the parentheses can be omitted. 
+
+?? The type can be followed by a subtype-of symbol "&lt;:" and the opaque type's 
+supertype. This can be used to make part of the type known, e.g. a subset of the fields in the record
+that implements the type. ??
+
+Opaque types may have constructors which are functions with the same name as the type and a parameter for any parameter the
+type has. This function must be in the body of the exporting module. A constructor must return a value of the opaque type's 
+implementation, and the opaque type's parameters must match the constructor's parameters. If such a constructor is present,
+the opaque type can be created by using it's name like a function. 
+The constructor also helps the interpreter determine the relation between the type parameters and the values in the implementation.
+
+?? If there is no one-to-one mapping between the type's parameter(s) and the constructors 
+desired parameters, then the constructor short hand cannot be used. 
+This can happen for example with 3D vectors which have three numbers of the same concrete type. ??
+
+NOTE TO ORY: how about using the opaque type's supertype, e.g. Vector3(?a&lt;:Number)&lt;:[x:?a;y:?a;z:?a;]!
+May work, but seems kludgy...
+
+Here is a module that defines a pair of values in a type Pair.
+It has two parameters representing the types of the two values in the pair,
+and a few operations:
+<pre>
+module ::Pair exports
+	# The opaque type that represents the pairs.
+	type Pair(?a,?b);
+	# first is a function that takes a pair and returns the first element of the passed pair (note return type).
+	first:(Pair(?a,?b))-> ?a;
+	# second is a function that takes a pair and returns the second element of the passed pair (note return type).
+	second:(Pair(?a,?b))-> ?b; 
+	# swap returns a new pair, which has the same contents as the parameter, but in reversed order.
+	# Compare the parameters of the input and output pairs!
+	swap:(Pair(?a,?b))->Pair(?b,?a); 
+from 
+	# he constructor for pairs, it has type Pair:(a:?a,b:?b)->Pair(?a,?b).
+	var Pair(a,b)->
+		return [first&lt;-a;second&lt;-b;]; 
+	end; 
+	# implementation of function first.
+	var first(a)-> 
+		return a.first; 
+	end; 
+	# implementation of function second.
+	var second(a)-> 
+		return a.second; 
+	end; 
+	# implementation of function swap, which does not use constructor but could/should.
+	# Note that in-place swapping of pairs is only possible if both elements have the same type,
+	# so the creation of a new pair here enables a more general operation at the cost of speed.
+	var swap(a)->
+		return [first&lt;-a.second;second&lt;-a.first;]; 
+	end; 
+end.
+</pre>
+In this example, the Pair type is implemented as a record type [first:?a&lt;:Top; second:?b&lt;:Top;].
+
+## Importing from Modules
+While any interface mamber can always be named with an absolute path, this can become cumbersome. 
+The import statement is provided to copy a modules interface (all of it) into the current scope, e.g.
+> import ::sio;
+
+The import statement can be used anywhere, and only the current scope is extended. That means modules' interfaces can be imported
+for example into a function or loop body, and not clash with identifiers outside.
+
+# THE END...
 
 Questions for Ory:
 * Does case allow mutating a variant? could be useful
+* If modules can access anything already defined in lower modules, how does that interacting with sourcing scripts inside the module?
+. E.g. it may be possible to have the same code use different modules as it's base implementation, if the mdules interface matches...
+. Like using different logics to implement a planning and reasoning algorithms...

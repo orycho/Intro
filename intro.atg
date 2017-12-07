@@ -1245,12 +1245,19 @@ Intro=
 		(.
 			intro::ModuleStatement *mod=modules.top(); modules.pop();
 			//if (mod->makeType(getEnv()))
-			//	mod->print(std::wcout);
-			if (isInteractive)
 			{
-				// process parse result, then pop front;
+				if (isInteractive)
+				{
+					// process parse result
+					executeStmt(mod);
+				}
+				else parseResult.push_back(mod);
 			}
-			else parseResult.push_back(mod);	
+			/*else
+			{
+				printf("Error in Module definition!");
+			}
+			*/
 		.)
 		'.'
 	)
@@ -1271,13 +1278,18 @@ Intro=
 		(.
 			intro::ModuleStatement *mod=modules.top(); modules.pop();
 			//if (mod->makeType(getEnv()))
-			//	mod->print(std::wcout);
-			printf("push result\n");
-			if (isInteractive)
 			{
-				// process parse result, then pop front;
+				if (isInteractive)
+				{
+					// process parse result
+					executeStmt(mod);
+				}
+				else parseResult.push_back(mod);
 			}
-			else parseResult.push_back(mod);
+			/*else
+			{
+				printf("Error in Module definition!");
+			}*/
 		.)
 		'.'
 	}

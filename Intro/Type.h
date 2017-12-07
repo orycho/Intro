@@ -599,24 +599,25 @@ protected:
 	virtual Type *internalCopy(TypeVariableMap &conv);
 	/// Check the subtype relation between two types - always called via public driver
 	virtual PartialOrder internalCheckSubtype(Type *other);
+	Type mytop;
 public:
 
 	typedef std::map<std::wstring,RecordType*> tagmap;
 	typedef std::map<std::wstring,RecordType*>::iterator iterator;
 
-	VariantType(): Type(Type::Variant)
+	VariantType(): Type(Type::Variant), mytop(Type::Top)
 	{
-		super=new Type(Type::Top);
+		super=&mytop;
 	};
 
-	VariantType(const tagmap &m) : Type(Type::Variant)
+	VariantType(const tagmap &m) : VariantType() //Type(Type::Variant), mytop(Type::Top)
 	{
 		tagmap::const_iterator iter;
 		for (iter=tags.begin();iter!=tags.end();iter++)
 			tags.insert(make_pair(iter->first,(RecordType*)iter->second->find()->copy()));
 	};
 
-	VariantType(VariantType &other) : Type(Type::Variant)
+	VariantType(VariantType &other) : VariantType() // Type(Type::Variant), mytop(Type::Top)
 	{
 		tagmap::const_iterator iter;
 		for (iter=other.beginTag();iter!=other.endTag();iter++)

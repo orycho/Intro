@@ -238,7 +238,7 @@ namespace intro {
 		{
 			t=env->get(name);
 			//if (t!=NULL) original=t->copy();
-		} 
+		}
 		else
 		{
 			Environment::Module *module;

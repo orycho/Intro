@@ -9,6 +9,7 @@
 #include "Generators.h"
 #include "CodeGen.h"
 #include "CodeGenEnvironment.h"
+#include "CodeGenModule.h"
 #include "Runtime.h"
 
 #include  "PerfHash.h"
@@ -53,7 +54,7 @@ namespace intro {
 		TheModule->dump();
 	}
 
-	CodeGenEnvironment global(NULL,CodeGenEnvironment::GlobalScope);
+	//CodeGenEnvironment global(NULL,CodeGenEnvironment::GlobalScope);
 
 
 	llvm::Type *void_t;
@@ -87,7 +88,8 @@ namespace intro {
 		anonCount++;
 		return llvm::Function::Create(FT, llvm::Function::ExternalLinkage, fun_name, TheModule.get());
 	}
-	// Move to jit?!!!
+	
+	/// Called by basic testing and runStatements
 	llvm::Function *generateCode(const std::list<intro::Statement*> &statements)
 	{
 		std::vector<llvm::Type*> args;
@@ -96,16 +98,19 @@ namespace intro {
 		llvm::Function *func = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, "rootfunc", TheModule.get());
 		BasicBlock *BB = BasicBlock::Create(theContext, "entry", func);
 		Builder.SetInsertPoint(BB);
-		CodeGenEnvironment env(nullptr,CodeGenEnvironment::GlobalScope);
-		env.setAnonFunction(func);
+		//CodeGenEnvironment env(nullptr,CodeGenEnvironment::GlobalScope);
+		CodeGenEnvironment *env = CodeGenModule::getRoot();
+		env->setAnonFunction(func);
 		for (std::list<intro::Statement*>::const_iterator iter = statements.begin();iter != statements.end();iter++)
-			if (!(*iter)->codeGen(Builder, &env)) return nullptr;
+			if (!(*iter)->codeGen(Builder, env)) return nullptr;
+			//if (!(*iter)->codeGen(Builder, &env)) return nullptr;
 		Builder.CreateRetVoid();
 		verifyFunction(*func);
 		//func->dump();
 		return func;
 	}
 
+	/// Called by non-interactive mode to execute all statements
 	void runStatements(const std::list<intro::Statement*> &statements)
 	{
 		llvm::Function *root = intro::generateCode(statements);
@@ -114,6 +119,44 @@ namespace intro {
 		auto ExprSymbol = TheJIT->findSymbol("rootfunc"); // name by agreement with codegen.cxx
 		void(*FP)() = (void(*)())(intptr_t)ExprSymbol.getAddress();
 		FP();
+	}
+
+	void initModule(void);
+
+	/// Called by parser to execute a single statement
+	void executeStatement(Statement *stmt)
+	{
+		std::string fun_name;
+		llvm::Function *func = getRootFunction(fun_name);
+		llvm::BasicBlock *BB = llvm::BasicBlock::Create(theContext, "entry", func);
+		llvm::IRBuilder<> builder(theContext);
+		builder.SetInsertPoint(BB);
+		CodeGenEnvironment *env = CodeGenModule::getRoot();
+		env->setAnonFunction(func);
+		//bool result = stmt->codeGen(builder, &global);
+		bool result = stmt->codeGen(builder, env);
+		if (!result)
+		{
+			std::cout << "Error while generating code!\n";
+			return;
+		}
+		builder.CreateRetVoid();
+		llvm::verifyFunction(*func);
+		auto H = TheJIT->addModule(std::move(TheModule));
+		initModule();
+		env->addExternalsForGlobals();
+		//global.addExternalsForGlobals();
+		// Search the JIT for the "fun_name" symbol.
+		auto ExprSymbol = TheJIT->findSymbol(fun_name);
+		assert(ExprSymbol && "Function not found");
+		// Get the symbol's address and cast it to the right type so we can call it as a native function.
+		if (!ExprSymbol) printf("ExprSymbol '%s' not found!\n", fun_name.c_str());
+		else if (!ExprSymbol.getAddress()) printf("ExprSymbol has no address!\n");
+		else
+		{
+			void(*FP)() = (void(*)())(intptr_t)ExprSymbol.getAddress();
+			FP();
+		}
 	}
 
 	llvm::Constant *createGlobalString(const wstring &s)
@@ -341,39 +384,6 @@ namespace intro {
 		declareRuntimeFunctions();
 	}
 
-	void executeStatement(Statement *stmt)
-	{
-		std::string fun_name;
-		llvm::Function *func=getRootFunction(fun_name);
-		llvm::BasicBlock *BB = llvm::BasicBlock::Create(theContext, "entry", func);
-		llvm::IRBuilder<> builder(theContext);
-		builder.SetInsertPoint(BB);
-		global.setAnonFunction(func);
-		bool result = stmt->codeGen(builder,&global);
-		if (!result)
-		{
-			std::cout << "Error while generating code!\n";
-			return;
-		}
-		builder.CreateRetVoid();
-		llvm::verifyFunction(*func);
-		auto H = TheJIT->addModule(std::move(TheModule));
-		initModule();
-		global.addExternalsForGlobals();
-		// Search the JIT for the "fun_name" symbol.
-		auto ExprSymbol = TheJIT->findSymbol(fun_name);
-		assert(ExprSymbol && "Function not found");
-		// Get the symbol's address and cast it to the right type so we can call it as a native function.
-		if (!ExprSymbol) printf("ExprSymbol '%s' not found!\n", fun_name.c_str());
-		else if (!ExprSymbol.getAddress()) printf("ExprSymbol has no address!\n");
-		else 
-		{
-			void(*FP)()=(void(*)())(intptr_t)ExprSymbol.getAddress();
-			FP();
-		}
-	}
-	
-	
 	void initRuntime(void)
 	{
 		llvm::InitializeNativeTarget();
@@ -948,13 +958,18 @@ namespace intro {
 		} 
 		else
 		{
+			CodeGenModule *base = relative ?
+				env->getCurrentModule() : CodeGenModule::getRoot();
+			CodeGenModule *myself = base->getRelativePath(path);
+			myself->declareInterfaceIfNeeded(TheModule.get());
+			elem = myself->find(name);
 		}
 		if (elem->second.isParameter)
 		{
 			value=elem->second.address;
 			rtt=elem->second.rtt;
 		}
-		else 
+		else
 		{
 			std::string rtname(name.begin(),name.end());
 			value=TmpB.CreateLoad(elem->second.address, rtname);
@@ -2441,11 +2456,72 @@ namespace intro {
 
 	bool ImportStatement::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
-		return false;
+		CodeGenModule *base = relative ?
+			env->getCurrentModule() : CodeGenModule::getRoot();
+		// Type inference should verify that the module imported from already exists.
+		CodeGenModule *myself = base->getRelativePath(path);
+		myself->declareInterfaceIfNeeded(TheModule.get());
+		// Iterate over interface and copy imports to the current environment
+		CodeGenEnvironment::iterator eit;
+		for (eit = myself->begin();eit != myself->end();eit++)
+		{
+			//std::wcout << "Found import: " << eit->first << "!\n";
+			CodeGenEnvironment::iterator iter = env->importElement(eit->first, eit->second);
+		}
+		return true;
 	}
 
+	/* Module code generation:
+		The product of this method is a CodeGenModule, derived class from
+		CodeGenEnvironment as it holds runtime values, in this case the
+		variables making up the public interface of the module.
+		* Private variables can be contained in a sub-CGEnv
+		* Or the module is created in an environment of it's own,
+		  then the interface contents are copied to result module
+		  -> This method interacts better with filling an interface from the runtime lib
+
+		The CodeGenModule is created in-place in the module hierarchy
+
+	*/
 	bool ModuleStatement::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
-		return false;
+		CodeGenEnvironment localenv(env);
+		// Iterate over the statements comprising the module body and infer their types.
+		std::list<Statement*>::iterator stmt;
+		bool success = true;
+		for (stmt = contents.begin();stmt != contents.end();stmt++)
+		{
+			success &= (*stmt)->codeGen(TmpB,&localenv);
+		}
+		if (!success)
+		{
+			std::wcout << "Error building module ";
+			printPath(std::wcout);
+			std::wcout << "!\n";
+			return false;
+		}
+		//Environment::pushModule(module);
+
+		// Get/Create target module
+		CodeGenModule *base = relative ?
+			env->getCurrentModule() : CodeGenModule::getRoot();
+		CodeGenModule *myself = base->getRelativePath(path);
+		// Iterate over interface and copy exports to the module 
+		std::list<ExportDeclaration*>::iterator eit;
+		for (eit = exports.begin();eit != exports.end();eit++)
+		{
+			CodeGenEnvironment::iterator exportvalue = localenv.find((*eit)->getName());
+			if (exportvalue == localenv.end())
+			{
+				if (!(*eit)->isExport())
+					continue;
+				std::wcout << "Error in Module: failed to export interface member "
+					<< (*eit)->getName() << "!\n";
+				return false;
+			}
+			//std::wcout << "Found export: " << (*eit)->getName() << "!\n";
+			CodeGenEnvironment::iterator iter = myself->importElement(exportvalue->first, exportvalue->second);
+		}
+		return true;
 	}
 }

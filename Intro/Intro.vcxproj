@@ -194,6 +194,7 @@
     <ClCompile Include="city.cxx" />
     <ClCompile Include="CodeGen.cxx" />
     <ClCompile Include="CodeGenEnvironment.cxx" />
+    <ClCompile Include="CodeGenModule.cxx" />
     <ClCompile Include="Environment.cxx" />
     <ClCompile Include="Expression.cxx" />
     <ClCompile Include="Intro.cxx" />
@@ -214,6 +215,7 @@
     <ClInclude Include="city.h" />
     <ClInclude Include="CodeGen.h" />
     <ClInclude Include="CodeGenEnvironment.h" />
+    <ClInclude Include="CodeGenModule.h" />
     <ClInclude Include="Environment.h" />
     <ClInclude Include="Expression.h" />
     <ClInclude Include="Generators.h" />
