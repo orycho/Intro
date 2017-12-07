@@ -58,7 +58,8 @@ struct LibLoader
 	} name ## loader; \
 	const LibLoader::elem name ## Loader_::elems[] = {
 
-#define ENDELEMLIST { nullptr,nullptr,nullptr }
-#define CLOSE_MODULE ,{ nullptr,nullptr,nullptr } };
+#define EXPORT(name,closure,type) {name,closure,type},
+
+#define CLOSE_MODULE { nullptr,nullptr,nullptr } };
 
 #endif

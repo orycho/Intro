@@ -58,6 +58,6 @@ intro::FunctionType sioPrintType(&top_type, &unit_type);
 intro::FunctionType sioReadType(&string_type);
 
 REGISTER_MODULE(sio)
-	{L"print", "sioPrint", &sioPrintType},
-	{L"read","sioRead", &sioReadType }
+	EXPORT(L"print", "sioPrint", &sioPrintType)
+	EXPORT(L"read","sioRead", &sioReadType)
 CLOSE_MODULE
