@@ -450,6 +450,12 @@ public:
 		rettype=rt->find();
 	};
 
+	FunctionType(Type *p1, Type *rt) : Type(Type::Function)
+	{
+		addParameter(p1->find());
+		rettype = rt->find();
+	};
+
 	FunctionType(Type *rt) : Type(Type::Function)
 	{
 		rettype=rt->find();

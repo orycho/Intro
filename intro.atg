@@ -155,14 +155,16 @@ COMPILER Intro
 		isInteractive=false;
 	}
 CHARACTERS
-	letter = 'A'..'Z' + 'a'..'z'.
-	digit = "0123456789".
-	notquote = ANY - '"'.
-	quote = '"'.
-	squote = '\''.
 	cr = '\r'.
 	lf = '\n'.
 	tab='\t'.
+	letter = 'A'..'Z' + 'a'..'z'.
+	digit = "0123456789".
+	hexDigit      = digit + "ABCDEFabcdef" .
+	notquote = ANY - '"'.
+	quote = '"'.
+	squote = '\''.
+	stringChar    = ANY - "\"" - '\\' - cr - lf.
 	
 
 TOKENS
@@ -170,7 +172,13 @@ TOKENS
 	typevar ='?' ( '_' | letter ) {letter | digit | '_'}.
 	integer = digit {digit}.
 	real = { digit  } '.' digit { digit  }.
-	string = quote { notquote } quote.
+	//string = quote { notquote } quote.
+	string = '"' { stringChar
+         | '\\' ( 'b' | 't' | 'n' | 'f' | 'r' | '"' | '\'' | '\\'
+                | 'u'  hexDigit hexDigit hexDigit hexDigit
+                )
+         } 
+    '"'.
 	assign = "<-".
 
 PRAGMAS

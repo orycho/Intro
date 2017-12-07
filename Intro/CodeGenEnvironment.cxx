@@ -92,8 +92,14 @@ namespace intro
 		
 		for (auto &&elem : elements)
 		{
-			std::string name(elem.first.begin(),elem.first.end());
-			std::string rttname=name+"!rtt";
+			std::string name;
+			if (elem.second.altname.empty()) name.append(elem.first.begin(), elem.first.end());
+			else name = elem.second.altname;
+
+			std::string rttname = name;
+			if (elem.second.altname.empty()) rttname+="!rtt";
+			else rttname += "_rtt"; // Done so that RTL function defined in C can have their rtt defined.
+
 			TheModule->getOrInsertGlobal(name, builtin_t);
 			GlobalVariable *gVar = TheModule->getNamedGlobal(name);
 			gVar->setLinkage(GlobalValue::ExternalLinkage);

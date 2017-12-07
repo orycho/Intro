@@ -1445,7 +1445,7 @@ namespace intro {
 			retval=TmpB.CreateCall(fun, ArgsV, "application");
 			returntype=TmpB.CreateLoad(returntypeptr,"retvalrtt");
 		}
-		else TmpB.CreateCall(fun, ArgsV, "application"); 
+		else TmpB.CreateCall(fun, ArgsV); 
 		return std::make_pair(retval,returntype);
 		
 		//return std::make_pair(retval,returntype);

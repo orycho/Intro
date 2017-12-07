@@ -202,7 +202,7 @@ public:
 
 protected:
 
-	static Module root; ///< The module holding the :: namespace
+	static Module *root; ///< The module holding the :: namespace
 	static std::stack<Module*> current; ///< The stack of the current module, used for relative access
 
 	Environment *parent;
@@ -221,7 +221,7 @@ public:
 	//
 	static void popModule()
 	{
-		if (current.top()==&root) 
+		if (current.top()==getRootModule())
 		{
 			printf("\n\tERROR! Tried to pop root module!\n");
 			return;
@@ -231,19 +231,21 @@ public:
 
 	static Module* getCurrentModule()
 	{
-		if (current.empty()) current.push(&root);
+		if (current.empty()) current.push(getRootModule());
 		return current.top();
 	}
 
 	static void pushModule(Module *m)
 	{
-		if (current.empty()) current.push(&root);
+		if (current.empty()) current.push(getRootModule());
 		current.push(m);
 	}
 
 	static Module *getRootModule(void) 
 	{
-		return &root;
+		if (root == nullptr)
+			root = new Module;
+		return root;
 	}
 
 	static void addIntermediate(Type *t)
@@ -268,7 +270,7 @@ public:
 
 	static void deleteAllModules(void)
 	{
-		root.deleteAll();
+		getRootModule()->deleteAll();
 	}
 
 	Environment(Environment *par=NULL)

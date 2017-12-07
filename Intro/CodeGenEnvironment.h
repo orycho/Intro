@@ -48,6 +48,7 @@ public:
 		llvm::Value *address;	///< The current address of the variable
 		llvm::Value *rtt;		///< runtime type associated with the variable
 		bool isParameter;		///< Indicates the variable is not allocated on stack, but a parameter.
+		std::string altname;	///< Alternate name to use (if set), for run time library use
 		/// NULL default type sensible??
 		element(llvm::Value *address_,llvm::Value *rtt_,bool isParam=false)
 			: address(address_)

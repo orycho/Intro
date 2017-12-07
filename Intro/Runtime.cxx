@@ -12,6 +12,7 @@
 
 using namespace intro::rtt;
 
+
 std::unordered_map<std::wstring,size_t> label2tag;
 std::unordered_map<size_t,std::wstring> tag2label;
 
@@ -1193,46 +1194,6 @@ void freeGenerator(rtgenerator *gen)
 	free(gen);
 }
 
-void sioPrint_(rtclosure *closure,rtdata data, rtt_t rtt)
-{
-	// Be smart and avoid string allocation overhead on common case of getting a string passed in.
-	if (rtt != String)
-	{
-		rtstring *str = allocString(0);
-		toStringPoly(str, data, rtt);
-		fputws(str->data, stdout);
-		freeString(str);
-	}
-	else
-	{
-		rtstring *str =(rtstring*)data.ptr;
-		fputws(str->data, stdout);
-	}
-};
-
-MKCLOSURE(sioPrint, sioPrint_)
-
-rtstring *sioRead_(rtclosure *closure, rtt_t *retvalrtt)
-{
-	rtstring *str = allocString(8);
-	wchar_t buffer[128];
-	wchar_t *ret = nullptr;
-	size_t length = 0;
-	do
-	{
-		ret = fgetws(buffer, 128, stdin);
-		if (ret != nullptr)
-		{
-			length = wcslen(ret);
-			appendString(str, ret, length);
-		}
-		else length = 0;
-	} while (ret != nullptr && ret[length - 1] != L'\n');
-	*retvalrtt = String;
-	return str;
-}
-
-MKCLOSURE(sioRead, sioRead_)
 //////////////////////////////////////////////////////
 // Garbage Collection ///////////////////////////////
 struct root_t
@@ -1540,6 +1501,9 @@ void collectRoots()
 	}
 	delete [] oldroots;
 }
+
 #ifdef __cplusplus
 }
 #endif
+
+

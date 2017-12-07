@@ -28,8 +28,7 @@ class CodeGenModule : public CodeGenEnvironment
 	llvm::Module *lastModule;
 public:
 	
-
-	~CodeGenModule();
+	virtual ~CodeGenModule();
 
 	/// Returns the interpreters root module (creates if needed)
 	static CodeGenModule *getRoot(void);
@@ -69,5 +68,5 @@ public:
 	}
 };
 
-};
+}
 #endif

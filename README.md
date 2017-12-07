@@ -406,6 +406,32 @@ The import statement is provided to copy a modules interface (all of it) into th
 The import statement can be used anywhere, and only the current scope is extended. That means modules' interfaces can be imported
 for example into a function or loop body, and not clash with identifiers outside.
 
+# ::sio (Simple Input Output)
+
+This is the first module of the run time library (RTL). Is provides a very simple example of implementing RLT modules,
+as well as the simplest possible input and output support.
+
+## print
+
+The ::sio::print function takes any value as input, turns it into a string and displays the result.
+It does not return a value.
+
+<pre>
+&gt; ::sio::print("Hello World\n");
+Hello World
+</pre>
+Note there is no equal sign in the output, as this was not printed by the REPL.
+
+## read
+The ::sio::read function reads one line of text from the terminal, and returns it as a string. It has no parameters,
+and can only read from the main keyboard:
+<pre>
+&gt; ::sio::read();
+Hello World!
+ = Hello World!
+</pre>
+Note the line that says only "Hello World!" was entered after ::sio::read was executed.
+
 # THE END...
 
 Questions for Ory:
