@@ -235,6 +235,8 @@ FORCE_EXPORT std::uint32_t getSlotRecord(rtrecord *record,const wchar_t *label,s
 FORCE_EXPORT void setFieldRecord(rtrecord *record,std::uint32_t slot,rtdata value,rtt_t rtt);
 FORCE_EXPORT rtdata *getFieldRecord(rtrecord *record,std::uint32_t slot);
 FORCE_EXPORT rtt_t *getFieldRTTRecord(rtrecord *record,std::uint32_t slot);
+/// Allocates a record with fields "key" and "value" wth the passed values and types
+FORCE_EXPORT rtrecord *allocKeyValueRec(rtdata key, rtt_t key_rtt, rtdata value, rtt_t value_rtt);
 
 FORCE_EXPORT rtvariant *allocVariant(std::int32_t *displacement,const wchar_t **labels, std::uint64_t tag, std::uint32_t fieldcount);
 FORCE_EXPORT std::uint64_t getTagVariant(rtvariant *variant);
@@ -242,7 +244,10 @@ FORCE_EXPORT std::uint32_t getSlotVariant(rtvariant *variant,const wchar_t *labe
 FORCE_EXPORT void setFieldVariant(rtvariant *variant,std::uint32_t slot,rtdata value,rtt_t rtt);
 FORCE_EXPORT rtdata *getFieldVariant(rtvariant *variant,std::uint32_t slot);
 FORCE_EXPORT rtt_t *getFieldRTTVariant(rtvariant *variant,std::uint32_t slot);
-
+/// Allocates a variant with tag "Some" and a field value holding the pased value and type.
+FORCE_EXPORT rtvariant *allocSomeVariant(rtdata value, rtt_t rtt);
+/// Returnes the (global static) None variant
+FORCE_EXPORT rtvariant *getNoneVariant(void);
 ///@}
 
 /// @name Function closure intrinsics

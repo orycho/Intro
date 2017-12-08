@@ -386,6 +386,11 @@ rtvariant *allocSomeVariant(rtdata value,rtt_t rtt)
 	return variant;
 }
 
+rtvariant *getNoneVariant(void)
+{
+	return &rtnone;
+}
+
 std::int32_t key_value_offsets[2];
 wchar_t const *key_value_labels[2];
 

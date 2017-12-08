@@ -456,6 +456,12 @@ public:
 		rettype = rt->find();
 	};
 
+	FunctionType(Type *p1, Type *p2, Type *rt) : Type(Type::Function)
+	{
+		addParameter(p1->find());
+		addParameter(p2->find());
+		rettype = rt->find();
+	}
 	FunctionType(Type *rt) : Type(Type::Function)
 	{
 		rettype=rt->find();
@@ -616,18 +622,27 @@ public:
 		super=&mytop;
 	};
 
-	VariantType(const tagmap &m) : VariantType() //Type(Type::Variant), mytop(Type::Top)
+	VariantType(const tagmap &m) : VariantType()
 	{
 		tagmap::const_iterator iter;
 		for (iter=tags.begin();iter!=tags.end();iter++)
-			tags.insert(make_pair(iter->first,(RecordType*)iter->second->find()->copy()));
+			tags.insert(std::make_pair(iter->first,(RecordType*)iter->second->find()->copy()));
 	};
 
+	/// Builds a maybe variant with the Some tag having the passed type for it's value
+	VariantType(Type *type) : VariantType()
+	{
+		RecordType *emptyrec = new RecordType;
+		RecordType *somerec=new RecordType;
+		somerec->addMember(L"value", type->find()->copy());
+		tags.insert(std::make_pair(L"Some", somerec));
+		tags.insert(std::make_pair(L"None", emptyrec));
+	};
 	VariantType(VariantType &other) : VariantType() // Type(Type::Variant), mytop(Type::Top)
 	{
 		tagmap::const_iterator iter;
 		for (iter=other.beginTag();iter!=other.endTag();iter++)
-			tags.insert(make_pair(iter->first,(RecordType*)iter->second->find()->copy()));
+			tags.insert(std::make_pair(iter->first,(RecordType*)iter->second->find()->copy()));
 	};
 
 	virtual ~VariantType(void)

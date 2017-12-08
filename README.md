@@ -22,7 +22,7 @@ and records are structurally subtyped.
 
 This is version 0.2 and a few things are still missing:
 * generated code leaks memory
-* standard library currently limited to read from and print to text terminal.
+* standard library currently very limited, and likely buggy.
 * the repl is flaky, it likes to exit on syntax errors and arrow keys and the like... no getline.
 
 ## Building the source
@@ -31,7 +31,7 @@ tested with
 * cygwin gcc: use makefile. Just type "make" in the shell, from the project root directory.
 
 To build from source, some libraries are needed:
-* [LLVM 4 or higher](http://llvm.org/) to be installed, check the solutions path under windows to make sure it points the right way.
+* [LLVM 4 or higher](http://llvm.org/) must be installed, check the solutions path under windows to make sure it points the right way.
 * Building tests requires [google-test](https://github.com/google/googletest) installed - MSVC will try to build tests by default. Again, check project directories.
 * When using MSVC, the [Visual Leak Detector](https://vld.codeplex.com/) is used in debug mode.
 * To modify the grammar, you will need [COCO/R](http://www.ssw.uni-linz.ac.at/Coco/) installed - use namespace "parser" and the frame files in subdirectory coco, or check makefile/solution
@@ -87,7 +87,7 @@ symbol | and a generator statement. See below
 The records consists of square brackets with semicolon terminated field assignments identifier &lt;- Expression; e.g.
 <pre>[ x&lt;-1; y&lt;-2; active&lt;-false; name&lt;-"foobar";]</pre>
 * Record elements can be accessed by label with the . operator
-* Variants are written like records, but the begin with a colon and an identifier: <pre>[:Vec2 x&lt;-1; y&lt;-2;]</pre>
+* Variants are written like records, but the begin with a colon and an identifier: <pre>[:Vec2 x&lt;-1; y&lt;-2;]</pre>. Note the colon is not part of the tag.
 * The dot operator does not work on variants, instead the case statement must be used.
 * Generators look like functions, but instead of return they use the keyword yield. Repeated applications of a generator
 continue after the last executed yield statement, unless it is a "yield done". Generators can only be used in generator statements:
@@ -317,6 +317,10 @@ The path may end with a module name where a module is expected, or with a member
 Wether or not the the last identifier in a path refers to a module is context dependant: in an import statement or module name, 
 it ends with a module, otherwise it is a prefixed identifier.
 
+Modules make some or all variables defined in their body accessible to the outside by declaring them as part of their exports,
+the exports make up the module'S interface. The values in a module are also called members to distinguish them from global 
+or local variables. The interface only names the value and it's type.
+
 ## Defining Modules
 The syntax for modules is:
 <pre>
@@ -362,8 +366,9 @@ May work, but seems kludgy...
 
 ## Example Module
 Here is a module that defines a pair of values in a type Pair.
-It has two parameters representing the types of the two values in the pair,
-and a few operations:
+It has two parameters representing the types of the two values in the pair. They are written without abound, e.g.
+only ?a instead of ?a<:Top. If no bound is given, it defaults to Top.
+There are also a few operations defined on Pairs:
 <pre>
 module ::Pair exports
 	# The opaque type that represents the pairs.
@@ -406,31 +411,66 @@ The import statement is provided to copy a modules interface (all of it) into th
 The import statement can be used anywhere, and only the current scope is extended. That means modules' interfaces can be imported
 for example into a function or loop body, and not clash with identifiers outside.
 
+## Writing Run Time Library Modules
+Several helper macros are defined in header LibBase.h, which help define both
+static closures with run-time types for module members
+and second register the library modules with the type inference and code generation environments
+(This makes the addresses known to the interpreter).
+
+The modules must also provide Intro Types (as opposed to e.g. LLVM Types) for all exported members, 
+so that type inference has something to work with when checking the module.
+
 # ::sio (Simple Input Output)
 
-This is the first module of the run time library (RTL). Is provides a very simple example of implementing RTL modules,
-as well as the simplest possible input and output support.
+This is the first module of the run time library (RTL). It provides some very simple input output functions
+designed for ease of use.
+It also servers as a very simple example for implementing RTL modules, even though no types are defined in it.
 
 ## print
+The function 
+> ::sio::print : (value:?a<:Top)->Unit
+takes any value as input, turns it into a string and displays the result.
+It does not return a value, only performing a side effect.
 
-The ::sio::print function takes any value as input, turns it into a string and displays the result.
-It does not return a value.
-
+An example run in interpreter mode:
 <pre>
 &gt; ::sio::print("Hello World\n");
 Hello World
+&gt;
 </pre>
 Note there is no equal sign in the output, as this was not printed by the REPL.
 
 ## read
-The ::sio::read function reads one line of text from the terminal, and returns it as a string. It has no parameters,
-and can only read from the main keyboard:
+The function 
+> ::sio::read : ()->String
+ reads one line of text from the terminal, and returns it as a string. It has no parameters,
+and can only read from the main keyboard.
+
+An example run in interpreter mode:
 <pre>
 &gt; ::sio::read();
 Hello World!
  = Hello World!
+&gt;
 </pre>
 Note the line that says only "Hello World!" was entered after ::sio::read was executed.
+The line with an equal sign in front was the return value of read, printed by the REPL.
+
+## loadFile
+The function 
+> ::sio::loadFile : (path:String)->{[:None] + [:Some value:String]}
+opens the file named in path which is expected to be a UTF-8 txt file.
+It reads the entire file and converts it into a single string.
+It returns the maybe variant: if no errors occured, the "Some" tag contains a string with the 
+file's content, otherwise it returns the "None" tag.
+
+An exiting empty file should return an empty string.
+
+## saveFile
+The function 
+> ::sio::saveFile : (path:String,data:?a<:Top)->Boolean
+converts data to a string and stores the result (UTF-8 encoded) in the file at path (which wil be created or cleared).
+It returns true on success, and false if any error occured.
 
 # THE END...
 

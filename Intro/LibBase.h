@@ -46,17 +46,17 @@ struct LibLoader
 	{false, gcdata::Octarine, 1}, \
 	(void*)(codeptr), \
 	1, { 0ll, 0} }; \
-	rtclosure * name = & name ## _src; \
-    rtt_t name ## _rtt = intro::rtt::Function;
+rtclosure * name = & name ## _src; \
+rtt_t name ## _rtt = intro::rtt::Function;
 
 #define EXPORT_CLOSURE(name) FORCE_EXPORT extern rtclosure *name; \
-	FORCE_EXPORT extern rtt_t name ## _rtt;
+FORCE_EXPORT extern rtt_t name ## _rtt;
 
 #define REGISTER_MODULE(name) struct name ## Loader_ : public LibLoader { \
-	static const elem elems[]; \
-	name ## Loader_(void) : LibLoader(L ## #name) {	load(elems); }; \
-	} name ## loader; \
-	const LibLoader::elem name ## Loader_::elems[] = {
+static const elem elems[]; \
+name ## Loader_(void) : LibLoader(L ## #name) {	load(elems); }; \
+} name ## loader; \
+const LibLoader::elem name ## Loader_::elems[] = {
 
 #define EXPORT(name,closure,type) {name,closure,type},
 
