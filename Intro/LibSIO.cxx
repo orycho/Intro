@@ -53,7 +53,8 @@ rtvariant *sioLoadFile_(rtclosure *closure, rtt_t *retvalrtt, rtdata path, rtt_t
 	*retvalrtt = intro::rtt::Variant;
 	rtstring *strbuf = (rtstring *)path.ptr;
 	char *cpath = new char[strbuf->size];
-	wcstombs(cpath, strbuf->data, strbuf->size);
+	size_t count = wcstombs(cpath, strbuf->data, strbuf->size);
+	cpath[count] = '\0'; // needed!
 	FILE *file = fopen(cpath, "r");
 	if (file == nullptr)
 		return getNoneVariant();
@@ -83,7 +84,7 @@ rtvariant *sioLoadFile_(rtclosure *closure, rtt_t *retvalrtt, rtdata path, rtt_t
 	delete[] buffer;
 	rtdata retbuf;
 	retbuf.ptr = &(strbuf->gc);
-	return allocSomeVariant(retbuf,intro::rtt::String);
+	return allocSomeVariant(retbuf, intro::rtt::String);
 }
 MKCLOSURE(sioLoadFile, sioLoadFile_)
 
@@ -93,12 +94,14 @@ rtdata sioSaveFile_(rtclosure *closure, rtt_t *retvalrtt, rtdata path, rtt_t pat
 	rtdata rtbuf;
 	// OPen file for writing
 	rtstring *str = (rtstring*)path.ptr;
-	char *cpath = new char[MB_CUR_MAX * str->used];
-	wcstombs(cpath, str->data, str->used);
-	FILE *file = fopen(cpath, "W");
+	char *cpath = new char[MB_CUR_MAX * str->used + 1];
+	size_t count = wcstombs(cpath, str->data, str->used);
+	cpath[count] = '\0'; // needed!
+	FILE *file = fopen(cpath, "w");
 	delete[] cpath;
 	if (file == nullptr)
 	{
+		auto error = errno;
 		rtbuf.boolean = false;
 		return rtbuf;
 	}
@@ -119,7 +122,7 @@ rtdata sioSaveFile_(rtclosure *closure, rtt_t *retvalrtt, rtdata path, rtt_t pat
 	mbstate_t state;
 	char *out = new char[MB_CUR_MAX * str->used];
 	char *p = out;
-	for (size_t n = 0; n < str->used; ++n) 
+	for (size_t n = 0; n < str->used; ++n)
 	{
 		size_t rc = wcrtomb(p, str->data[n], &state);
 		if (rc == (size_t)-1) break;
@@ -131,7 +134,7 @@ rtdata sioSaveFile_(rtclosure *closure, rtt_t *retvalrtt, rtdata path, rtt_t pat
 	fclose(file);
 	delete[] out;
 	rtbuf.ptr = &(str->gc);
-	decrement(rtbuf,intro::rtt::String);
+	decrement(rtbuf, intro::rtt::String);
 	rtbuf.boolean = true;
 	return rtbuf;
 }
