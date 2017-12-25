@@ -2001,7 +2001,7 @@ namespace intro {
 			return body->isReturnLike();
 		});
 		generators->codeGen(TmpB,env);
-		return false;
+		return true;
 	}
 
 	bool WhileStatement::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
@@ -2025,7 +2025,7 @@ namespace intro {
 		body->codeGen(TmpB,&localenv);
 		TmpB.CreateBr(test); // Go to next basic block - it has another entry point, hence the branch
 		TmpB.SetInsertPoint(after);
-		return false;
+		return true;
 	}
 
 	bool CaseStatement::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
@@ -2100,7 +2100,7 @@ namespace intro {
 			TheFunction->getBasicBlockList().push_back(postcase);
 			TmpB.SetInsertPoint(postcase);
 		}
-		return false;
+		return true;
 	}
 
 	bool ReturnStatement::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
@@ -2119,7 +2119,7 @@ namespace intro {
 		// Or maybe have it done by CGEnv - if it knows it's a functions local environment, 
 		// everything above can clean up, accordig to current state.
 		TmpB.CreateBr(env->getExitBlock());
-		return false;
+		return true;
 	}
 
 	bool YieldStatement::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
@@ -2451,7 +2451,7 @@ namespace intro {
 			}
 			iter->generator->codeGenExitBlock(TmpB,env);
 		}
-		return false;
+		return true;
 	}
 
 	bool ImportStatement::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)

@@ -840,7 +840,7 @@ Block=
 	.)
 	
 	// Allow return statement only as last statement in block
-	(	
+	[	
 		Return ';'
 		(. stmt=popStatement(); bs->appendBody(stmt); .)
 	|
@@ -854,7 +854,7 @@ Block=
 			Return ';'
 			(. stmt=popStatement(); bs->appendBody(stmt); .)
 		]
-	)
+	]
 	(. pushStatement(bs); .)
 .
 

@@ -52,13 +52,14 @@ rtvariant *sioLoadFile_(rtclosure *closure, rtt_t *retvalrtt, rtdata path, rtt_t
 {
 	*retvalrtt = intro::rtt::Variant;
 	rtstring *strbuf = (rtstring *)path.ptr;
-	char *cpath = new char[strbuf->size];
-	size_t count = wcstombs(cpath, strbuf->data, strbuf->size);
+	char *cpath = new char[(strbuf->used + 1)*MB_CUR_MAX];
+	size_t count = wcstombs(cpath, strbuf->data, strbuf->used);
 	cpath[count] = '\0'; // needed!
 	FILE *file = fopen(cpath, "r");
+	delete[] cpath;
+	// If the file could not be opened, return None variant
 	if (file == nullptr)
 		return getNoneVariant();
-	delete[] cpath;
 	// Get file length
 	fseek(file, 0, SEEK_END);
 	long fileLen = ftell(file);
@@ -66,10 +67,11 @@ rtvariant *sioLoadFile_(rtclosure *closure, rtt_t *retvalrtt, rtdata path, rtt_t
 	// Allocate buffer and read file contents
 	char *buffer = new char[fileLen];
 	fread(buffer, sizeof(char), fileLen, file);
-	// allocate output and convert to multibyte into it
-	strbuf = allocString((uint64_t)fileLen);
+	fclose(file);
+	// allocate result string and convert from multibyte into it
+	strbuf = allocString((uint64_t)fileLen+1);
 	setlocale(LC_ALL, "en_US.utf8");
-	mbstate_t state;
+	mbstate_t state = std::mbstate_t();
 	char *p_in = buffer, *end = buffer + fileLen;
 	wchar_t *p_out = strbuf->data;
 	int rc;
@@ -78,9 +80,10 @@ rtvariant *sioLoadFile_(rtclosure *closure, rtt_t *retvalrtt, rtdata path, rtt_t
 		p_in += rc;
 		++p_out;
 	}
-	strbuf->used = p_out - strbuf->data + 1;
+	// Strings never count the terminating 0 char, but always alocate space for it!
+	strbuf->used = p_out - strbuf->data;
+	strbuf->data[strbuf->used+1] = L'\0';
 	// cleanup and return
-	fclose(file);
 	delete[] buffer;
 	rtdata retbuf;
 	retbuf.ptr = &(strbuf->gc);
@@ -94,14 +97,13 @@ rtdata sioSaveFile_(rtclosure *closure, rtt_t *retvalrtt, rtdata path, rtt_t pat
 	rtdata rtbuf;
 	// OPen file for writing
 	rtstring *str = (rtstring*)path.ptr;
-	char *cpath = new char[MB_CUR_MAX * str->used + 1];
+	char *cpath = new char[MB_CUR_MAX * (str->used + 1)];
 	size_t count = wcstombs(cpath, str->data, str->used);
 	cpath[count] = '\0'; // needed!
 	FILE *file = fopen(cpath, "w");
 	delete[] cpath;
 	if (file == nullptr)
 	{
-		auto error = errno;
 		rtbuf.boolean = false;
 		return rtbuf;
 	}
@@ -119,7 +121,7 @@ rtdata sioSaveFile_(rtclosure *closure, rtt_t *retvalrtt, rtdata path, rtt_t pat
 	// convert to multibyte and write to file, copied 
 	// from http://en.cppreference.com/w/c/string/multibyte/c16rtomb
 	setlocale(LC_ALL, "en_US.utf8");
-	mbstate_t state;
+	mbstate_t state = std::mbstate_t();
 	char *out = new char[MB_CUR_MAX * str->used];
 	char *p = out;
 	for (size_t n = 0; n < str->used; ++n)
@@ -138,7 +140,6 @@ rtdata sioSaveFile_(rtclosure *closure, rtt_t *retvalrtt, rtdata path, rtt_t pat
 	rtbuf.boolean = true;
 	return rtbuf;
 }
-
 MKCLOSURE(sioSaveFile, sioSaveFile_)
 
 #ifdef __cplusplus

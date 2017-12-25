@@ -285,25 +285,27 @@ void Parser::Block() {
 		intro::BlockStatement *bs=new intro::BlockStatement(t->line,t->pos);
 		intro::Statement *stmt;
 		
-		if (la->kind == 60 /* "return" */) {
-			Return();
-			Expect(26 /* ";" */);
-			stmt=popStatement(); bs->appendBody(stmt); 
-		} else if (StartOf(3)) {
-			NonReturnStatement();
-			Expect(26 /* ";" */);
-			stmt=popStatement(); bs->appendBody(stmt); 
-			while (StartOf(3)) {
-				NonReturnStatement();
-				Expect(26 /* ";" */);
-				stmt=popStatement(); bs->appendBody(stmt); 
-			}
+		if (StartOf(3)) {
 			if (la->kind == 60 /* "return" */) {
 				Return();
 				Expect(26 /* ";" */);
 				stmt=popStatement(); bs->appendBody(stmt); 
+			} else {
+				NonReturnStatement();
+				Expect(26 /* ";" */);
+				stmt=popStatement(); bs->appendBody(stmt); 
+				while (StartOf(4)) {
+					NonReturnStatement();
+					Expect(26 /* ";" */);
+					stmt=popStatement(); bs->appendBody(stmt); 
+				}
+				if (la->kind == 60 /* "return" */) {
+					Return();
+					Expect(26 /* ";" */);
+					stmt=popStatement(); bs->appendBody(stmt); 
+				}
 			}
-		} else SynErr(85);
+		}
 		pushStatement(bs); 
 }
 
@@ -414,7 +416,7 @@ void Parser::Atom() {
 			Function();
 			break;
 		}
-		default: SynErr(86); break;
+		default: SynErr(85); break;
 		}
 }
 
@@ -544,7 +546,7 @@ void Parser::Expr4() {
 
 void Parser::Expr3() {
 		Expr4();
-		while (StartOf(4)) {
+		while (StartOf(5)) {
 			intro::Expression *expr1=popExpr(); 
 			intro::CompareOperation::OpType op=intro::CompareOperation::Equal; 
 			
@@ -641,7 +643,7 @@ void Parser::Variable() {
 		} else if (la->kind == 50 /* "const" */) {
 			Get();
 			isconst=true; 
-		} else SynErr(87);
+		} else SynErr(86);
 		Identifier(str);
 		
 		if (la->kind == _assign) {
@@ -670,7 +672,7 @@ void Parser::Variable() {
 			functions.pop();
 			pushStatement(new intro::ValueStatement(t->line,t->pos,str,fun,isconst,isInteractive));
 			
-		} else SynErr(88);
+		} else SynErr(87);
 }
 
 void Parser::Conditional() {
@@ -799,7 +801,7 @@ void Parser::NonReturnStatement() {
 			
 			break;
 		}
-		default: SynErr(89); break;
+		default: SynErr(88); break;
 		}
 }
 
@@ -819,7 +821,7 @@ void Parser::Yield() {
 			expr=popExpr(); 
 		} else if (la->kind == 57 /* "done" */) {
 			Get();
-		} else SynErr(90);
+		} else SynErr(89);
 		pushStatement(new intro::YieldStatement(t->line,t->pos,expr));
 		
 }
@@ -831,7 +833,7 @@ void Parser::FlowControl() {
 			Get();
 		} else if (la->kind == 63 /* "continue" */) {
 			Get();
-		} else SynErr(91);
+		} else SynErr(90);
 		if (loops.empty()) 
 		{
 		if (isContinue) SemErr(L"Found 'continue' statement outside of loop body.");
@@ -983,7 +985,7 @@ void Parser::Type() {
 			TypeFunction();
 			break;
 		}
-		default: SynErr(92); break;
+		default: SynErr(91); break;
 		}
 }
 
@@ -1060,7 +1062,7 @@ void Parser::TypeFunction() {
 		intro::TypeFunctionExpression *fun=new intro::TypeFunctionExpression(t->line,t->pos);
 		
 		Expect(20 /* "(" */);
-		if (StartOf(5)) {
+		if (StartOf(6)) {
 			Type();
 			fun->addParameter(types.top()); types.pop(); 
 			while (la->kind == 17 /* "," */) {
@@ -1148,8 +1150,8 @@ void Parser::Module() {
 			Expect(26 /* ";" */);
 		}
 		Expect(10 /* "from" */);
-		while (StartOf(6)) {
-			if (StartOf(3)) {
+		while (StartOf(7)) {
+			if (StartOf(4)) {
 				NonReturnStatement();
 				intro::Statement *s=popStatement();
 				module->addContent(s);
@@ -1170,7 +1172,7 @@ void Parser::Intro() {
 		exprstack.reserve(30); 
 		statementstack.reserve(30); 
 		
-		if (StartOf(3)) {
+		if (StartOf(4)) {
 			NonReturnStatement();
 			intro::Statement *s=popStatement();
 			if (s!=NULL)
@@ -1201,9 +1203,9 @@ void Parser::Intro() {
 			*/
 			
 			Expect(30 /* "." */);
-		} else SynErr(93);
-		while (StartOf(6)) {
-			if (StartOf(3)) {
+		} else SynErr(92);
+		while (StartOf(7)) {
+			if (StartOf(4)) {
 				NonReturnStatement();
 				intro::Statement *s=popStatement();
 				if (s!=NULL)
@@ -1353,10 +1355,11 @@ bool Parser::StartOf(int s) {
 	const bool T = true;
 	const bool x = false;
 
-	static bool set[7][81] = {
+	static bool set[8][81] = {
 		{T,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x},
 		{x,T,x,T, T,T,x,T, T,x,x,x, x,x,x,x, T,x,x,x, T,x,x,x, T,x,x,x, T,T,x,x, T,x,x,x, x,x,x,x, x,x,x,T, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x},
 		{x,T,x,x, x,x,x,x, x,T,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,T, T,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x},
+		{x,T,x,T, T,T,x,T, T,x,x,x, x,x,x,x, T,x,x,x, T,x,x,x, T,x,x,x, T,T,x,x, T,x,x,x, x,x,x,x, x,x,x,T, x,x,x,x, x,T,T,T, x,x,x,T, x,x,T,T, T,T,T,T, T,T,T,x, x,x,x,x, x,x,x,x, x,x,x,x, x},
 		{x,T,x,T, T,T,x,T, T,x,x,x, x,x,x,x, T,x,x,x, T,x,x,x, T,x,x,x, T,T,x,x, T,x,x,x, x,x,x,x, x,x,x,T, x,x,x,x, x,T,T,T, x,x,x,T, x,x,T,T, x,T,T,T, T,T,T,x, x,x,x,x, x,x,x,x, x,x,x,x, x},
 		{x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,T,T,T, T,T,T,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x},
 		{x,T,T,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, T,x,x,x, T,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, T,T,T,T, T,T,T,T, x,x,x,x, x},
@@ -1466,15 +1469,14 @@ void Errors::SynErr(int line, int col, int n) {
 			case 82: s = coco_string_create(L"invalid Container"); break;
 			case 83: s = coco_string_create(L"invalid Container"); break;
 			case 84: s = coco_string_create(L"invalid RecordField"); break;
-			case 85: s = coco_string_create(L"invalid Block"); break;
-			case 86: s = coco_string_create(L"invalid Atom"); break;
+			case 85: s = coco_string_create(L"invalid Atom"); break;
+			case 86: s = coco_string_create(L"invalid Variable"); break;
 			case 87: s = coco_string_create(L"invalid Variable"); break;
-			case 88: s = coco_string_create(L"invalid Variable"); break;
-			case 89: s = coco_string_create(L"invalid NonReturnStatement"); break;
-			case 90: s = coco_string_create(L"invalid Yield"); break;
-			case 91: s = coco_string_create(L"invalid FlowControl"); break;
-			case 92: s = coco_string_create(L"invalid Type"); break;
-			case 93: s = coco_string_create(L"invalid Intro"); break;
+			case 88: s = coco_string_create(L"invalid NonReturnStatement"); break;
+			case 89: s = coco_string_create(L"invalid Yield"); break;
+			case 90: s = coco_string_create(L"invalid FlowControl"); break;
+			case 91: s = coco_string_create(L"invalid Type"); break;
+			case 92: s = coco_string_create(L"invalid Intro"); break;
 
 		default:
 		{

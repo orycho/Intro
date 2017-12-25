@@ -63,6 +63,9 @@
     <ClCompile Include="..\Intro\Runtime.cxx">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\Intro\CodeGenModule.cxx">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Intro\CodeGen.h">
@@ -126,6 +129,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\Intro\JIT.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Intro\CodeGenModule.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

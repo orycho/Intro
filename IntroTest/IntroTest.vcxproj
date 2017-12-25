@@ -183,6 +183,7 @@
     <ClCompile Include="..\Intro\city.cxx" />
     <ClCompile Include="..\Intro\CodeGen.cxx" />
     <ClCompile Include="..\Intro\CodeGenEnvironment.cxx" />
+    <ClCompile Include="..\Intro\CodeGenModule.cxx" />
     <ClCompile Include="..\Intro\Environment.cxx" />
     <ClCompile Include="..\Intro\Expression.cxx" />
     <ClCompile Include="..\Intro\Parser.cpp" />
@@ -201,6 +202,7 @@
     <ClInclude Include="..\Intro\city.h" />
     <ClInclude Include="..\Intro\CodeGen.h" />
     <ClInclude Include="..\Intro\CodeGenEnvironment.h" />
+    <ClInclude Include="..\Intro\CodeGenModule.h" />
     <ClInclude Include="..\Intro\Environment.h" />
     <ClInclude Include="..\Intro\Expression.h" />
     <ClInclude Include="..\Intro\Generators.h" />

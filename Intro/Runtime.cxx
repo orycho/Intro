@@ -369,7 +369,7 @@ void toStringPoly(rtstring *str,rtdata data,rtt_t type)
 }
 
 std::int32_t some_offsets[1];
-wchar_t const *some_labels[1]={L"Value"};
+wchar_t const *some_labels[1]={L"value"};
 
 rtvariant *allocSomeVariant(rtdata value,rtt_t rtt)
 {
@@ -548,15 +548,14 @@ void appendString(rtstring *str,const wchar_t *text,std::uint64_t length)
 	if (str->size<str->used+length+1)
 	{
 		size_t newlen=str->size*2;
-		while (newlen<str->used+length) newlen*=2;
-		++newlen; // one more for null termination. nice for sysytem interoperation
+		while (newlen<str->used+length+1) newlen*=2;
 		wchar_t *buf=(wchar_t*)malloc(newlen*sizeof(wchar_t));
 		memcpy(buf,str->data,str->used*sizeof(wchar_t));
 		free(str->data);
 		str->data=buf;
 		str->size=newlen;
 	}
-	memcpy(&(str->data[str->used]),text,length*sizeof(wchar_t));
+	memcpy(&str->data[str->used],text,length*sizeof(wchar_t));
 	str->used+=length;
 	str->data[str->used]=0;
 }
