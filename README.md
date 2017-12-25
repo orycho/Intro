@@ -429,6 +429,7 @@ It also servers as a very simple example for implementing RTL modules, even thou
 ## print
 The function 
 > ::sio::print : (value:?a<:Top)->Unit
+
 takes any value as input, turns it into a string and displays the result.
 It does not return a value, only performing a side effect.
 
@@ -443,6 +444,7 @@ Note there is no equal sign in the output, as this was not printed by the REPL.
 ## read
 The function 
 > ::sio::read : ()->String
+
 reads one line of text from the terminal, and returns it as a string. It has no parameters,
 and can only read from the main keyboard.
 
@@ -459,6 +461,7 @@ The line with an equal sign in front was the return value of read, printed by th
 ## saveFile
 The function 
 > ::sio::saveFile : (path:String,data:?a<:Top)->Boolean
+
 converts data to a string and stores the result (UTF-8 encoded) in the file at path (which wil be created or cleared).
 It returns true on success, and false if any error occured. Usage is dead simple:
 <pre>
@@ -471,6 +474,7 @@ It returns true on success, and false if any error occured. Usage is dead simple
 ## loadFile
 The function 
 > ::sio::loadFile : (path:String)->{[:None] + [:Some value:String]}
+
 opens the file named in path which is expected to be an existing UTF-8 txt file.
 It reads the entire file and converts it into a single string.
 It returns the maybe variant: if no errors occured, the "Some" tag contains the created string,
