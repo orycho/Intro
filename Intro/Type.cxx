@@ -600,15 +600,25 @@ bool FunctionType::internalUnify(Type *other,bool specialize)
 
 bool RecordType::internalUnify(Type *other,bool specialize)
 {
-	RecordType *rb=dynamic_cast<RecordType*>(other);
+	RecordType *ra = this;
+	RecordType *rb = dynamic_cast<RecordType*>(other);
 	if (rb==NULL) return false;
 	RecordType::iterator ai,bi;
-	if (size()!=rb->size()) 
-		return false;
-	for (ai=begin(),bi=rb->begin();ai!=end();ai++,bi++)
+	// Unification with subtypes
+	// result type must be the lesser type, i.e the subtype with more labels.
+	// The larger record must contain all labels that occur in the smaller one,
+	// and these labels' types must be unified.
+	PartialOrder po = ra->checkSubtype(rb);
+	if (po == ERROR) return false;
+	else if (po == GREATER) std::swap(ra, rb);
+	// rb should now have less or equal many labels
+	for (bi = rb->begin();bi != rb->end();++bi)
 	{
-		if (ai->first!=bi->first) return false;
-		if (!ai->second->unify(bi->second,specialize)) return false;
+		ai = ra->findMember(bi->first);
+		if (ai == ra->end())
+			return false;
+		if (!ai->second->unify(bi->second))
+			return false;
 	}
 	return true;
 }

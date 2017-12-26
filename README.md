@@ -153,8 +153,9 @@ in list or dictionary expressions, they provide the values that are turned into 
 The for statements just combines a generator statements with a list of statemetns that operate on each set of values generated.
 
 Generator statements consist of statements that bind a variable (name) to a generator's result values using the infix keyword "in":
-* <pre>x in somelist</pre>
-* <pre>char in string</pre>
+* <pre>x in somelist</pre> where x ha the type given for the list's elements
+* <pre>char in string</pre> where char is a strying type with length exacty one.
+* <pre>kv in somedict</pre> where kv is a record with labels key and value with the appropriate types geiven by the dictionary type.
 
 Special syntax sugar is provided for generating integer values:
 identifier "from" startvalue "to" endvalue "by" stepvalue.
@@ -489,6 +490,7 @@ x:{ [ :None ] + [ :Some value : String; ]}
 &gt;
 </pre>
 
+In most cases, the None variant if returned if the file was not found.
 
 # THE END...
 
