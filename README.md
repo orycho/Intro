@@ -86,7 +86,7 @@ symbol | and a generator statement. See below
 * Records contain an arbitrary number of fields, which are labeled by an identifier. Fields may have distinct types.
 The records consists of square brackets with semicolon terminated field assignments identifier &lt;- Expression; e.g.
 <pre>[ x&lt;-1; y&lt;-2; active&lt;-false; name&lt;-"foobar";]</pre>
-* Record elements can be accessed by label with the . operator
+* Record elements can be accessed by label with the . operator, e.g. "r.x", "player.name".
 * Variants are written like records, but the begin with a colon and an identifier: <pre>[:Vec2 x&lt;-1; y&lt;-2;]</pre>. Note the colon is not part of the tag.
 * The dot operator does not work on variants, instead the case statement must be used.
 * Generators look like functions, but instead of return they use the keyword yield. Repeated applications of a generator

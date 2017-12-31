@@ -18,7 +18,8 @@ protected:
 		mytype=env->get(name);
 		if (mytype==NULL) 
 		{
-			mytype=env->fresh(name,super->copy());
+			//mytype=env->fresh(name,super->copy());
+			mytype = env->fresh(name, super);
 			env->put(name,mytype);
 		}
 		return mytype;
@@ -37,7 +38,8 @@ public:
 
 	~TypeVariableExpression(void)
 	{
-		delete super;
+		//delete super;
+		deleteCopy(super);
 	};
 
 	virtual Type *getExposedType(void)
@@ -97,7 +99,7 @@ public:
 
 	virtual Type *getExposedType(void)
 	{ 
-		myexptype=new Type(Type::List,elemtype->getExposedType());
+		if (myexptype == nullptr) myexptype = new Type(Type::List, elemtype->getExposedType());
 		return myexptype; 
 	};
 };
@@ -131,8 +133,11 @@ public:
 
 	virtual Type *getExposedType(void)
 	{
-		myexptype=new Type(Type::Dictionary,keytype->getExposedType());
-		myexptype->addParameter(valtype->getExposedType());
+		if (myexptype == nullptr)
+		{
+			myexptype = new Type(Type::Dictionary, keytype->getExposedType());
+			myexptype->addParameter(valtype->getExposedType());
+		}
 		return myexptype;
 	};
 
@@ -154,7 +159,10 @@ protected:
 
 public:
 	TypeRecordExpression(int l,int p) : TypeExpression(l,p)
-	{ myrec=NULL; };
+	{
+		myrec = NULL; 
+		myexptype = nullptr;
+	};
 
 	~TypeRecordExpression(void)
 	{
@@ -172,10 +180,13 @@ public:
 
 	virtual Type *getExposedType(void)
 	{ 
-		RecordType *myexptype=new RecordType();
-		std::list<std::pair<std::wstring,TypeExpression*> >::iterator it;
-		for (it=members.begin();it!=members.end();it++)
-			myexptype->addMember(it->first,it->second->getExposedType());
+		if (myexptype == nullptr)
+		{
+			myexptype = new RecordType();
+			std::list<std::pair<std::wstring, TypeExpression*> >::iterator it;
+			for (it = members.begin();it != members.end();it++)
+				myexptype->addMember(it->first, it->second->getExposedType());
+		}
 		return myexptype;
 	};
 };
@@ -218,10 +229,13 @@ public:
 
 	virtual Type *getExposedType(void)
 	{ 
-		myexptype=new FunctionType(returned->getExposedType());
-		std::list<TypeExpression*>::iterator it;
-		for (it=parameters.begin();it!=parameters.end();it++)
-			myexptype->addParameter((*it)->getExposedType());
+		if (myexptype == nullptr)
+		{
+			myexptype = new FunctionType(returned->getExposedType());
+			std::list<TypeExpression*>::iterator it;
+			for (it = parameters.begin();it != parameters.end();it++)
+				myexptype->addParameter((*it)->getExposedType());
+		}
 		return myexptype;
 	};
 
@@ -231,7 +245,8 @@ class TypeOpaqueExpression : public TypeExpression
 {
 	std::list<TypeExpression*> parameters;
 	std::wstring name;
-	Type *myhidden,*myexptype;
+	Type *myhidden;
+	OpaqueType *myexptype;
 protected:
 	virtual Type *makeType(Environment *env)
 	{
@@ -294,20 +309,22 @@ public:
 	{ 
 //		return myexptype;
 		//OpaqueType *ret=new OpaqueType(*dynamic_cast<OpaqueType*>(myexptype));
-		OpaqueType *ret=new OpaqueType(name);
-		myexptype=ret;
-		std::list<TypeExpression*>::iterator pit;
-		for (pit=parameters.begin();pit!=parameters.end();pit++)
+		if (myexptype == nullptr)
 		{
-			Type *paramtype=(*pit)->getExposedType();
-			if (paramtype->getKind()==Type::Error) return paramtype;
-			else if (paramtype->getKind()!=Type::Variable)
+			myexptype = new OpaqueType(name);
+			std::list<TypeExpression*>::iterator pit;
+			for (pit = parameters.begin();pit != parameters.end();pit++)
 			{
-				return getError(L"Parameters in opaque types must be variables!");
-			};				
-			ret->addParameter(dynamic_cast<TypeVariable*>(paramtype));
+				Type *paramtype = (*pit)->getExposedType();
+				if (paramtype->getKind() == Type::Error) return paramtype;
+				else if (paramtype->getKind() != Type::Variable)
+				{
+					return getError(L"Parameters in opaque types must be variables!");
+				};
+				myexptype->addParameter(dynamic_cast<TypeVariable*>(paramtype));
+			}
 		}
-		return ret;
+		return myexptype;
 
 	};
 };
@@ -336,7 +353,7 @@ public:
 
 	virtual Type *getExposedType(void)
 	{ 
-		myexptype=new Type(Type::Generator,valtype->getExposedType());
+		if (myexptype == nullptr) myexptype=new Type(Type::Generator,valtype->getExposedType());
 		return myexptype;
 	};
 

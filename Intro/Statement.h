@@ -155,8 +155,8 @@ public:
 		std::list<Statement*>::iterator sit;
 		delete body;
 		ParameterList::iterator pit;
-		for (pit=parameters.begin();pit!=parameters.end();pit++)
-			deleteCopy(pit->type);
+		//for (pit=parameters.begin();pit!=parameters.end();pit++)
+		//	deleteCopy(pit->type);
 		if (myType!=NULL) delete myType;
 	};
 
@@ -275,6 +275,7 @@ public:
 				std::wcout << "\n\twith\n\t";
 				et->find()->print(std::wcout);
 				std::wcout << "\n";
+				// Remove name from environment instead?
 				env->put(name,new ErrorType(getLine(),getPosition(),std::wstring(L"Type Error Occured defining ")+name+L", check definition."));
 				return false;
 		}
@@ -519,16 +520,17 @@ private:
 
 	Expression *caseof;
 	caselist cases;
-	//VariantType handled;
+	VariantType *handled;
 
 public:
 
-	CaseStatement(int l,int p) : Statement(l,p), caseof(NULL)
+	CaseStatement(int l,int p) : Statement(l,p), caseof(NULL), handled(nullptr)
 	{};
 	
 	~CaseStatement()
 	{
 		delete caseof;
+		if (handled != nullptr) delete handled;
 		iterator iter;
 		for (iter=cases.begin();iter!=cases.end();iter++)
 		{
@@ -545,7 +547,7 @@ public:
 
 	virtual bool makeType(Environment *env)
 	{
-		VariantType *handled=new VariantType;
+		handled=new VariantType;
 		iterator iter;
 		bool success=true;
 		for (iter=cases.begin();iter!=cases.end();iter++)

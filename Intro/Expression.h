@@ -399,6 +399,7 @@ class RecordAccess: public Expression
 {
 	Expression *record; ///< The record to be accessed
 	std::wstring label;	///< The label that is requested
+	RecordType *myRecord;
 protected:
 	virtual Type *makeType(Environment *env);
 public:
@@ -406,10 +407,12 @@ public:
 		: Expression(l,p)
 		, record(rec)
 		, label(lab)
+		, myRecord(nullptr)
 	{ };
 	virtual ~RecordAccess()
 	{
 		delete record;
+		if (myRecord != nullptr) delete myRecord;
 	};
 
 	inline const std::wstring &getLabel() { return label; };
@@ -546,6 +549,7 @@ class Splice : public Application
 	FunctionType* myType;
 	Type counter;
 	Type *myTypeParam[2];
+	Type *sequence;
 
 protected:
 	virtual Type *getCalledFunctionType(Environment *env);
@@ -555,6 +559,7 @@ public:
 		: Application(l,p)
 		, myType(NULL)
 		, counter(Type::Integer)
+		, sequence(nullptr)
 	{
 		myTypeParam[0]=myTypeParam[1]=NULL;
 		params.push_back(source);
@@ -563,9 +568,10 @@ public:
 	};
 	virtual ~Splice()
 	{
-		if (myType!=NULL) delete myType;
-		if (myTypeParam[0]!=NULL) delete myTypeParam[0];
-		if (myTypeParam[1]!=NULL) delete myTypeParam[1];
+		if (myType!= nullptr) delete myType;
+		if (myTypeParam[0]!= nullptr) delete myTypeParam[0];
+		if (myTypeParam[1]!= nullptr) delete myTypeParam[1];
+		if (sequence != nullptr) delete sequence;
 	};
 	virtual void print(std::wostream &s);
 	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)

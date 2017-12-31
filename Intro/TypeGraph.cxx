@@ -27,6 +27,8 @@ TypeVariable *TypeGraph::fresh(const std::wstring &name)
 	return retval;
 }
 
+static Type string_t(Type::String);
+
 void TypeGraph::createBuiltins(void)
 {
 	TypeGraph::node::edge *edge;
@@ -94,8 +96,10 @@ void TypeGraph::createBuiltins(void)
 	// String
 	node *string=new node(L"String",Type::String);
 	edge=string->addSuper(sequence);
+	//edge->super_params.push_back(&string_t); // LEAK
 	edge->super_params.push_back(new Type(Type::String)); // LEAK
 	edge->parentTemplate=new Type(Type::Sequence,edge->super_params.front()); // LEAK
+	//edge->parentTemplate = new Type(Type::Sequence, &string_t);
 	string->addSuper(comparable)->parentTemplate=new Type(Type::Comparable);
 	node *record=new node(L"Record",Type::Record);
 	record->addSuper(top);

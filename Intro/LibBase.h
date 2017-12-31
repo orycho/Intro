@@ -26,7 +26,7 @@ struct LibLoader
 		while (elems[i].name != nullptr)
 		{
 			// Add to module
-			ti_module->addExport(elems[i].name, elems[i].type);
+			ti_module->addExport(elems[i].name, elems[i].type,false);
 			cg_module->importElement(elems[i].name, cgelem)->second.altname = elems[i].sourcename;
 			++i;
 		}

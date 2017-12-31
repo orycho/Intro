@@ -1257,34 +1257,34 @@ bool typeTests(void)
 	complexDictGenFor();
 	alternateInvertTest();
 	basicModule();
-	freeVariableDetection();
+	//freeVariableDetection();
 	return true;
 }
 
 // Execute all code generation tests
 bool codeGenTests(void)
 {
-	//constantExpressionCodeGen();
-	//globalVariablesCodeGen();
-	//stringLiteralsCodeGen();
-	//stringInterpolationCodeGen();
-	//basicFunctionCodeGen();
-	//arithFunctionCodeGen();
-	//polyFunctionCodeGen();
-	//polyClosureCodeGen();
-	//recordCodeGen();
-	//variantCodeGen();
-	//basicCompareCodeGen();
-	//polyCompareCodeGen();
-	//basicListCodeGen();
-	//genListCodeGen();
-	//emptyGeneratorCodeGen();
-	//simpleGeneratorCodeGen();
-	//complexGeneratorCodeGen();
-	//elementCountCodeGen();
-	//conditionGeneratorCodeGen();
-	//retLikeCodeGen();
-	//variantsUseCodeGen();
+	constantExpressionCodeGen();
+	globalVariablesCodeGen();
+	stringLiteralsCodeGen();
+	stringInterpolationCodeGen();
+	basicFunctionCodeGen();
+	arithFunctionCodeGen();
+	polyFunctionCodeGen();
+	polyClosureCodeGen();
+	recordCodeGen();
+	variantCodeGen();
+	basicCompareCodeGen();
+	polyCompareCodeGen();
+	basicListCodeGen();
+	genListCodeGen();
+	emptyGeneratorCodeGen();
+	simpleGeneratorCodeGen();
+	complexGeneratorCodeGen();
+	elementCountCodeGen();
+	conditionGeneratorCodeGen();
+	retLikeCodeGen();
+	variantsUseCodeGen();
 	filterCodeGen();
 	recursiveFunctionCodeGen();
 	moduleCodeGen();
@@ -1295,5 +1295,5 @@ void runBasicTests(void)
 {
 	//checkSubtypeEnum();
 	typeTests();
-	codeGenTests();
+	//codeGenTests();
 }

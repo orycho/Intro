@@ -738,7 +738,6 @@ Type *VariantType::internalCopy(TypeVariableMap &conv)
 	VariantType *b= new VariantType();
 	for (VariantType::iterator iter=beginTag();iter!=endTag();iter++)
 		b->addTag(iter->first,(RecordType*)iter->second->substitute(conv));
-		//b->addTag(iter); // Record always copied
 	b->setAccessFlags(getAccessFlags());
 	return b;
 }
@@ -761,7 +760,13 @@ Type *OpaqueType::internalCopy(TypeVariableMap &conv)
 
 void collectAllTypes(Type *t, std::set<Type*> &items)
 {
-	if (t->getKind() == Type::Variable) return;
+	if (t->getKind() == Type::Variable)
+	{
+		TypeVariable *tv = (TypeVariable *)t;
+		if (!tv->isStaticSuper())
+			collectAllTypes(tv->getSupertype(), items);
+		return;
+	}
 	if (!items.insert(t).second) return; // visit things once
 	switch (t->getKind())
 	{
@@ -800,14 +805,16 @@ void collectAllTypes(Type *t, std::set<Type*> &items)
 	}
 	return;
 	case Type::Variant:
-		// Records for tas are owned by variant
-/*		{
+		{
 			VariantType *va=dynamic_cast<VariantType *>(t);
-			VariantType::iterator iter;
-			for (iter=va->beginTag();iter!=va->endTag();iter++)
-				collectAllTypes(iter->second,items);
+			if (!va->deletesRecords())
+			{
+				VariantType::iterator iter;
+				for (iter = va->beginTag();iter != va->endTag();iter++)
+					collectAllTypes(iter->second, items);
+			}
 		}
-*/		return;
+		return;
 	case Type::UserDef:
 	{
 		OpaqueType *oa = dynamic_cast<OpaqueType*>(t);

@@ -16,6 +16,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/IR/Verifier.h"
 #include "CodeGenEnvironment.h"
+#include "CodeGenModule.h"
 
 #include "Runtime.h"
 
@@ -116,6 +117,8 @@ int main(int argc, char *argv[])
 	intro::Environment::deleteAllModules();
 	intro::Environment::clearTypeVariables();
 	intro::deleteRuntime();
+	intro::CodeGenModule::deleteRootModule();
+	intro::Environment::deleteRootModule();
 	llvm::llvm_shutdown();
 	
 	return 0;

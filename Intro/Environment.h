@@ -64,9 +64,10 @@ public:
 		struct entry
 		{
 			Type *type;	/// Internal type for code generation
+			bool owned;
 			//Value value;
 
-			entry(Type *t) : type(t)
+			entry(Type *t,bool owned_=true) : type(t), owned(owned_)
 			{};
 		};
 		
@@ -120,9 +121,9 @@ public:
 
 		inline std::wstring getName() { return name; };
 
-		inline void addExport(std::wstring name,Type *type)
+		inline void addExport(std::wstring name,Type *type,bool owned=true)
 		{
-			exports.insert(make_pair(name,entry(type)));
+			exports.insert(make_pair(name,entry(type, owned)));
 		};
 
 		inline void addSubModule(Module *m)
@@ -177,7 +178,7 @@ public:
 		{
 			for (std::map<std::wstring,entry>::iterator iter=exports.begin();iter!=exports.end();iter++)
 			{
-				deleteCopy(iter->second.type);
+				//if (iter->second.owned) deleteCopy(iter->second.type);
 			}
 			for(std::map<std::wstring,Module*>::iterator iter=submodules.begin();iter!=submodules.end();iter++)
 			{
@@ -246,6 +247,12 @@ public:
 		if (root == nullptr)
 			root = new Module;
 		return root;
+	}
+
+	static void deleteRootModule(void)
+	{
+		delete root;
+		root = nullptr;
 	}
 
 	static void addIntermediate(Type *t)

@@ -329,7 +329,7 @@ namespace intro {
 		//retval->setAccessFlags(intermediate->getReturnType()->find()->getAccessFlags());
 		retval->setAccessFlags(flags);
 		// Get parameter types from application expression for function type to unify against.
-		sourceTypes.resize(params.size(),nullptr);
+		//sourceTypes.resize(params.size(),nullptr);
 		for (size_t i=0;i<params.size();++i)
 		{
 			// Putting the pointers to type variables in the function type here
@@ -355,6 +355,7 @@ namespace intro {
 				// also cleanup ;)
 				return pt;
 			}
+			/*
 			TypeVariableSet vars;
 			pt->getVariables(vars);
 			if (vars.empty() && pt->getKind()!=Type::UserDef)
@@ -362,6 +363,7 @@ namespace intro {
 				sourceTypes[i]=pt->copy();
 				pt=sourceTypes[i];
 			}
+			*/
 			paramtypes.push_back(pt);
 		}
 		myFuncType=new FunctionType(paramtypes,retval);
@@ -407,10 +409,10 @@ std::wcout << L"\n";
 			if (super->find()->getKind()==Type::Top)
 			{
 				// Replace supertype with record containings new label
-				RecordType *rt=new RecordType();
+				myRecord=new RecordType();
 				Type *buf=Environment::fresh();
-				rt->addMember(label,buf);
-				vt->replaceSupertype(rt);
+				myRecord->addMember(label,buf);
+				vt->replaceSupertype(myRecord);
 				return buf;
 			}
 			else if (super->find()->getKind()==Type::Record)
@@ -476,14 +478,10 @@ std::wcout << L"\n";
 
 	Type *Splice::getCalledFunctionType(Environment *env)
 	{
-		//Type *in=params.front()->getType(env)->find();
-		Type *ret=NULL;
 		std::list<Type*> pin;
-		VariableSet free,bound;
-		// TBD: supertype as member in class
-		ret=new Type(Type::Sequence);
-		ret->addParameter(Environment::fresh());
-		TypeVariable *tv=Environment::fresh(ret);
+		sequence=new Type(Type::Sequence);
+		sequence->addParameter(Environment::fresh());
+		TypeVariable *tv=Environment::fresh(sequence);
 		pin.push_back(tv);
 		pin.push_back(&counter);
 		pin.push_back(&counter);

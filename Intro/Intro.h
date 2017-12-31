@@ -272,7 +272,7 @@ protected:
 	/// The epression which represents the function to be called.
 	Expression *func;
 	/// List of types instantiated during type inference, remembered for deletion?!
-	std::vector<Type*> sourceTypes;
+	//std::vector<Type*> sourceTypes;
 	/// RTT of the value that the function called has returned, if any.
 	llvm::Value *returntype;
 
@@ -331,10 +331,11 @@ public:
 		if (deleteCalledType) deleteCopy(calledType);
 		if (myFuncType!=NULL) delete myFuncType;
 		if (funvar!=NULL) delete funvar;
-		for (size_t i =0;i<sourceTypes.size();++i)
+		/*for (size_t i =0;i<sourceTypes.size();++i)
 		{
 			deleteCopy(sourceTypes[i]);
 		}
+		*/
 	};
 
 	//	virtual void *evaluate(Environment &env)=0;

@@ -32,6 +32,12 @@ public:
 
 	/// Returns the interpreters root module (creates if needed)
 	static CodeGenModule *getRoot(void);
+
+	static void deleteRootModule(void)
+	{
+		delete root;
+		root = nullptr;
+	}
 	
 	/// Return the module with the given path, creates all intermediate if necessary.
 	CodeGenModule *getRelativePath(std::list<std::wstring> path)

@@ -50,7 +50,7 @@ class ModuleStatement : public Statement
 			, ot(NULL)
 		{};
 
-		~OpaqueTypeDeclaration(void)
+		virtual ~OpaqueTypeDeclaration(void)
 		{
 			std::list<TypeExpression*>::iterator it;
 			for (it=parameters.begin();it!=parameters.end();it++)
@@ -101,7 +101,7 @@ class ModuleStatement : public Statement
 			: ExportDeclaration(l,p,n), expr(te), type(NULL)
 		{};
 
-		~MemberTypeDeclaration(void)
+		virtual ~MemberTypeDeclaration(void)
 		{
 			delete expr;
 		};
@@ -141,6 +141,8 @@ class ModuleStatement : public Statement
 	/// The content of the module is executed to create the values therein.
 	std::list<Statement*> contents;
 
+	std::vector<Type*> ctor_rettypes;
+
 	std::map<std::wstring,Type*> expout;
 
 public:
@@ -161,6 +163,7 @@ public:
 		std::map<std::wstring,Type*>::iterator expit;
 		for (expit=expout.begin();expit!=expout.end();expit++)
 			deleteCopy(expit->second);
+		for (Type *t : ctor_rettypes) delete t;
 	};
 
 	inline std::wstring getName(void) { return name; };
@@ -229,7 +232,7 @@ public:
 				}
 				success&=isLessOrEqual(inside->checkSubtype(exptype));
 				MemberTypeDeclaration *mt=dynamic_cast<MemberTypeDeclaration*>(*exported);
-				module->addExport((*exported)->getName(),mt->getExposedType());
+				module->addExport((*exported)->getName(),mt->getExposedType(),false);
 			}
 			else	// Opaque Type declaration
 			{
@@ -253,7 +256,9 @@ public:
 				// We build up a function that has the same paramters as the constructor,
 				// and assigns those same parameters to the opaque type returned
 				OpaqueType *returned=new OpaqueType(*ot);
+				ctor_rettypes.push_back(returned);
 				FunctionType *ctor=new FunctionType(returned);
+				ctor_rettypes.push_back(ctor);
 				OpaqueType::iterator iter;
 				for (iter=returned->begin();iter!=returned->end();iter++)
 				{

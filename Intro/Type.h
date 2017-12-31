@@ -227,7 +227,7 @@ public:
 	/// The kind of a type, as defined by the Types enumeration, is used to determine subclass, quickly compare inequality for types, and more...
 	inline Types getKind(void) { return type; };
 	/// Returns a pointer to this types supertype (constraint).To convert a type to it's supertype @see TypeGraph::getParentType().
-	inline Type *getSupertype(void) { return super->find(); };
+	inline Type *getSupertype(void) { return super; };
 	/// Assign a new (usually more restrictive) supertype to the type.
 	inline void replaceSupertype(Type *t)
 	{
@@ -377,6 +377,11 @@ public:
 	{
 		for (auto iter = ownedtypes.begin();iter != ownedtypes.end();++iter)
 			deleteCopy(*iter);
+	}
+
+	inline bool isStaticSuper(void)
+	{
+		return super == &top;
 	}
 
 	const std::wstring getName(void) { return name; };
@@ -604,6 +609,7 @@ public:
 class VariantType : public Type
 {
 	std::map<std::wstring,RecordType*> tags;
+	bool deleteRecords;
 protected:
 	/// Compute the unification of two types, always called via public driver
 	virtual bool internalUnify(Type *other,bool specialize);
@@ -617,37 +623,51 @@ public:
 	typedef std::map<std::wstring,RecordType*> tagmap;
 	typedef std::map<std::wstring,RecordType*>::iterator iterator;
 
-	VariantType(): Type(Type::Variant), mytop(Type::Top)
+	VariantType(): Type(Type::Variant), deleteRecords(false), mytop(Type::Top)
 	{
 		super=&mytop;
-	};
+	}
 
 	VariantType(const tagmap &m) : VariantType()
 	{
 		tagmap::const_iterator iter;
 		for (iter=tags.begin();iter!=tags.end();iter++)
 			tags.insert(std::make_pair(iter->first,(RecordType*)iter->second->find()->copy()));
-	};
+	}
 
 	/// Builds a maybe variant with the Some tag having the passed type for it's value
 	VariantType(Type *type) : VariantType()
 	{
 		RecordType *emptyrec = new RecordType;
 		RecordType *somerec=new RecordType;
-		somerec->addMember(L"value", type->find()->copy());
+		//somerec->addMember(L"value", type->find()->copy());
+		somerec->addMember(L"value", type->find());
 		tags.insert(std::make_pair(L"Some", somerec));
 		tags.insert(std::make_pair(L"None", emptyrec));
-	};
+		deleteRecords = true;
+	}
+
 	VariantType(VariantType &other) : VariantType() // Type(Type::Variant), mytop(Type::Top)
 	{
 		tagmap::const_iterator iter;
 		for (iter=other.beginTag();iter!=other.endTag();iter++)
 			tags.insert(std::make_pair(iter->first,(RecordType*)iter->second->find()->copy()));
-	};
+	}
 
 	virtual ~VariantType(void)
 	{
-	};
+		if (deleteRecords)
+		{
+			tagmap::iterator iter;
+			for (iter = beginTag();iter != endTag();iter++)
+				delete iter->second;
+		}
+	}
+
+	inline bool deletesRecords(void)
+	{
+		return deleteRecords;
+	}
 
 	iterator beginTag(void) { return tags.begin(); };
 	iterator findTag(const std::wstring &tag) { return tags.find(tag); };
@@ -661,22 +681,22 @@ public:
 			iter->second->find()->setAccessFlags(f);
 		}
 
-	};
+	}
 
 	void addTag(const std::wstring &tag,RecordType *contents)
 	{
 		tags.insert(make_pair(tag,(RecordType*)contents));
-	};
+	}
 
 	void addTag(const wchar_t *tag,RecordType *contents)
 	{
 		addTag(std::wstring(tag,wcslen(tag)),contents);
-	};
+	}
 
 	void addTag(iterator &iter)
 	{
 		addTag(iter->first,iter->second);
-	};
+	}
 
 	inline size_t size(void) { return tags.size(); };
 
@@ -697,7 +717,7 @@ public:
 			s << "]";
 		}
 		s << "}";
-	};
+	}
 
 	virtual rtt::RTType getRTKind(void) 
 	{ return rtt::Variant; }

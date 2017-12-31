@@ -78,7 +78,7 @@ $(SOURCEDIR)/Scanner.h: parser
 
 parser: intro.atg
 	@echo "Running Coco\R..."
-	coco/coco.exe intro.atg  -namespace parse -frames coco/ -o $(SOURCEDIR)/
+	#coco/coco.exe intro.atg  -namespace parse -frames coco/ -o $(SOURCEDIR)/
 #intro.atg: 
 
 ## Build binary from object files
