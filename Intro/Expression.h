@@ -369,8 +369,11 @@ public:
 	virtual void print(std::wostream &s);
 	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
 	{
-		// Maybe only if in bound?
-		if (bound.find(name)==bound.end()) free.insert(name);
+		// If it's in some module or the global scope, then we take it from there.
+		if (relative&&path.empty())
+		{
+			if (bound.find(name) == bound.end()) free.insert(name);
+		}
 	};
 
 	virtual bool isWritable(void)

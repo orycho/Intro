@@ -1456,7 +1456,8 @@ namespace intro {
 		Expression::cgvalue dict=params[0]->codeGen(TmpB,env);
 		Expression::cgvalue key=params[1]->codeGen(TmpB,env);
 		// If key type in dict is variable, create code to write key rtt to dict.
-		if (params[0]->getType()->getKind()==Type::Variable)
+		Type *dict_type = params[0]->getType();
+		if (dict_type->getParameter(0)->getKind() == Type::Variable)
 		{
 			llvm::Function *setKeyTypeDictF = TheModule->getFunction("setKeyTypeDict");
 			llvm::Value *args[]={ dict.first, key.second };

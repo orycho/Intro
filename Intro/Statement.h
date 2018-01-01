@@ -786,7 +786,7 @@ public:
 
 	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
 	{
-		expr->getFreeVariables(free,bound);
+		if (expr!=nullptr) expr->getFreeVariables(free,bound);
 	};
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
 	virtual void collectFunctions(std::list<intro::Function*> &funcs)
