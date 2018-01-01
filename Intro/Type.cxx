@@ -617,7 +617,7 @@ bool RecordType::internalUnify(Type *other,bool specialize)
 		ai = ra->findMember(bi->first);
 		if (ai == ra->end())
 			return false;
-		if (!ai->second->unify(bi->second))
+		if (!ai->second->unify(bi->second,specialize))
 			return false;
 	}
 	return true;

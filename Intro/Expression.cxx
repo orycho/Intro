@@ -271,7 +271,9 @@ namespace intro {
 		// In  this case, the application will make sure that the variable has previously been
 		// unified with a function template of the correct arity.
 		// That is also true for applications of recursive functions
-		if (ft->getKind()==Type::Variable) calledType=ft;
+		if (ft->getKind() == Type::Error) 
+			return ft;
+		else if (ft->getKind() == Type::Variable) calledType = ft;
 		else 
 		{
 			calledType=ft->copy();
@@ -720,6 +722,9 @@ std::wcout << L"\n";
 	
 	void Variable::print(std::wostream &s)
 	{
+		if (!relative) s << "::";
+		for (std::list<std::wstring>::iterator pit = path.begin();pit != path.end();pit++) 
+			s <<  *pit << "::";
 		s << name ;
 		if (getType()!=NULL) 
 		{

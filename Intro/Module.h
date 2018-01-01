@@ -141,8 +141,6 @@ class ModuleStatement : public Statement
 	/// The content of the module is executed to create the values therein.
 	std::list<Statement*> contents;
 
-	std::vector<Type*> ctor_rettypes;
-
 	std::map<std::wstring,Type*> expout;
 
 public:
@@ -163,7 +161,6 @@ public:
 		std::map<std::wstring,Type*>::iterator expit;
 		for (expit=expout.begin();expit!=expout.end();expit++)
 			deleteCopy(expit->second);
-		for (Type *t : ctor_rettypes) delete t;
 	};
 
 	inline std::wstring getName(void) { return name; };
@@ -253,12 +250,14 @@ public:
 				}
 				FunctionType *ft=dynamic_cast<FunctionType*>(inside);
 				success&=ot->setTypeMapping(ft);
-				// We build up a function that has the same paramters as the constructor,
-				// and assigns those same parameters to the opaque type returned
+				// We build up a function type for the constructor,
+				// with the opaque type's parameter types going
+				// into the functions parameters' types.
+				// The type is constructed completely on the heap,
+				// so that ownership can be passed to the modle, 
+				// which will delete it eventually.
 				OpaqueType *returned=new OpaqueType(*ot);
-				ctor_rettypes.push_back(returned);
 				FunctionType *ctor=new FunctionType(returned);
-				ctor_rettypes.push_back(ctor);
 				OpaqueType::iterator iter;
 				for (iter=returned->begin();iter!=returned->end();iter++)
 				{

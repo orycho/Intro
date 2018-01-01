@@ -1202,9 +1202,9 @@ bool recursiveFunctionCodeGen(void)
 bool moduleCodeGen(void)
 {
 	cout << "\n---\n Module Code Generation:\n";
-	const char *test = "module Pair exports type Pair(?a,?b); first:(Pair(?a,?b))-> ?a; second:(Pair(?a,?b))-> ?b; swap:(Pair(?a,?b))->Pair(?b,?a); from var Pair(a,b)->return [first<-a;second<-b;]; end; var first(a)-> return a.first; end; var second(a)-> return a.second; end; var swap(a)->return [first<-a.second;second<-a.first;]; end; end."
-		" var p<-Pair::Pair(1,true); "
-		"import Pair; var q<-swap(p); var b<-first(p)==second(q);"
+	const char *test = "module Pair2 exports type Pair(?a,?b); first:(Pair(?a,?b))-> ?a; second:(Pair(?a,?b))-> ?b; swap:(Pair(?a,?b))->Pair(?b,?a); from var Pair(a,b)->return [first<-a;second<-b;]; end; var first(a)-> return a.first; end; var second(a)-> return a.second; end; var swap(a)->return [first<-a.second;second<-a.first;]; end; end."
+		" var p<-Pair2::Pair(1,true); "
+		"import Pair2; var q<-swap(p); var b<-first(p)==second(q);"
 		;
 	//parse::Parser parser=getParser(test);
 	cout << test << endl << endl;
@@ -1295,5 +1295,5 @@ void runBasicTests(void)
 {
 	//checkSubtypeEnum();
 	typeTests();
-	//codeGenTests();
+	codeGenTests();
 }

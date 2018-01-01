@@ -834,7 +834,7 @@ public:
 		error=NULL;
 		OpaqueType::iterator iter;
 		for (iter=other.begin();iter!=other.end();iter++)
-			addParameter(iter->first);
+			addParameter((TypeVariable*)iter->first->copy());
 	};
 
 	~OpaqueType(void)

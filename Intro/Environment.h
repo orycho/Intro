@@ -178,7 +178,7 @@ public:
 		{
 			for (std::map<std::wstring,entry>::iterator iter=exports.begin();iter!=exports.end();iter++)
 			{
-				//if (iter->second.owned) deleteCopy(iter->second.type);
+				if (iter->second.owned) deleteCopy(iter->second.type);
 			}
 			for(std::map<std::wstring,Module*>::iterator iter=submodules.begin();iter!=submodules.end();iter++)
 			{

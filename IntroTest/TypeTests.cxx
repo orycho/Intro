@@ -162,8 +162,8 @@ TEST(SubtypeRelationTests, BasicRecordSubtypes) {
 	// [ a:Integer; b:Integer]<:[ a:Integer; ] because 
 	// 1) {a} subset {a,b}
 	// 2) in both  records, a is Integer
-	EXPECT_EQ(recAB.checkSubtype(&recA),intro::LESS);
-	EXPECT_EQ(recA.checkSubtype(&recAB),intro::GREATER);
+	EXPECT_EQ(recAB.checkSubtype(&recReal),intro::LESS);
+	EXPECT_EQ(recReal.checkSubtype(&recAB),intro::GREATER);
 	// [ a:Integer; b:Integer]<:[ a:Real; ] because 
 	// 1) {a} subset {a,b}
 	// 2) [ a:Integer; ]<:[ a:Real; ]
