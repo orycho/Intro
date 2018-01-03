@@ -287,10 +287,23 @@ length:(?T5sup&lt;:Generator(?T4&lt;:Top)) -> Integer
 > length("Hello foo");
  = 9
 </pre>
-The fibonacci function is a classic recursive one:
+The fibonacci function in a classic recursive implementation:
 <pre>
 > var fib(n)->if n<=2 then return 1; else return fib(n-1) + fib(n-2); end; end;
 fib:(Integer) -> Integer
+</pre>
+
+Dictionaries can be used to imlement simple histograms. Again, the input is a Generator, which is iterated over using a for statement.
+Note the expression "{=>}" returns an empty dictionary, for which the type is ater infered to have integer values, and
+the key type is the same as the type generated py the vaue passed.
+<pre>
+> var histo(seq)->var result<-{=>}; for elem in seq do case result[elem] of None then result[elem]<-1; | Some value then result[elem]<-value+1; end; done; return result; end;
+histo:(?T7sup<:Generator(?key<:Top)) -> Dictionary(?key<:Top,Integer)
+> histo("Hello World");
+ = {W=>1, e=>1, r=>1,  =>1, d=>1, o=>2, l=>3, H=>1}
+> histo({1,2,3,4,1,4,1,1,8,9,10,10,2,3,1});
+ = {1=>5, 2=>2, 3=>2, 4=>2, 8=>1, 9=>1, 10=>2}
+>
 </pre>
 
 # Modules
@@ -311,7 +324,7 @@ Example relative paths:
 Example absolute paths:
 > ::sio, ::gui::controls::buttons, 
 
-The module at the root module is called also the global scope, and is written simply as a double colon without a prefix. 
+The module at the root module is also called the global scope, and is written simply as a double colon without a prefix. 
 All variables defined outside any other module or scope are palced in here, and it is always accessible.
 If the path begins with an identifier, it is relative to the current module. 
 The path may end with a module name where a module is expected, or with a member of the modules interface.
@@ -495,7 +508,7 @@ In most cases, the None variant if returned if the file was not found.
 # THE END...
 
 Questions for Ory:
-* Does case allow mutating a variant? could be useful
+* Does case allow mutating a variant? could be useful - currently not, the bound variant eements are merked as constants!
 * If modules can access anything already defined in lower modules, how does that interacting with sourcing scripts inside the module?
 . E.g. it may be possible to have the same code use different modules as it's base implementation, if the mdules interface matches...
 . Like using different logics to implement a planning and reasoning algorithms...
