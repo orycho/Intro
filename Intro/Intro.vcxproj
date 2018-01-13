@@ -198,6 +198,7 @@
     <ClCompile Include="Environment.cxx" />
     <ClCompile Include="Expression.cxx" />
     <ClCompile Include="Intro.cxx" />
+    <ClCompile Include="LibSIO.cxx" />
     <ClCompile Include="Parser.cpp" />
     <ClCompile Include="PerfHash.cxx" />
     <ClCompile Include="Runtime.cxx" />
@@ -221,6 +222,8 @@
     <ClInclude Include="Generators.h" />
     <ClInclude Include="Intro.h" />
     <ClInclude Include="JIT.h" />
+    <ClInclude Include="LibBase.h" />
+    <ClInclude Include="LibSIO.h" />
     <ClInclude Include="Module.h" />
     <ClInclude Include="Parser.h" />
     <ClInclude Include="PerfHash.h" />

@@ -9,6 +9,7 @@ var empty(l)-> for e in l do return false; done; return true; end;
 empty("la");
 empty("");
 var has(s,e) -> for ee in s do if e==ee then return true; end; done; return false; end;
+#Terminator found in the middle of a basic block!
 has("abcde","d");
 has("abc","z");
 var one(a)-> yield a; yield done; end;
@@ -23,11 +24,13 @@ var f(a)-> case a of A x then return x; | B a b then return a+b; end; end;
 f([:A x<-3;]);
 f([:B a<-3; b<-4;]);
 
+f([:B a<-3; b<-4; x<-4;]);
+
 var listify(s)->return {i|i in s}; end;
 listify("Hello World");
 
-var count_gen(s)-> var c<-0; for x in s do yield [value<-x; count<-c; ]; c<-c+1; done; yield done; end;
-{x | x in count_gen({"a","b","c","d","e"})};
+var addPos(s)-> var c<-0; for x in s do yield [value<-x; count<-c; ]; c<-c+1; done; yield done; end;
+{x | x in addPos({"a","b","c","d","e"})};
 
 var idgen(s)->for x in s do yield x; done; yield done; end;
 
@@ -42,3 +45,17 @@ var line(slope,offset)->return fun(x)->return slope*x+offset; end; end;
 
 var l1<-line(2,3);
 var l2<-line(1.2,.3);
+
+var fib(n)->if n<1 then return 1; else return fib(n-1) + fib(n-2); end; end; 
+
+#var histo(seq)->var result<-{=>}; for elem in seq do case result[elem] of None then result[elem]<-1; | Some value then value<-value+1; end; done; return result; end;
+# This form is rejected since value is marked constant :D
+
+var histo(seq)->var result<-{=>}; for elem in seq do case result[elem] of None then result[elem]<-1; | Some value then result[elem]<-value+1; end; done; return result; end;
+histo("Hello World");
+histo({1,2,3,4,1,4,1,1,8,9,10,10,2,3,1});
+
+var foo(seq)->for elem in seq do ::sio::print("${elem}\n"); done; return; end;
+
+foo("Hello World");
+foo({1,2,3,4,5});

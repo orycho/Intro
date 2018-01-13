@@ -1264,30 +1264,30 @@ bool typeTests(void)
 // Execute all code generation tests
 bool codeGenTests(void)
 {
-	constantExpressionCodeGen();
-	globalVariablesCodeGen();
-	stringLiteralsCodeGen();
-	stringInterpolationCodeGen();
-	basicFunctionCodeGen();
-	arithFunctionCodeGen();
-	polyFunctionCodeGen();
-	polyClosureCodeGen();
-	recordCodeGen();
-	variantCodeGen();
-	basicCompareCodeGen();
-	polyCompareCodeGen();
-	basicListCodeGen();
-	genListCodeGen();
-	emptyGeneratorCodeGen();
-	simpleGeneratorCodeGen();
-	complexGeneratorCodeGen();
-	elementCountCodeGen();
-	conditionGeneratorCodeGen();
-	retLikeCodeGen();
-	variantsUseCodeGen();
+	//constantExpressionCodeGen();
+	//globalVariablesCodeGen();
+	//stringLiteralsCodeGen();
+	//stringInterpolationCodeGen();
+	//basicFunctionCodeGen();
+	//arithFunctionCodeGen();
+	//polyFunctionCodeGen();
+	//polyClosureCodeGen();
+	//recordCodeGen();
+	//variantCodeGen();
+	//basicCompareCodeGen();
+	//polyCompareCodeGen();
+	//basicListCodeGen();
+	//genListCodeGen();
+	//emptyGeneratorCodeGen();
+	//simpleGeneratorCodeGen();
+	//complexGeneratorCodeGen();
+	//elementCountCodeGen();
+	//conditionGeneratorCodeGen();
+	//retLikeCodeGen();
+	//variantsUseCodeGen();
 	filterCodeGen();
-	recursiveFunctionCodeGen();
-	moduleCodeGen();
+	//recursiveFunctionCodeGen();
+	//moduleCodeGen();
 	return true;
 }
 

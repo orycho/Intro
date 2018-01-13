@@ -43,7 +43,7 @@ namespace llvm
 
 llvm::cl::opt<std::string> Script(llvm::cl::Positional, llvm::cl::desc("<input script>"), llvm::cl::init("-"));
 llvm::cl::list<std::string>  Argv(llvm::cl::ConsumeAfter, llvm::cl::desc("<program arguments>..."));
-llvm::cl::opt<bool> runTests("test", llvm::cl::desc("Run hardcoded basic tests"));
+llvm::cl::opt<bool> runTests("test", llvm::cl::desc("Run hard-coded basic tests"));
 
 //int _tmain(int argc, _TCHAR* argv[])
 #ifdef WIN32

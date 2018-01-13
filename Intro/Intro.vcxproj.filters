@@ -60,6 +60,9 @@
     <ClCompile Include="CodeGenModule.cxx">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="LibSIO.cxx">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CodeGen.h">
@@ -126,6 +129,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="CodeGenModule.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LibBase.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LibSIO.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

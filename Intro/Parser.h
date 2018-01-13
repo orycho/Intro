@@ -121,6 +121,7 @@ std::vector<intro::Expression*> exprstack;
 			return NULL;
 		return statementstack.back();
 	};
+	
 	/// The Global environment (todo: move out of here to where evaluation heppens)
 	intro::Environment global;
 	/// Member granting access to environment
@@ -149,6 +150,21 @@ std::vector<intro::Expression*> exprstack;
 		}
 		return iter->second;
 	};
+	
+	void clearErrors()
+	{
+		if (errors->count == 0) return;
+		errors->count=0;
+		while (!statementstack.empty())
+		{
+			delete statementstack.back();
+			statementstack.pop_back();
+		}
+		std::list<intro::Statement*>::iterator iter;
+		for (iter=parseResult.begin();iter!=parseResult.end();++iter)
+			delete *iter;
+		parseResult.clear();
+	}
 	/// The type variable map must be cleared before each type definition (module exports section only).
 	void clearTypeVariables(void)
 	{ tvarmap.clear(); };
@@ -184,21 +200,20 @@ std::vector<intro::Expression*> exprstack;
 		if (errors->count>0)
 		{
 			std::wcout << L"Found " << errors->count << L" errors while parsing!\n";
+			delete stmt;
+			errors->count=0;
 			return;
 		}
 		bool isOk=stmt->makeType(getEnv());
 		if (isOk) 
 		{
-			//stmt->print(std::wcout);
-			//std::wcout << std::endl;
 			intro::executeStatement(stmt);
 		}
 		else
 		{
 			std::wcout << L"Type errors detected!\n";
 		}
-		//delete stmt;
-		// may be better to remember stamtements for their types?
+		// remember statements for the types they own
 		parseResult.push_back(stmt);
 	}
 	

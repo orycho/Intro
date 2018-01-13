@@ -1950,7 +1950,7 @@ namespace intro {
 			TheFunction->getBasicBlockList().push_back(block);
 			TmpB.SetInsertPoint(block);
 			iter->second->codeGen(TmpB,&local);
-			if (post_ite != env->getExitBlock())
+			if (!iter->second->isReturnLike() && post_ite != env->getExitBlock())
 				TmpB.CreateBr(post_ite);
 		}
 		if (otherwise!=NULL)
@@ -1961,7 +1961,7 @@ namespace intro {
 			TmpB.SetInsertPoint(alternatives.back());
 			//iter->second->codeGen(TmpB,&local);
 			otherwise->codeGen(TmpB, &local);
-			if (post_ite != env->getExitBlock())
+			if (otherwise->isReturnLike() && post_ite != env->getExitBlock())
 				TmpB.CreateBr(post_ite);
 		}
 		if (post_ite!=env->getExitBlock())
