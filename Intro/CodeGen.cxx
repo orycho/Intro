@@ -51,7 +51,8 @@ namespace intro {
 
 	void dumpModule(void)
 	{
-		TheModule->dump();
+		//TheModule->dump();
+		TheModule->print(llvm::outs(), nullptr);
 	}
 
 	//CodeGenEnvironment global(NULL,CodeGenEnvironment::GlobalScope);
@@ -117,7 +118,7 @@ namespace intro {
 		//TheModule->dump();
 		auto H = TheJIT->addModule(std::move(TheModule));
 		auto ExprSymbol = TheJIT->findSymbol("rootfunc"); // name by agreement with codegen.cxx
-		void(*FP)() = (void(*)())(intptr_t)ExprSymbol.getAddress();
+		void(*FP)() = (void(*)())(intptr_t)cantFail(ExprSymbol.getAddress());
 		FP();
 	}
 
@@ -154,7 +155,7 @@ namespace intro {
 		else if (!ExprSymbol.getAddress()) printf("ExprSymbol has no address!\n");
 		else
 		{
-			void(*FP)() = (void(*)())(intptr_t)ExprSymbol.getAddress();
+			void(*FP)() = (void(*)())(intptr_t)cantFail(ExprSymbol.getAddress());
 			FP();
 		}
 	}
@@ -248,7 +249,8 @@ namespace intro {
 		SmallVector<AttributeSet, 1> Attrs;
 		AttrBuilder B;
 		B.addAttribute(Attribute::ZExt);
-		llvm::AttributeSet attrs=AttributeSet::get(theContext,llvm::AttributeSet::ReturnIndex,B);
+		//llvm::AttributeSet attrs=AttributeSet::get(theContext,llvm::AttributeSet::ReturnIndex,B);
+		llvm::AttributeList attrs = AttributeList::get(theContext, llvm::AttributeList::ReturnIndex, B);
 		fun->setAttributes(attrs);
 	}
 
@@ -1998,7 +2000,7 @@ namespace intro {
 	{
 		// Super simple due to heavy-weight components :-D and lambdas!
 		generators->setBodyCallback([&](llvm::IRBuilder<> &builder,CodeGenEnvironment *env) {
-			body->codeGen(TmpB,env);
+			body->codeGen(builder,env);
 			return body->isReturnLike();
 		});
 		generators->codeGen(TmpB,env);
@@ -2315,7 +2317,7 @@ namespace intro {
 		std::vector<llvm::Value*> args { gen_val };
 		//std::vector<llvm::Value*> args { generator.first };
 		llvm::CallInst *hasmore=TmpB.CreateCall(callGenF, args,"hasmore");
-		hasmore->addAttribute(llvm::AttributeSet::ReturnIndex,Attribute::ZExt);
+		hasmore->addAttribute(llvm::AttributeList::ReturnIndex,Attribute::ZExt);
 
 		TmpB.CreateCondBr(hasmore,body,exit);
 		
@@ -2417,7 +2419,7 @@ namespace intro {
 			CodeGenEnvironment::iterator iter=local.createVariable(name);
 			TmpB.CreateStore(env->getRTT(type),iter->second.rtt);
 		}
-		Generator *lastgen=nullptr;
+		Generator *lastgen=nullptr; // Cannot be NULL after loop as one must be present.
 		for (size_t i=0; i!=generators.size(); ++i)
 		{
 			// generate loop code
@@ -2437,8 +2439,12 @@ namespace intro {
 				lastgen=generators[i].generator;
 			}
 		}
-		// Create the body. If the function returns true, we expect it to end on a reurn statement
+		// Create the body. If the function returns true, we expect it to end on a return statement
 		// which is "br leave" in LLVM. Ifthat is the case, we do not need to create it's branch up back...
+
+		// In local env, use bocks from lastgen to provide targets for break and continue
+		// break: exit block
+		// continue: loop block
 		bool skipBranch=cgbody(TmpB,&local);	
 		// Put in all the branches to the loop blocks and add the exit blocks to the function..
 		std::vector<GenCond>::reverse_iterator iter;

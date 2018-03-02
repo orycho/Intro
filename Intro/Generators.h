@@ -7,10 +7,10 @@ namespace intro
 {
 
 /// A generator expression binds a variable name to a generator.
-/** This class overrides Application's makeType() method, because it needs to
-	add the variable that will hold the generated values inside the loop.
-	Other than that, it calls the parent's method, which calls getFunctionType.
-
+/** This class needs to	know the variable that will hold the generated values.
+	It also holds some data relevant to the loop's code generation,
+	and provides a method codeGenExitBlock() to finalize the loop after the body.
+	
 	Classes derived of Generator that provide their own Type::makeType() should make sure
 	to add the variable to the environment, uding code like
 	<tt>mytype=new GeneratorType(env->put(getVariableName()));</tt>.
@@ -22,6 +22,7 @@ protected:
 	/// Name of the variable this generator instance fills with values.
 	std::wstring variable;
 public:
+	/// These must be set by codeGen() for later use
 	llvm::BasicBlock *loop;	///< block to which the body should jump to continue the loop.
 	llvm::BasicBlock *exit;	///< block after the loop
 	
