@@ -833,20 +833,23 @@ void Parser::FlowControl() {
 			Get();
 		} else if (la->kind == 63 /* "continue" */) {
 			Get();
+			isContinue=true; 
 		} else SynErr(90);
 		if (loops.empty()) 
 		{
 		if (isContinue) SemErr(L"Found 'continue' statement outside of loop body.");
 		else SemErr(L"Found 'break' statement outside of loop body.");
 		}
+		pushStatement(new intro::FlowCtrlStatement(t->line,t->pos,isContinue
+		? intro::FlowCtrlStatement::Continue
+		: intro::FlowCtrlStatement::Break));
 		
 }
 
 void Parser::Source() {
-		std::wstring path; 
 		Expect(64 /* "source" */);
 		Expect(_string);
-		path.assign(t->val);
+		pushStatement(new intro::SourceStatement(t->line,t->pos,t->val));
 		
 }
 

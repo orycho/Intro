@@ -178,6 +178,26 @@ histo:(?T7sup<:Generator(?key<:Top)) -> Dictionary(?key<:Top,Integer)
 >
 </pre>
 
+The examples provided with intro incloude functions to compute the hypergeometric distribution.
+The source keyword reads in an external script and executes it in it's place (if there are no errors).
+
+<pre>
+> source "examples/hypergeo.intro";
+> getProbabilities(60,23,7,3);
+P(X  = 3) = 0.302858
+P(X  < 3) = 0.450659
+P(X <= 3) = 0.753516
+P(X  > 3) = 0.246484
+P(X >= 3) = 0.549341
+> getProbabilities(60,20,7,3);
+P(X  = 3) = 0.269764
+P(X  < 3) = 0.570763
+P(X <= 3) = 0.840527
+P(X  > 3) = 0.159473
+P(X >= 3) = 0.429237
+>
+</pre>
+
 # Super short quick start guide
 
 (This is so short that even the cheatsheet.pdf in docs is more in depth.)

@@ -1218,6 +1218,23 @@ bool moduleCodeGen(void)
 	parser.deleteStatements();
 	return isOK;
 }
+
+bool FlowControlCodeGen(void)
+{
+	cout << "\n---\n Flow Control Code Generation:\n";
+	const char *test = "var x<-0; while x<10000 do x<-x+1; if x%9==0 then continue; elsif x>9000 then break; end; done;";
+	//parse::Parser parser=getParser(test);
+	cout << test << endl << endl;
+	parse::Scanner scanner((const unsigned char *)test, strlen(test));
+	parse::Parser parser(&scanner);
+	parser.isInteractive = false;
+	parser.Parse();
+	intro::Environment global;
+	bool isOK = parser.inferTypes(&global);
+	if (isOK) dumpGeneratedStatements(parser);
+	parser.deleteStatements();
+	return isOK;
+}
 // Execute all type tests
 bool typeTests(void)
 {
@@ -1287,7 +1304,9 @@ bool codeGenTests(void)
 	//variantsUseCodeGen();
 	filterCodeGen();
 	//recursiveFunctionCodeGen();
+	FlowControlCodeGen();
 	//moduleCodeGen();
+	
 	return true;
 }
 

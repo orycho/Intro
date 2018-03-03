@@ -186,10 +186,12 @@
     <ClCompile Include="..\Intro\CodeGenModule.cxx" />
     <ClCompile Include="..\Intro\Environment.cxx" />
     <ClCompile Include="..\Intro\Expression.cxx" />
+    <ClCompile Include="..\Intro\LibBasic.cxx" />
     <ClCompile Include="..\Intro\Parser.cpp" />
     <ClCompile Include="..\Intro\PerfHash.cxx" />
     <ClCompile Include="..\Intro\Runtime.cxx" />
     <ClCompile Include="..\Intro\Scanner.cpp" />
+    <ClCompile Include="..\Intro\Statement.cxx" />
     <ClCompile Include="..\Intro\Type.cxx" />
     <ClCompile Include="..\Intro\TypeGraph.cxx" />
     <ClCompile Include="IntroTest.cxx" />
@@ -208,6 +210,7 @@
     <ClInclude Include="..\Intro\Generators.h" />
     <ClInclude Include="..\Intro\Intro.h" />
     <ClInclude Include="..\Intro\JIT.h" />
+    <ClInclude Include="..\Intro\LibBasic.h" />
     <ClInclude Include="..\Intro\Parser.h" />
     <ClInclude Include="..\Intro\PerfHash.h" />
     <ClInclude Include="..\Intro\RTType.h" />

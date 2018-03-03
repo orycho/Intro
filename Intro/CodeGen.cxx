@@ -805,8 +805,18 @@ namespace intro {
 				// Extract variable name (and the variable)
 				CodeGenEnvironment::iterator vi=env->find(i->s);
 				// convert to string: codegen intrisic call with toString helper, which appends always (even another string)
-				Value *value=TmpB.CreateLoad(vi->second.address, "loadvarval");
-				Value *rtt=TmpB.CreateLoad(vi->second.rtt, "loadvarrtt");
+				Value *value;
+				Value *rtt;
+				if (vi->second.isParameter)
+				{
+					value = vi->second.address;
+					rtt = vi->second.rtt;
+				}
+				else
+				{
+					value = TmpB.CreateLoad(vi->second.address, "loadvarval");
+					rtt = TmpB.CreateLoad(vi->second.rtt, "loadvarrtt");
+				}
 				ArgsV.clear();
 				ArgsV.push_back(retval);
 				ArgsV.push_back(value);
@@ -1926,7 +1936,7 @@ namespace intro {
 			alternatives.push_back(BasicBlock::Create(theContext, "test_if"));
 		}
 		llvm::BasicBlock *post_ite;
-		if (isReturnLike()) post_ite = env->getExitBlock();
+		if (isTerminatorLike()) post_ite = env->getExitBlock();
 		else post_ite = BasicBlock::Create(theContext, "post_ite");
 		if (otherwise!=NULL)
 			alternatives.push_back(BasicBlock::Create(theContext, "else"));
@@ -1952,7 +1962,7 @@ namespace intro {
 			TheFunction->getBasicBlockList().push_back(block);
 			TmpB.SetInsertPoint(block);
 			iter->second->codeGen(TmpB,&local);
-			if (!iter->second->isReturnLike() && post_ite != env->getExitBlock())
+			if (!iter->second->isTerminatorLike() && post_ite != env->getExitBlock())
 				TmpB.CreateBr(post_ite);
 		}
 		if (otherwise!=NULL)
@@ -1963,7 +1973,7 @@ namespace intro {
 			TmpB.SetInsertPoint(alternatives.back());
 			//iter->second->codeGen(TmpB,&local);
 			otherwise->codeGen(TmpB, &local);
-			if (otherwise->isReturnLike() && post_ite != env->getExitBlock())
+			if (otherwise->isTerminatorLike() && post_ite != env->getExitBlock())
 				TmpB.CreateBr(post_ite);
 		}
 		if (post_ite!=env->getExitBlock())
@@ -2001,7 +2011,7 @@ namespace intro {
 		// Super simple due to heavy-weight components :-D and lambdas!
 		generators->setBodyCallback([&](llvm::IRBuilder<> &builder,CodeGenEnvironment *env) {
 			body->codeGen(builder,env);
-			return body->isReturnLike();
+			return body->isTerminatorLike();
 		});
 		generators->codeGen(TmpB,env);
 		return true;
@@ -2014,7 +2024,8 @@ namespace intro {
 		llvm::Function *TheFunction = env->currentFunction();
 		BasicBlock *test = BasicBlock::Create(theContext, "test", TheFunction);
 		BasicBlock *loopbody = BasicBlock::Create(theContext, "body", TheFunction);
-		BasicBlock *after= BasicBlock::Create(theContext, "after", TheFunction);
+		//BasicBlock *after= BasicBlock::Create(theContext, "after", TheFunction);
+		BasicBlock *after = BasicBlock::Create(theContext, "after");
 		TmpB.CreateBr(test); // Go to next basic block - it has another entry point, hence the branch
 		// Test the condition, if false skip body and done
 		TmpB.SetInsertPoint(test);
@@ -2025,9 +2036,27 @@ namespace intro {
 		// The loop body comes next in it's block
 		TmpB.SetInsertPoint(loopbody );
 		CodeGenEnvironment localenv(env);
+		localenv.makeLoopScope(test, after);
 		body->codeGen(TmpB,&localenv);
 		TmpB.CreateBr(test); // Go to next basic block - it has another entry point, hence the branch
+		TheFunction->getBasicBlockList().push_back(after);
 		TmpB.SetInsertPoint(after);
+		return true;
+	}
+
+	bool FlowCtrlStatement::codeGen(llvm::IRBuilder<>& TmpB, CodeGenEnvironment * env)
+	{
+		llvm::BasicBlock *target;
+		switch (myflow)
+		{
+		case Break:
+			target=env->getBreakBlock();
+			break;
+		case Continue:
+			target = env->getContinueBlock();
+			break;
+		}
+		TmpB.CreateBr(target);
 		return true;
 	}
 
@@ -2445,6 +2474,7 @@ namespace intro {
 		// In local env, use bocks from lastgen to provide targets for break and continue
 		// break: exit block
 		// continue: loop block
+		local.makeLoopScope(lastgen->loop, lastgen->exit);
 		bool skipBranch=cgbody(TmpB,&local);	
 		// Put in all the branches to the loop blocks and add the exit blocks to the function..
 		std::vector<GenCond>::reverse_iterator iter;
@@ -2459,6 +2489,14 @@ namespace intro {
 			iter->generator->codeGenExitBlock(TmpB,env);
 		}
 		return true;
+	}
+
+	bool SourceStatement::codeGen(llvm::IRBuilder<>& TmpB, CodeGenEnvironment * env)
+	{
+		bool isOK = true;
+		for (auto iter = statements.begin();isOK && iter != statements.end();iter++)
+			isOK &= (*iter)->codeGen(TmpB, env);
+		return isOK;
 	}
 
 	bool ImportStatement::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)

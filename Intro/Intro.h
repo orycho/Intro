@@ -59,6 +59,7 @@ public:
 	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)=0;
 	virtual void collectFunctions(std::list<intro::Function*> &funcs)=0;
 	virtual bool isReturnLike(void) { return false; };
+	virtual bool isTerminatorLike(void) { return isReturnLike(); };
 	/// Count the number of variables allocated in the statement
 	virtual size_t countVariableStmts(void)=0;
 };

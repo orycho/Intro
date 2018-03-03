@@ -1,0 +1,56 @@
+var min(a,b) ->
+	if a<b then 
+		return a;
+	else 
+		return b;
+	end;
+end;
+
+var binomial(n,k) ->
+	var result<-1;
+	for i from 1 to min(k,n-k) do
+		result <- (result * (n+1-i))/i;
+	done;
+	return result;
+end;
+
+var hyperGeo(population,successes,draws,goal) ->
+    var a <- binomial(successes,goal);
+    var b <- binomial(population-successes,draws-goal);
+    var d <- binomial(population,draws);
+    return ::math::toReal(a*b)/::math::toReal(d);
+end;
+
+var getProbabilities(population,successes,draws,goal) ->
+	if successes < goal then
+		::sio::print("Cannot observe more samples (${goal}) than available in population (${successes})");
+		return;
+	end;
+	if population < successes then
+		::sio::print("More successes (${successes}) requested than population available (${population})!");
+		return;
+	end;
+	if draws < goal then 
+		::sio::print("Drawing too few (${draws}) to reach goal (${goal})!");
+		return;		
+	end;
+	var PXeqk <- hyperGeo(population,successes,draws,goal);
+	var PXlsk <- 0.0;
+	for i from 0 to goal-1 do
+		PXlsk <- PXlsk + hyperGeo(population,successes,draws,i);
+	done;
+	var printLine(rel,result) ->
+		::sio::print("P(X ${rel} ${goal}) = ${result}\n");
+		return;
+	end;
+	printLine(" =",PXeqk);
+	printLine(" <",PXlsk);
+	printLine("<=",PXeqk + PXlsk);
+	printLine(" >",1.0 - PXeqk - PXlsk);
+	printLine(">=",1.0 - PXlsk);
+	return;
+end;
+
+## Given a Magic deck of 60 cards with 23 lands, 
+## what is the probability of having three lands in an opening hand?
+#getProbabilities(60,23,7,3);

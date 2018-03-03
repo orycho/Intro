@@ -914,7 +914,7 @@ FlowControl=
 	.)
 
 	(	"break"
-	|	"continue"
+	|	"continue" (. isContinue=true; .)
 	)
 	(.
 		if (loops.empty()) 
@@ -922,15 +922,16 @@ FlowControl=
 			if (isContinue) SemErr(L"Found 'continue' statement outside of loop body.");
 			else SemErr(L"Found 'break' statement outside of loop body.");
 		}
+		pushStatement(new intro::FlowCtrlStatement(t->line,t->pos,isContinue
+			? intro::FlowCtrlStatement::Continue
+			: intro::FlowCtrlStatement::Break));
 	.)
 	.
 
 Source=
-	(. std::wstring path; .)
 	"source" string
 	(.
-		//t->line,t->pos,
-		path.assign(t->val);
+		pushStatement(new intro::SourceStatement(t->line,t->pos,t->val));
 	.)
 .
 

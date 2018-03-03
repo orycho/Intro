@@ -80,7 +80,7 @@ private:
 	std::map<std::wstring,element> elements;
 	/// State based dispatch to entry points for yield statements
 	llvm::SwitchInst *generatorStateDispatch;
-	/// Generators get their cariables alloated from the closure
+	/// Generators get their variables allocated from the closure
 	llvm::Value *closure;
 	/// Used by boxing/unboxing helpers to get doubles from an i8*. Created in every non-localScope and hopefully not used much after optimizations
 	llvm::AllocaInst *double_buffer;
@@ -89,6 +89,8 @@ private:
 		to the function itself.
 	*/
 	std::wstring outerValueName;
+	/// Basic blocks provided by loops to break/continue.
+	llvm::BasicBlock *onContinue, *onBreak;
 
 	/// Return the Environment that represents a function, if any
 	inline CodeGenEnvironment *getWrappingEnvironment()
@@ -101,6 +103,12 @@ private:
 	llvm::AllocaInst *createEntryBlockAlloca(const std::wstring &VarName);
 	iterator createGeneratorVariable(const std::wstring &VarName);
 
+	CodeGenEnvironment *getLoopEnv(void)
+	{
+		if (onBreak != nullptr) return this;
+		assert(parent != nullptr);
+		return parent->getLoopEnv();
+	}
 	/// Closure vars are special, as the address of value and it's rtt come from function parameters.
 	/// The are dereferenced when the closure itself is released.
 	void setClosure(llvm::IRBuilder<> &builder,llvm::Value *closure, llvm::StructType *myclosure_t,const std::vector<std::wstring> &freeVars);
@@ -115,7 +123,8 @@ public:
 		, generatorStateDispatch(nullptr)
 		, closure(nullptr)
 		, double_buffer(nullptr)
-
+		, onContinue(nullptr)
+		, onBreak(nullptr)
 	{
 	}
 
@@ -139,6 +148,24 @@ public:
 		if (env==nullptr) 
 			return scope_type; // either global or local, but not in any function or generator
 		return env->scope_type;
+	}
+
+	void makeLoopScope(llvm::BasicBlock *onContinue_, llvm::BasicBlock  *onBreak_)
+	{
+		onContinue = onContinue_;
+		onBreak = onBreak_;
+	}
+
+	inline llvm::BasicBlock *getContinueBlock(void) 
+	{
+		CodeGenEnvironment *env = getLoopEnv();
+		return env->onContinue;
+	}
+
+	inline llvm::BasicBlock *getBreakBlock(void)
+	{
+		CodeGenEnvironment *env = getLoopEnv();
+		return env->onBreak;
 	}
 
 	inline bool isGlobal(void) { return getScopeType()==GlobalScope; }

@@ -69,7 +69,13 @@ public:
 		if (body.empty()) return false;
 		return body.back()->isReturnLike(); 
 	}
-	
+
+	virtual bool isTerminatorLike(void)
+	{
+		if (body.empty()) return false;
+		return body.back()->isTerminatorLike();
+	}
+
 	virtual size_t countVariableStmts(void)
 	{
 		size_t retval=0;
@@ -751,6 +757,57 @@ public:
 
 };
 
+/// A while statement repeats a block of code until the condition becomes false.
+class FlowCtrlStatement : public Statement
+{
+public:
+	enum FlowType
+	{
+		Continue,
+		Break
+	};
+
+	FlowType myflow;
+public:
+	FlowCtrlStatement(int l, int p, FlowType flowtype) : Statement(l, p), myflow(flowtype)
+	{};
+
+	~FlowCtrlStatement()
+	{
+	};
+
+	virtual bool makeType(Environment *env)
+	{
+		return true;
+	};
+
+	virtual void print(std::wostream &s)
+	{
+		switch (myflow)
+		{
+		case Break: 
+			s << "break";
+			break;
+		case Continue:
+			s << "continue";
+			break;
+		}
+	};
+	virtual bool isTerminatorLike(void) { return true; };
+	virtual void getFreeVariables(VariableSet &free, VariableSet &bound)
+	{
+	};
+	virtual bool codeGen(llvm::IRBuilder<> &TmpB, CodeGenEnvironment *env);
+	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	{
+	};
+
+	virtual size_t countVariableStmts(void)
+	{
+		return 0;
+	}
+
+};
 /// Return statements end a function. A value may be passed back.
 class ReturnStatement  : public Statement
 {
@@ -848,9 +905,9 @@ public:
 
 	virtual void print(std::wostream &s)
 	{
-		s << "yield ";
+		s << L"yield ";
 		if (expr!=NULL) expr->print(s);
-		else s << "done";
+		else s << L"done";
 	};
 
 	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
@@ -866,7 +923,7 @@ public:
 
 	virtual bool isReturnLike(void) 
 	{ 
-		//return true; // Return like if "yield done" only!
+		//return true; // Return true if "yield done" only!
 		return expr==NULL;
 	};
 	
@@ -958,11 +1015,11 @@ public:
 
 	virtual void print(std::wostream &s)
 	{
-		s<<"import ";
-		if (!relative) s<<"::";
+		s << L"import ";
+		if (!relative) s << L"::";
 		std::list<std::wstring>::iterator iter=path.begin();
 		s<<*iter;
-		for (iter++;iter!=path.end();iter++) s<<"::"<<*iter;
+		for (iter++;iter!=path.end();iter++) s << L"::" << *iter;
 
 	};
 
@@ -982,5 +1039,41 @@ public:
 	}
 
 };
+
+/// Return statements end a function. A value may be passed back.
+class SourceStatement : public Statement
+{
+	std::wstring path;
+	std::list<intro::Statement*> statements;
+public:
+	SourceStatement(int l, int p, const std::wstring &path_) 
+		: Statement(l, p)
+		, path(path_.substr(1,path_.size()-2))
+	{};
+
+	~SourceStatement()
+	{
+	};
+
+	virtual bool makeType(Environment *env);
+
+	virtual void print(std::wostream &s)
+	{
+		s << L"source \"" << path <<L"\"";
+	};
+
+	virtual void getFreeVariables(VariableSet &free, VariableSet &bound)
+	{};
+	virtual bool codeGen(llvm::IRBuilder<> &TmpB, CodeGenEnvironment *env);
+	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	{ };
+
+	virtual size_t countVariableStmts(void)
+	{
+		return 0;
+	}
+
+};
+
 }
 #endif

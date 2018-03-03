@@ -198,11 +198,13 @@
     <ClCompile Include="Environment.cxx" />
     <ClCompile Include="Expression.cxx" />
     <ClCompile Include="Intro.cxx" />
+    <ClCompile Include="LibBasic.cxx" />
     <ClCompile Include="LibSIO.cxx" />
     <ClCompile Include="Parser.cpp" />
     <ClCompile Include="PerfHash.cxx" />
     <ClCompile Include="Runtime.cxx" />
     <ClCompile Include="Scanner.cpp" />
+    <ClCompile Include="Statement.cxx" />
     <ClCompile Include="stdafx.cxx">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -223,6 +225,7 @@
     <ClInclude Include="Intro.h" />
     <ClInclude Include="JIT.h" />
     <ClInclude Include="LibBase.h" />
+    <ClInclude Include="LibBasic.h" />
     <ClInclude Include="LibSIO.h" />
     <ClInclude Include="Module.h" />
     <ClInclude Include="Parser.h" />
