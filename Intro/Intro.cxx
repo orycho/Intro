@@ -41,6 +41,8 @@ namespace llvm
 	void llvm_shutdown();
 }
 
+void cleanupSourceFiles();
+
 llvm::cl::opt<std::string> Script(llvm::cl::Positional, llvm::cl::desc("<input script>"), llvm::cl::init("-"));
 llvm::cl::list<std::string>  Argv(llvm::cl::ConsumeAfter, llvm::cl::desc("<program arguments>..."));
 llvm::cl::opt<bool> runTests("test", llvm::cl::desc("Run hard-coded basic tests"));
@@ -115,6 +117,7 @@ int main(int argc, char *argv[])
 		}
 	}
 	intro::Environment::deleteAllModules();
+	cleanupSourceFiles();
 	intro::Environment::clearTypeVariables();
 	intro::deleteRuntime();
 	intro::CodeGenModule::deleteRootModule();

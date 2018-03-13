@@ -23,15 +23,15 @@ end;
 
 var getProbabilities(population,successes,draws,goal) ->
 	if successes < goal then
-		::sio::print("Cannot observe more samples (${goal}) than available in population (${successes})");
+		::sio::print("Cannot observe more samples (${goal}) than available in population (${successes})!\n");
 		return;
 	end;
 	if population < successes then
-		::sio::print("More successes (${successes}) requested than population available (${population})!");
+		::sio::print("More successes (${successes}) requested than population available (${population})!\n");
 		return;
 	end;
 	if draws < goal then 
-		::sio::print("Drawing too few (${draws}) to reach goal (${goal})!");
+		::sio::print("Drawing too few (${draws}) to reach goal (${goal})!\n");
 		return;		
 	end;
 	var PXeqk <- hyperGeo(population,successes,draws,goal);

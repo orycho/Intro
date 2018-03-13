@@ -201,6 +201,7 @@ public:
 };
 
 class Scanner {
+public:
 private:
 	void *firstHeap;
 	void *heap;
@@ -244,6 +245,7 @@ private:
 
 	Token* NextToken();
 
+	bool fileLoaded;
 public:
 	Buffer *buffer;   // scanner buffer
 	
@@ -255,6 +257,10 @@ public:
 	Token* Scan();
 	Token* Peek();
 	void ResetPeek();
+	
+	// Must check this is true after construction:
+	// If false, the file failed to be loaded.
+	bool isOk(void) { return fileLoaded; }
 
 }; // end Scanner
 

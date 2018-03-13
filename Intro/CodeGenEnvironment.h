@@ -147,6 +147,7 @@ public:
 		CodeGenEnvironment *env=getWrappingEnvironment();
 		if (env==nullptr) 
 			return scope_type; // either global or local, but not in any function or generator
+			//return GlobalScope; // either global or local, but not in any function or generator
 		return env->scope_type;
 	}
 

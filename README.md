@@ -175,10 +175,9 @@ histo:(?T7sup<:Generator(?key<:Top)) -> Dictionary(?key<:Top,Integer)
  = {W=>1, e=>1, r=>1,  =>1, d=>1, o=>2, l=>3, H=>1}
 > histo({1,2,3,4,1,4,1,1,8,9,10,10,2,3,1});
  = {1=>5, 2=>2, 3=>2, 4=>2, 8=>1, 9=>1, 10=>2}
->
 </pre>
 
-The examples provided with intro incloude functions to compute the hypergeometric distribution.
+The examples provided with intro include functions to compute the hyper-geometric distribution.
 The source keyword reads in an external script and executes it in it's place (if there are no errors).
 
 <pre>
@@ -203,8 +202,8 @@ P(X >= 3) = 0.429237
 (This is so short that even the cheatsheet.pdf in docs is more in depth.)
 
 * All statements are terminated by a semicolon (except modules, but those are not really statements).
-* Single line comments begin with a pound sign (hastag) #
-* Multiline comments are like in C, from  /* to */
+* Single line comments begin with a pound sign (hashtag) #
+* Multi-line comments are like in C, from  /* to */
 * lexically scoped
 
 All values in Intro are just written out, each built in type has distinct syntax.

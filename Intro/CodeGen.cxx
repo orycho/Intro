@@ -2491,14 +2491,6 @@ namespace intro {
 		return true;
 	}
 
-	bool SourceStatement::codeGen(llvm::IRBuilder<>& TmpB, CodeGenEnvironment * env)
-	{
-		bool isOK = true;
-		for (auto iter = statements.begin();isOK && iter != statements.end();iter++)
-			isOK &= (*iter)->codeGen(TmpB, env);
-		return isOK;
-	}
-
 	bool ImportStatement::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
 		CodeGenModule *base = relative ?
@@ -2530,13 +2522,13 @@ namespace intro {
 	*/
 	bool ModuleStatement::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
-		CodeGenEnvironment localenv(env);
+		CodeGenEnvironment module_env(env,CodeGenEnvironment::GlobalScope);
 		// Iterate over the statements comprising the module body and infer their types.
 		std::list<Statement*>::iterator stmt;
 		bool success = true;
 		for (stmt = contents.begin();stmt != contents.end();stmt++)
 		{
-			success &= (*stmt)->codeGen(TmpB,&localenv);
+			success &= (*stmt)->codeGen(TmpB,&module_env);
 		}
 		if (!success)
 		{
@@ -2555,8 +2547,8 @@ namespace intro {
 		std::list<ExportDeclaration*>::iterator eit;
 		for (eit = exports.begin();eit != exports.end();eit++)
 		{
-			CodeGenEnvironment::iterator exportvalue = localenv.find((*eit)->getName());
-			if (exportvalue == localenv.end())
+			CodeGenEnvironment::iterator exportvalue = module_env.find((*eit)->getName());
+			if (exportvalue == module_env.end())
 			{
 				if (!(*eit)->isExport())
 					continue;
@@ -2570,3 +2562,5 @@ namespace intro {
 		return true;
 	}
 }
+
+// SourceStatement::codeGen is in Statement.cx...

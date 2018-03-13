@@ -402,35 +402,48 @@ int UTF8Buffer::Read() {
 	return ch;
 }
 
-Scanner::Scanner(const unsigned char* buf, size_t len) {
+Scanner::Scanner(const unsigned char* buf, size_t len) 
+	:  fileLoaded(true)
+{
 	buffer = new Buffer(buf, len);
 	Init();
 }
 
-Scanner::Scanner(const wchar_t* fileName) {
+Scanner::Scanner(const wchar_t* fileName) 
+	:  fileLoaded(false)
+{
 	FILE* stream;
 	char *chFileName = coco_string_create_char(fileName);
 	if ((stream = fopen(chFileName, "rb")) == NULL) {
-		wprintf(L"--- Cannot open file %ls\n", fileName);
-		exit(1);
+		//wprintf(L"--- Cannot open file %ls\n", fileName);
+		//exit(1);
+		return; 
 	}
+	fileLoaded=true;
 	coco_string_delete(chFileName);
 	buffer = new Buffer(stream, false);
 	Init();
 }
 
 // OCL: Added c'tor
-Scanner::Scanner(const char* fileName) {
+Scanner::Scanner(const char* fileName) 
+	:  fileLoaded(false)
+{
 	FILE* stream;
 	if ((stream = fopen(fileName, "rb")) == NULL) {
-		wprintf(L"--- Cannot open file %ls\n", fileName);
-		exit(1);
+		//wprintf(L"--- Cannot open file %ls\n", fileName);
+		//exit(1);
+		return;
 	}
+	fileLoaded=true;
 	buffer = new Buffer(stream, false);
 	Init();
 }
 
-Scanner::Scanner(FILE* s) {
+Scanner::Scanner(FILE* s) 
+	: fileLoaded(true)
+{
+
 	buffer = new Buffer(s, true);
 	Init();
 }

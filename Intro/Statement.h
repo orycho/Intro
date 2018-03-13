@@ -1044,7 +1044,7 @@ public:
 class SourceStatement : public Statement
 {
 	std::wstring path;
-	std::list<intro::Statement*> statements;
+	//std::list<intro::Statement*> statements;
 public:
 	SourceStatement(int l, int p, const std::wstring &path_) 
 		: Statement(l, p)

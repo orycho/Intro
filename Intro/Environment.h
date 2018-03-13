@@ -402,6 +402,20 @@ public:
 	{
 		members.erase(ident);
 	}
+
+	bool importInto(Environment *env)
+	{
+		for (auto member : members)
+		{
+			if (!env->put(member.first, member.second))
+			{
+				return false;
+
+			}
+		}
+		return true;
+	}
+
 };
 
 }

@@ -1,0 +1,30 @@
+module ::Pair exports
+	# The opaque type that represents the pairs.
+	type Pair(?a,?b);
+	# first is a function that takes a pair and returns the first element of the passed pair (note return type).
+	first:(Pair(?a,?b))-> ?a;
+	# second is a function that takes a pair and returns the second element of the passed pair (note return type).
+	second:(Pair(?a,?b))-> ?b; 
+	# swap returns a new pair, which has the same contents as the parameter, but in reversed order.
+	# Compare the parameters of the input and output pairs!
+	swap:(Pair(?a,?b))->Pair(?b,?a); 
+from 
+	# he constructor for pairs, it has type Pair:(a:?a,b:?b)->Pair(?a,?b).
+	var Pair(a,b)->
+		return [first<-a;second<-b;]; 
+	end; 
+	# implementation of function first.
+	var first(a)-> 
+		return a.first; 
+	end; 
+	# implementation of function second.
+	var second(a)-> 
+		return a.second; 
+	end; 
+	# implementation of function swap, which does not use constructor but could/should.
+	# Note that in-place swapping of pairs is only possible if both elements have the same type,
+	# so the creation of a new pair here enables a more general operation at the cost of speed.
+	var swap(a)->
+		return [first<-a.second;second<-a.first;]; 
+	end; 
+end.
