@@ -83,37 +83,42 @@ int main(int argc, char *argv[])
 		{
 			intro::initModule();
 			parse::Scanner scanner(Script.c_str());
-			parse::Parser parser(&scanner);
-			parser.isInteractive=false;
-			parser.Parse();
-			
-			if (parser.errors->count>0)
+			if (!scanner.isOk())
 			{
-				std::wcout << L"Found " << parser.errors->count << L" errors while parsing!\n";
+				std::cout << "Error: File '" << Script << "'not found!\n";
 			}
 			else
 			{
-				intro::Environment global;
-				bool isOK = true;
-				for (auto iter = parser.parseResult.begin();isOK && iter != parser.parseResult.end();iter++)
+				parse::Parser parser(&scanner);
+				parser.isInteractive = false;
+				parser.Parse();
+
+				if (parser.errors->count > 0)
 				{
-					isOK = (*iter)->makeType(&global);
-					if (!isOK)
-					{
-						std::wcout << L"Error in line:\n";
-						(*iter)->print(std::wcout);
-						std::wcout << L"\n";
-					}
+					std::wcout << L"Found " << parser.errors->count << L" errors while parsing!\n";
 				}
-				if (isOK)
-					runStatements(parser.parseResult);
 				else
-					std::wcout << L"Type errors detected!\n";
+				{
+					intro::Environment global;
+					bool isOK = true;
+					for (auto iter = parser.parseResult.begin();isOK && iter != parser.parseResult.end();iter++)
+					{
+						isOK = (*iter)->makeType(&global);
+						if (!isOK)
+						{
+							std::wcout << L"Error in line:\n";
+							(*iter)->print(std::wcout);
+							std::wcout << L"\n";
+						}
+					}
+					if (isOK)
+						runStatements(parser.parseResult);
+					else
+						std::wcout << L"Type errors detected!\n";
+				}
+				//getchar();
+				parser.deleteStatements();
 			}
-			//getchar();
-			parser.deleteStatements();
-			
-			// Run script
 		}
 	}
 	intro::Environment::deleteAllModules();
