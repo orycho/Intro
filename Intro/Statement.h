@@ -29,13 +29,16 @@ public:
 
 	inline void appendBody(Statement *s) { body.push_back(s); }
 
-	virtual bool makeType(Environment *env)
+	virtual bool makeType(Environment *env, ErrorLocation *errors)
 	{
 		Environment localenv(env);
 		bool success=true;
+		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), L"block scope");
 		std::list<Statement*>::iterator stmts;
 		for (stmts=body.begin();stmts!=body.end();stmts++)
-			success &= (*stmts)->makeType(&localenv);
+			success &= (*stmts)->makeType(&localenv,logger);
+		if (success) delete logger;
+		else errors->addError(logger);
 		return success;
 	}
 
@@ -116,12 +119,13 @@ private:
 	ValueStatement *parentvar; ///< If not, this points to the var statement holding the function expressnion.
 
 protected:
-	virtual Type *makeType(Environment *env)
+	virtual Type *makeType(Environment *env, ErrorLocation *errors)
 	{
 		Environment localenv(env);
 		// Add return and paramter types to local environment
 		//Type *rettype=localenv.put(L"!return");
 		// TODO@ENV: Handle return type
+		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), L"function definition");
 		localenv.put(L"!return");
 		ParameterList::iterator iter;
 		for (iter=parameters.begin();iter!=parameters.end();iter++)
@@ -129,10 +133,12 @@ protected:
 			iter->type=localenv.put(iter->name);
 			iter->type->setAccessFlags(Type::Readable);
 		}
-		if (!body->makeType(&localenv))
+		if (!body->makeType(&localenv,logger))
 		{
+			errors->addError(logger);
 			return getError(L"Error in function body");
 		}
+		else delete logger;
 		std::list<Type*> p;
 		for (iter=parameters.begin();iter!=parameters.end();iter++)
 		{
@@ -142,7 +148,8 @@ protected:
 		myType=new FunctionType(p,localenv.get(L"!return"));
 		if (myType->getReturnType()->getKind()!=Type::Unit
 			&& !body->isReturnLike())
-			return getError(L"Function returning a value does not end on return-like satement!");
+			errors->addError(new ErrorDescription(getLine(), getColumn(), L"Function returns a value but does not end in a return-like statement!"));
+			//return getError(L"Function returning a value does not end on return-like satement!");
 		
 		return myType;
 	};
@@ -254,7 +261,7 @@ public:
 
 	inline Expression *getValue(void) { return value; };
 
-	virtual bool makeType(Environment *env)
+	virtual bool makeType(Environment *env, ErrorLocation *errors)
 	{
 		// This part needs to account for preexisting name in case
 		// it is created through exporting from a module (must make sure of that, hence clumsy?!)
@@ -266,24 +273,34 @@ public:
 		Type *t=env->put(name);
 		if (t==nullptr)
 		{
-			std::wcout << L"The identifier \"" << name.c_str() << "\" already names a variable in this scope!\n";
+			errors->addError(new ErrorDescription(getLine(), getColumn(), std::wstring(L"The variable name'") + name + L"' is already in use!"));
+			//std::wcout << L"The identifier \"" << name.c_str() << "\" already names a variable in this scope!\n";
 			return false;
 		}
 		// @TODO: When adding constants in the future, do it here...
+		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"definition of variable '")+name+L"'");
 		if (!constant) t->setAccessFlags(Type::Readable|Type::Writable);
-		Type *et=value->getType(env);
+		Type *et=value->getType(env,logger);
 		et->setAccessFlags(t->getAccessFlags());
-		if (et->getKind()==Type::Error) return false;
+		if (et->getKind() == Type::Error)
+		{
+			errors->addError(logger);
+			return false;
+		}
+		else delete logger;
 		if (!et->unify(t))
 		{
-				std::wcout << L"The identifier \"" << name.c_str() << "\" could not be assigned a type. Could not unifiy\n\t";
-				t->find()->print(std::wcout);
-				std::wcout << "\n\twith\n\t";
-				et->find()->print(std::wcout);
-				std::wcout << "\n";
-				// Remove name from environment instead?
-				env->put(name,new ErrorType(getLine(),getPosition(),std::wstring(L"Type Error Occured defining ")+name+L", check definition."));
-				return false;
+			std::wstringstream strs;
+			strs  << L"The identifier \"" << name.c_str() << "\" could not be assigned a type. Could not unifiy\n\t";
+			t->find()->print(strs);
+			strs << "\n\twith\n\t";
+			et->find()->print(strs);
+			strs << "\n";
+			errors->addError(new ErrorDescription(getLine(), getColumn(), strs.str()));
+			// Remove name from environment instead?
+			env->remove(name);
+			//env->put(name,new ErrorType(getLine(),getColumn(),std::wstring(L"Type Error Occured defining ")+name+L", check definition."));
+			return false;
 		}
 		return true;
 	};
@@ -360,22 +377,51 @@ public:
 	inline void setOtherwise(Statement *s) { otherwise=s; };
 	inline Statement *getOtherwise(void) { return otherwise; };
 
-	virtual bool makeType(Environment *env)
+	virtual bool makeType(Environment *env, ErrorLocation *errors)
 	{
 		iterator iter;
-		bool success=true;
+		//int cond_count = 0;
+		ErrorLocation *logger;
 		for (iter=conditions.begin();iter!=conditions.end();iter++)
 		{
+			//logger = new ErrorLocation(getLine(), getColumn(), L"if statement (condition)");
+			Type *cond_type=iter->first->getType(env, logger);
+			if (cond_type->getKind()==Type::Error)
+			{
+				errors->addError(new ErrorDescription(getLine(), getColumn(), L"Could not determine type of condition expression"));
+				return false;
+			}
+			
 			Environment localenv(env);
-			success&=iter->first->getType(env)->unify(&boolean);
-			success&=iter->second->makeType(&localenv);
+			if (!iter->first->getType()->unify(&boolean))
+			{
+				std::wstringstream strs;
+				strs << L"The type of the condition expression is not Boolean but ";
+				iter->first->getType()->print(strs);
+				strs << L"!";
+				errors->addError(new ErrorDescription(getLine(), getColumn(),strs.str()));
+				return false;
+			}
+			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), L"if statement (body)");
+			if (!iter->second->makeType(&localenv, logger))
+			{
+				errors->addError(logger);
+				return false;
+			}
+			else delete logger;
 		}
 		if (otherwise!=NULL)
 		{
 			Environment localenv(env);
-			success &= otherwise->makeType(&localenv);
+			logger = new ErrorLocation(getLine(), getColumn(), L"if statement (else block)");
+			if (otherwise->makeType(&localenv, logger)) delete logger;
+			else
+			{
+				errors->addError(logger);
+				return false;
+			}
 		}
-		return success;
+		return true;
 	};
 
 	virtual void print(std::wostream &s)
@@ -457,10 +503,13 @@ public:
 		std::wstring tag; ///< The tag of the variant wanted
 		std::list<std::wstring> params; ///< The list of labels that are extracted from the variant
 		BlockStatement *body;
+		size_t  line, col;
 
 		RecordType *myRecord;
 
-		Case(void)
+		Case(size_t l, size_t c)
+			: line(l)
+			, col(c)
 		{
 			myRecord=NULL;
 		};
@@ -472,7 +521,7 @@ public:
 			delete body;
 		};
 
-		bool makeType(VariantType *variant,Environment *env)
+		bool makeType(VariantType *variant,Environment *env, ErrorLocation *errors)
 		{
 			std::wstring q=std::wstring(L"?");
 			myRecord=new RecordType;
@@ -484,9 +533,16 @@ public:
 				myRecord->addMember(*iter,tvar);
 			}
 			variant->addTag(tag,myRecord);
-			bool success=true;
-			success&=body->makeType(&local);
-			return success;
+			
+			ErrorLocation *logger = new ErrorLocation(line, col, std::wstring(L"case for tag '")+tag+L"'");
+			if (body->makeType(&local, logger))
+				delete logger;
+			else
+			{
+				errors->addError(logger);
+				return false;
+			}
+			return true;
 		};
 
 		void print(std::wostream &s)
@@ -551,18 +607,33 @@ public:
 		cases.push_back(case_);
 	};
 
-	virtual bool makeType(Environment *env)
+	virtual bool makeType(Environment *env, ErrorLocation *errors)
 	{
 		handled=new VariantType;
 		iterator iter;
 		bool success=true;
-		for (iter=cases.begin();iter!=cases.end();iter++)
-			(*iter)->makeType(handled,env);
-		if (!success) return false;
+		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), L"case statement");
+		for (iter = cases.begin();iter != cases.end();iter++)
+			success &= (*iter)->makeType(handled, env, logger);
+		if (success) delete logger;
+		else 
+		{ 
+			errors->addError(logger);
+			return false;
+		}
 		Type *variable=env->fresh(handled);
-		Type *exprtype=caseof->getType(env);
-		exprtype->unify(variable);
-		return success;
+		Type *exprtype=caseof->getType(env,errors);
+		if (!exprtype->unify(variable))
+		{
+			std::wstringstream strs;
+			strs << L"case statement expects a value with type\n";
+			variable->find()->print(strs);
+			strs << "\n\tbut the value has type\n\t";
+			exprtype->find()->print(strs);
+			strs << "instead\n";
+			errors->addError(new ErrorDescription(getLine(), getColumn(), strs.str()));
+		}
+		return true;
 	};
 
 	virtual void print(std::wostream &s)
@@ -659,12 +730,26 @@ public:
 		delete generators;
 	};
 
-	virtual bool makeType(Environment *env)
+	virtual bool makeType(Environment *env, ErrorLocation *errors)
 	{
 		Environment localenv(env);
-		if (!generators->makeType(&localenv))
+		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"for statement (generators)"));
+		if (generators->makeType(&localenv, logger))
+			delete logger;
+		else
+		{
+			errors->addError(logger);
 			return false;
-		return body->makeType(&localenv);
+		}
+		logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"for statement (body)"));
+		if (body->makeType(&localenv,logger))
+			delete logger;
+		else
+		{
+			errors->addError(logger);
+			return false;
+		}
+		return true;
 	};
 
 	inline void setGenerators(GeneratorStatement *gen) { generators=gen; };
@@ -712,15 +797,23 @@ public:
 		delete condition;
 	};
 
-	virtual bool makeType(Environment *env)
+	virtual bool makeType(Environment *env, ErrorLocation *errors)
 	{
-		Type *t=condition->getType(env);
+		Type *t=condition->getType(env,errors);
 		if (t->find()->getKind()!=Type::Boolean) 
 		{
-			std::wcout << "Error (" << getLine() << "," << getPosition() <<"): condition in while statement must be boolean!\n";
+			errors->addError(new ErrorDescription(getLine(), getColumn(), L"while statement requires boolean condition expression"));
 			return false;
 		}
-		return body->makeType(env);
+		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"whilse statement (body)"));
+		if (body->makeType(env,logger))
+			delete logger;
+		else
+		{
+			errors->addError(logger);
+			return false;
+		}
+		return true;
 	};
 
 	inline void setCondition(Expression *cond) { condition=cond; };
@@ -776,7 +869,7 @@ public:
 	{
 	};
 
-	virtual bool makeType(Environment *env)
+	virtual bool makeType(Environment *env, ErrorLocation *)
 	{
 		return true;
 	};
@@ -825,14 +918,35 @@ public:
 
 	Expression *getExpression(void) { return expr; };
 
-	virtual bool makeType(Environment *env)
+	virtual bool makeType(Environment *env, ErrorLocation *errors)
 	{
 		Type *t;
-		if (expr!=NULL) t=expr->getType(env);
+		if (expr != NULL)
+		{
+			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"return value expression"));
+			t = expr->getType(env,logger);
+			if (t->getKind() == Type::Error)
+			{
+				errors->addError(logger);
+				return false;
+			}
+			delete logger;
+		}
 		else t = &unit;
 		Type *r=env->get(L"!return");
 		// Return is contravariant
-		return t->unify(r,true);
+		if (!t->unify(r, true))
+		{
+			std::wstringstream strs;
+			strs << L"the return type of the function has already been inferred to be\n";
+			r->find()->print(strs);
+			strs << "\n\tbut this expression evauates to\n\t";
+			t->find()->print(strs);
+			strs << "instead\n";
+			errors->addError(new ErrorDescription(getLine(), getColumn(), strs.str()));
+			return false;
+		}
+		return true;
 	};
 
 	virtual void print(std::wostream &s)
@@ -881,7 +995,7 @@ public:
 
 	Expression *getExpression(void) { return expr; };
 
-	virtual bool makeType(Environment *env)
+	virtual bool makeType(Environment *env, ErrorLocation *errors)
 	{
 		Type *r=env->get(L"!return");
 //		std::wcout << L"\nGenerator source Type from env: ";
@@ -889,7 +1003,17 @@ public:
 		
 		Type *t;
 		if (expr==NULL) t=env->fresh();
-		else t = expr->getType(env);
+		else
+		{
+			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"yielded value expression"));
+			t = expr->getType(env,logger);
+			if (t->getKind() == Type::Error)
+			{
+				errors->addError(logger);
+				return false;
+			}
+			delete logger;
+		}
 		// "yield done" does not provide additional information
 		// But in case that the generator is empty, it is all there is.
 		// An empty generator can be concatenated with any other, so top is ok supertype?!
@@ -898,6 +1022,13 @@ public:
 		myType=new Type(Type::Generator,t);
 		if (!myType->unify(r))
 		{
+			std::wstringstream strs;
+			strs << L"the yielded type of the generator has already been inferred to be\n";
+			r->find()->print(strs);
+			strs << "\n\tbut this expression evaluates to\n\t";
+			myType->find()->print(strs);
+			strs << "instead\n";
+			errors->addError(new ErrorDescription(getLine(), getColumn(), strs.str()));
 			return false;
 		}
 		return true;
@@ -951,9 +1082,9 @@ public:
 
 	Expression *getExpression(void) { return expr; };
 
-	virtual bool makeType(Environment *env)
+	virtual bool makeType(Environment *env, ErrorLocation *errors)
 	{
-		Type *t=expr->getType(env);
+		Type *t=expr->getType(env,errors);
 		return t->getKind()!=Type::Error;
 	};
 
@@ -986,6 +1117,13 @@ class ImportStatement  : public Statement
 	bool relative;
 	std::list<std::wstring> path;
 	
+	void printPath(std::wostream &s)
+	{
+		if (!relative) s << L"::";
+		std::list<std::wstring>::iterator iter = path.begin();
+		s << *iter;
+		for (iter++;iter != path.end();iter++) s << L"::" << *iter;
+	};
 
 public:
 	ImportStatement(int l,int p,bool rel,std::list<std::wstring> &path) : Statement(l,p)
@@ -998,7 +1136,7 @@ public:
 	{
 	};
 
-	virtual bool makeType(Environment *env)
+	virtual bool makeType(Environment *env, ErrorLocation *errors)
 	{
 		// Copy exports of imported module indo current environment
 		Environment::Module *module;
@@ -1006,7 +1144,11 @@ public:
 		else module=Environment::getRootModule()->followPath(path);
 		if (module==NULL) 
 		{
-			// Error Message
+			std::wstringstream strs;
+			strs << L"The module '";
+			printPath(strs);
+			strs << "' is not known here! Was the file sourced?";
+			errors->addError(new ErrorDescription(getLine(), getColumn(), strs.str()));
 			return false;
 		}
 		module->importInto(env);
@@ -1016,11 +1158,7 @@ public:
 	virtual void print(std::wostream &s)
 	{
 		s << L"import ";
-		if (!relative) s << L"::";
-		std::list<std::wstring>::iterator iter=path.begin();
-		s<<*iter;
-		for (iter++;iter!=path.end();iter++) s << L"::" << *iter;
-
+		printPath(s);
 	};
 
 	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
@@ -1055,7 +1193,7 @@ public:
 	{
 	};
 
-	virtual bool makeType(Environment *env);
+	virtual bool makeType(Environment *env, ErrorLocation *errors);
 
 	virtual void print(std::wostream &s)
 	{

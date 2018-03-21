@@ -408,7 +408,7 @@ public:
 class ErrorType : public Type
 {
 	std::wstring message;
-	size_t line, pos;
+	size_t line, col;
 protected:
 	/// Internal variant of Return a copy of this type, calls during recursion
 	virtual Type *internalCopy(TypeVariableMap &conv);
@@ -416,17 +416,17 @@ protected:
 	//virtual PartialOrder internalCheckSubtype(Type *other)0;
 
 public:
-	ErrorType(size_t l, size_t p, std::wstring msg) : Type(Type::Error), message(msg), line(l), pos(p)
+	ErrorType(size_t l, size_t p, std::wstring msg) : Type(Type::Error), message(msg), line(l), col(p)
 	{
 	};
 
-	inline int getLine(void) { return line; };
-	inline int getPosition(void) { return pos; };
+	inline size_t getLine(void) { return line; };
+	inline size_t getColumn(void) { return col; };
 	inline std::wstring getMessage(void) { return message; };
 
 	virtual void print(std::wostream &s)
 	{
-		s << "Type Error ("<< line << ", "<< pos <<"): " << message << '!' << std::endl;
+		s << "Type Error ("<< line << ", "<< col <<"): " << message << '!' << std::endl;
 	};
 
 	virtual void getVariables(TypeVariableSet &)
@@ -863,7 +863,7 @@ public:
 	inline void addParameter(TypeVariable *t) { params.push_back(std::make_pair(t,(TypeVariable*)NULL)); };
 	inline void addParameter(const std::pair<TypeVariable*,TypeVariable*> &val) { params.push_back(val); };
 
-	Type *instantiate(std::list<TypeVariable*> &params,size_t line,size_t pos);
+	Type *instantiate(std::list<TypeVariable*> &params,size_t line,size_t col);
 
 	virtual void print(std::wostream &s)
 	{

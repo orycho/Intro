@@ -22,7 +22,7 @@ class IntegerConstant : public Expression
 	int64_t value;
 	Type *myType;
 protected:
-	virtual Type *makeType(Environment *);
+	virtual Type *makeType(Environment *, ErrorLocation *);
 public:
 	IntegerConstant(int l,int p,wchar_t *token,int base=10) : Expression(l,p)
 	{
@@ -56,7 +56,7 @@ class BooleanConstant : public Expression
 	bool value;
 	Type *myType;
 protected:
-	virtual Type *makeType(Environment *);
+	virtual Type *makeType(Environment *, ErrorLocation *);
 public:
 	BooleanConstant(int l,int p,bool val) : Expression(l,p),value(val)
 	{
@@ -83,7 +83,7 @@ class RealConstant : public Expression
 	double value;
 	Type *myType;
 protected:
-	virtual Type *makeType(Environment *);
+	virtual Type *makeType(Environment *, ErrorLocation *);
 public:
 	RealConstant(int l,int p,wchar_t *token) : Expression(l,p)
 	{
@@ -126,7 +126,7 @@ class StringConstant : public Expression
 	std::list<part> parts;
 	typedef std::list<part>::iterator iterator;
 protected:
-	virtual Type *makeType(Environment *);
+	virtual Type *makeType(Environment *, ErrorLocation *);
 
 	Type *original;
 public:
@@ -162,7 +162,7 @@ class ListConstant : public Expression
 	GeneratorStatement *generators;
 	Type *myType;
 protected:
-	virtual Type *makeType(Environment *env);
+	virtual Type *makeType(Environment *env, ErrorLocation *errors);
 public:
 	ListConstant(int l,int p,std::list<intro::Expression*> contents) : Expression(l,p),elements(contents), generators(NULL)
 	{
@@ -203,7 +203,7 @@ private:
 	Type *myType;
 protected:
 	/// Purely virtual function that is used to create an expressions type.
-	virtual Type *makeType(Environment *env);
+	virtual Type *makeType(Environment *env, ErrorLocation *errors);
 public:
 	DictionaryConstant (int l,int p,memberlist contents) : Expression(l,p),elements(contents), generators(NULL), myType(NULL)
 	{
@@ -249,7 +249,7 @@ protected:
 	/// The members of the record are label-expression pairs.
 	std::list<std::pair<std::wstring,Expression*> > members;
 	RecordType *myType;
-	virtual Type *makeType(Environment *env);
+	virtual Type *makeType(Environment *env, ErrorLocation *errors);
 	bool isVariant;
 public:
 
@@ -300,7 +300,7 @@ protected:
 	std::wstring tag;
 	RecordExpression *record;
 	VariantType *myType;
-	virtual Type *makeType(Environment *env);
+	virtual Type *makeType(Environment *env, ErrorLocation *errors);
 public:
 
 
@@ -349,7 +349,7 @@ private:
 	//Type *original; ///< Type loaded from env can differ from type after unification (subtyping), necessitating coercion
 
 protected:
-	virtual Type *makeType(Environment *env);
+	virtual Type *makeType(Environment *env, ErrorLocation *errors);
 public:
 	Variable(int l,int p,bool rel,std::wstring name_,const std::list<std::wstring> &path_,int mod=0) 
 		: Expression(l,p)
@@ -404,7 +404,7 @@ class RecordAccess: public Expression
 	std::wstring label;	///< The label that is requested
 	RecordType *myRecord;
 protected:
-	virtual Type *makeType(Environment *env);
+	virtual Type *makeType(Environment *env, ErrorLocation *errors);
 public:
 	RecordAccess(int l,int p,Expression *rec,std::wstring &lab) 
 		: Expression(l,p)
@@ -453,7 +453,7 @@ class Extraction: public Application
 	VariantType maybe;
 
 protected:
-	virtual Type *getCalledFunctionType(Environment *env);
+	virtual Type *getCalledFunctionType(Environment *env, ErrorLocation *errors);
 public:
 	Extraction(int l,int p,Expression *source,Expression *key) 
 		: Application(l,p)
@@ -504,7 +504,7 @@ class DictionaryErase: public Application
 	VariantType maybe;
 
 protected:
-	virtual Type *getCalledFunctionType(Environment *env);
+	virtual Type *getCalledFunctionType(Environment *env, ErrorLocation *errors);
 public:
 	DictionaryErase(int l,int p,Expression *source,Expression *key) 
 		: Application(l,p)
@@ -555,8 +555,8 @@ class Splice : public Application
 	Type *sequence;
 
 protected:
-	virtual Type *getCalledFunctionType(Environment *env);
-	virtual Type *makeType(Environment *env);
+	virtual Type *getCalledFunctionType(Environment *env, ErrorLocation *errors);
+	virtual Type *makeType(Environment *env, ErrorLocation *errors);
 public:
 	Splice(int l,int p,Expression *source,Expression *start,Expression *end=NULL) 
 		: Application(l,p)
@@ -611,7 +611,7 @@ class Assignment : public Expression
 {
 	Type *myType;
 protected:
-	virtual Type *makeType(Environment *env);
+	virtual Type *makeType(Environment *env, ErrorLocation *errors);
 	/// The list of expressions that evaluate to the function call's parameters
 	Expression *destination;
 	/// The epression which must evaluate to a vaue of the correct function type
@@ -669,7 +669,7 @@ protected:
 	//Type* valtype;
 	Type boolean,number;
 	FunctionType* myType;
-	virtual Type *getCalledFunctionType(Environment *);
+	virtual Type *getCalledFunctionType(Environment *, ErrorLocation *);
 public:
 	UnaryOperation(int l,int p, OpType type,Expression *operand) 
 		: Application(l,p)
@@ -705,7 +705,7 @@ protected:
 	OpType op;
 	FunctionType *myType;
 	Type boolean;
-	virtual Type *getCalledFunctionType(Environment *);
+	virtual Type *getCalledFunctionType(Environment *, ErrorLocation *);
 public:
 	BooleanBinary(int l,int p,OpType optype,Expression *op1,Expression *op2) 
 		: BinaryOperation(l,p,op1,op2)
@@ -742,7 +742,7 @@ protected:
 	FunctionType *myType;
 	Type *myTypeParam;
 	Type comparable;
-	virtual Type *getCalledFunctionType(Environment *);
+	virtual Type *getCalledFunctionType(Environment *, ErrorLocation *);
 public:
 	CompareOperation(int l,int p,OpType optype,Expression *op1,Expression *op2) 
 		: BinaryOperation(l,p,op1,op2)
@@ -803,7 +803,7 @@ protected:
 	FunctionType *myType;
 	Type *myTypeParam;
 	Type number;
-	virtual Type *getCalledFunctionType(Environment *);
+	virtual Type *getCalledFunctionType(Environment *, ErrorLocation *);
 public:
 	ArithmeticBinary(int l,int p,OpType optype,Expression *op1,Expression *op2) 
 		: BinaryOperation(l,p,op1,op2)

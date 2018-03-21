@@ -712,7 +712,7 @@ Type *TypeVariable::internalCopy(TypeVariableMap &conv)
 
 Type *ErrorType::internalCopy(TypeVariableMap &conv)
 {
-	return new ErrorType(getLine(),getPosition(),getMessage());
+	return new ErrorType(getLine(),getColumn(),getMessage());
 }
 
 Type *FunctionType::internalCopy(TypeVariableMap &conv)
@@ -870,12 +870,12 @@ bool OpaqueType::setTypeMapping(FunctionType *ft)
 	return true;
 }
 
-Type *OpaqueType::instantiate(std::list<TypeVariable*> &instparams, size_t line, size_t pos)
+Type *OpaqueType::instantiate(std::list<TypeVariable*> &instparams, size_t line, size_t col)
 {
 	if (error != NULL) return error;
 	if (shared == NULL)
 	{
-		error = new ErrorType(line, pos, std::wstring(L"Opaque Type '") + name + L"' has not been instantiated yet!");
+		error = new ErrorType(line, col, std::wstring(L"Opaque Type '") + name + L"' has not been instantiated yet!");
 		return error;
 	}
 	TypeVariableMap conv;
@@ -883,7 +883,7 @@ Type *OpaqueType::instantiate(std::list<TypeVariable*> &instparams, size_t line,
 	iterator iter;
 	if (params.size() != instparams.size())
 	{
-		error = new ErrorType(line, pos, std::wstring(L"Opaque Type '") + name + L"' is being used with the wrong number of paramters!");
+		error = new ErrorType(line, col, std::wstring(L"Opaque Type '") + name + L"' is being used with the wrong number of paramters!");
 		return error;
 	};
 	for (iter = begin(), given = instparams.begin();iter != end();iter++, given++)

@@ -45,8 +45,6 @@ void printSubTypes(intro::Type *type,const std::vector<intro::Type*> &v)
 ////////////////////////////////////////////////
 /// Tests
 
-bool inferTypes(parse::Parser &parser,intro::Environment *env);
-
 /*
 parse::Parser &&getParser(const char *test)
 {

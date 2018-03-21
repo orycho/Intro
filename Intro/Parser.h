@@ -179,12 +179,19 @@ std::vector<intro::Expression*> exprstack;
 			std::cout << "Found " << errors->count << " errors while parsing!\n";
 			return false;
 		}
+		intro::ErrorLocation *logger = new intro::ErrorLocation(0, 0, std::wstring(L"test"));
 		for (iter=parseResult.begin();iter!=parseResult.end();iter++)
 		{
-			(*iter)->makeType(env);
+			(*iter)->makeType(env,logger);
 			(*iter)->print(std::wcout);
 			std::wcout << std::endl << std::endl;
 		}
+		if (logger->hasErrors())
+		{
+			std::cout << "Type errors:\n";
+			logger->print(std::wcout,0);
+		}
+		delete logger;
 		return true;
 	}
 
@@ -204,17 +211,20 @@ std::vector<intro::Expression*> exprstack;
 			errors->count=0;
 			return;
 		}
-		bool isOk=stmt->makeType(getEnv());
+		intro::ErrorLocation *logger = new intro::ErrorLocation(0, 0, std::wstring(L"interactive session"));
+		bool isOk=stmt->makeType(getEnv(),logger);
 		if (isOk) 
 		{
 			intro::executeStatement(stmt);
+			// remember statements for the types they own
+			parseResult.push_back(stmt);
 		}
 		else
 		{
 			std::wcout << L"Type errors detected!\n";
+			logger->print(std::wcout,0);
+			delete stmt;
 		}
-		// remember statements for the types they own
-		parseResult.push_back(stmt);
 	}
 	
 	void Init(void)

@@ -4,6 +4,7 @@
 #include <iostream>
 #include "Type.h"
 #include "Environment.h"
+#include "ErrorLogger.h"
 // LLVM causes compiler warning 4355 in VC++2010...
 
 #ifdef _MSC_VER
@@ -37,11 +38,11 @@ typedef std::set<std::wstring> VariableSet;
 /// The base class for all statements of the Intro language
 class Statement
 {
-	int line, pos;
+	size_t  line, col;
 public:
 
 	/// Statements remember lina and position passed from parser, for error reporting.
-	Statement(int l,int p) : line(l), pos(p)
+	Statement(size_t l, size_t c) : line(l), col(c)
 	{};
 
 	/// Detructor does nothing, except being virtual.
@@ -49,10 +50,10 @@ public:
 	{};
 
 	inline int getLine(void) { return line; };
-	inline int getPosition(void) { return pos; };
+	inline int getColumn(void) { return col; };
 
 	// Simulate the statemetns effect on the types in the environment.
-	virtual bool makeType(Environment *env)=0;
+	virtual bool makeType(Environment *env, ErrorLocation *errors)=0;
 	virtual void print(std::wostream &s)=0;
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env)=0;
 
@@ -76,16 +77,16 @@ class Expression
 	// Holds the expression's type.
 	Type *type;
 
-	int line,pos;
+	size_t  line,col;
 	ErrorType *error;
 protected:
 	/// Purely virtual fnction that is used to create an expressions type.
-	virtual Type *makeType(Environment *env)=0;
+	virtual Type *makeType(Environment *env, ErrorLocation *errors)=0;
 	/// Derived classes use this method to create a new error type with the appropriate message
 	inline ErrorType *getError(std::wstring msg)
 	{
 		if (error!=NULL) delete error; // should not happen
-		error= new ErrorType(line,pos,msg);
+		error= new ErrorType(line,col,msg);
 		error->print(std::wcout);
 		return error;
 	};
@@ -94,24 +95,24 @@ public:
 	typedef std::pair<llvm::Value *,llvm::Value *> cgvalue;
 
 	// Initialize base class object members
-	Expression(int l,int p) : type(NULL), line(l), pos(p)
+	Expression(size_t  l, size_t c) : type(NULL), line(l), col(c)
 	{
 		error=NULL;
 	};
 	/// Get the line where the token associated with this expression was found.
 	inline int getLine(void) { return line; };
 	/// Get the position on the line where the token associated with this expression was found.
-	inline int getPosition(void) { return pos; };
+	inline int getColumn(void) { return col; };
 	/// Destroy an expression - deletes an error if created.
 	virtual ~Expression()
 	{
 		if (error!=NULL) delete error;
 	};
 	/// Front end for type inference virtual function, buffing result.
-	inline Type *getType(Environment *env)
+	inline Type *getType(Environment *env, ErrorLocation *errors)
 	{
 		if (type==NULL) 
-			type=makeType(env);
+			type=makeType(env, errors);
 		return type->find();
 	};
 	/// Return the type that was inferred for this expression, as is.
@@ -167,29 +168,29 @@ class TypeExpression
 	// Holds the expression's type.
 	Type *type;
 
-	int line,pos;
+	size_t line,col;
 	ErrorType *error;
 protected:
 	/// Purely virtual fnction that is used to create an expressions type.
-	virtual Type *makeType(Environment *env)=0;
+	virtual Type *makeType(Environment *env, ErrorLocation *errors)=0;
 	/// Derived classes use this method to create a new error type with the appropriate message
 	inline ErrorType *getError(std::wstring msg)
 	{
 		if (error!=NULL) delete error; // should not happen
-		error= new ErrorType(line,pos,msg);
+		error= new ErrorType(line,col,msg);
 		return error;
 	};
 
 public:
 	// Initialize base class object members
-	TypeExpression(int l,int p) : type(NULL), line(l), pos(p)
+	TypeExpression(size_t l, size_t c) : type(NULL), line(l), col(c)
 	{
 		error=NULL;
 	};
 	/// Get the line where the token associated with this expression was found.
-	inline int getLine(void) { return line; };
+	inline size_t getLine(void) { return line; };
 	/// Get the position on the line where the token associated with this expression was found.
-	inline int getPosition(void) { return pos; };
+	inline size_t getColumn(void) { return col; };
 	/// Destroy an expression - deletes an error if created.
 	virtual ~TypeExpression()
 	{
@@ -197,10 +198,10 @@ public:
 		//if (type!=NULL && type->getKind()!=Type::Variable) delete type;
 	};
 	/// Front end for type inference virtual function, buffing result.
-	inline Type *getType(Environment *env)
+	inline Type *getType(Environment *env, ErrorLocation *errors)
 	{
 		if (type==NULL) 
-			type=makeType(env);
+			type=makeType(env, errors);
 		return type;
 	};
 	/// Front end for type inference virtual function, caching result.
@@ -278,9 +279,9 @@ protected:
 	llvm::Value *returntype;
 
 	/// Allow expressions derived from application to define their operations function type as they like.
-	virtual Type *getCalledFunctionType(Environment *env);
+	virtual Type *getCalledFunctionType(Environment *env, ErrorLocation *errors);
 
-	virtual Type *makeType(Environment *env);
+	virtual Type *makeType(Environment *env, ErrorLocation *errors);
 	
 	/// struct paires types with callbacks generateing the code for that type
 
@@ -307,13 +308,13 @@ protected:
 	//llvm::Value *generateTypedCode(const cgcb_elem callbacks[],llvm::IRBuilder<> &builder,CodeGenEnvironment *env,
 	//	std::vector<llvm::Value*> &param_values,Type *bound);
 
-	llvm::Value *generateTypedOperator(const cgcb_elem callbacks[],llvm::IRBuilder<> &builder,CodeGenEnvironment *env,Type *bound);
+	//llvm::Value *generateTypedOperator(const cgcb_elem callbacks[],llvm::IRBuilder<> &builder,CodeGenEnvironment *env,Type *bound);
 
 public:
 
 	typedef std::vector<Expression*>::iterator iterator;
-	Application(int l,int p) 
-		: Expression(l,p)
+	Application(int l,int c) 
+		: Expression(l,c)
 		, myFuncType(NULL)
 		, funvar(NULL)
 		, calledType(NULL)

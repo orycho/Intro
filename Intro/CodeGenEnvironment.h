@@ -128,7 +128,7 @@ public:
 	{
 	}
 
-	~CodeGenEnvironment()
+	virtual ~CodeGenEnvironment()
 	{}
 
 	virtual CodeGenModule *getCurrentModule(void)

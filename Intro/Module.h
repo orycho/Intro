@@ -16,13 +16,13 @@ class ModuleStatement : public Statement
 	{
 	protected:
 		/// Position where the module starts
-		int line, pos;
+		size_t line, col;
 		std::wstring name;
 	public:
 
-		ExportDeclaration(int l,int p,const std::wstring &n)
+		ExportDeclaration(size_t l, size_t p,const std::wstring &n)
 			: line(l)
-			, pos(p)
+			, col(p)
 			, name(n)
 		{};
 
@@ -33,7 +33,7 @@ class ModuleStatement : public Statement
 
 		std::wstring getName(void) { return name; };
 
-		virtual Type *getType(Environment *env)=0;
+		virtual Type *getType(Environment *env, ErrorLocation *errors)=0;
 
 		virtual void print(std::wostream &s)=0;
 	};
@@ -44,7 +44,7 @@ class ModuleStatement : public Statement
 		std::list<TypeExpression*> parameters;
 		OpaqueType *ot;
 	public:
-		OpaqueTypeDeclaration(int l,int p,const std::wstring &n,std::list<TypeExpression*> params)
+		OpaqueTypeDeclaration(size_t l, size_t p,const std::wstring &n,std::list<TypeExpression*> params)
 			: ExportDeclaration(l,p,n)
 			, parameters(params)
 			, ot(NULL)
@@ -60,14 +60,16 @@ class ModuleStatement : public Statement
 
 		virtual bool isExport(void) { return false; };
 
-		virtual Type *getType(Environment *env)
+		virtual Type *getType(Environment *env, ErrorLocation *errors)
 		{
 			Environment localenv(env);
 			ot=new OpaqueType(name);
 			std::list<TypeExpression*>::iterator it;
 			// Grammar guarantees that only type variables can occur here...
-			for (it=parameters.begin();it!=parameters.end();it++)
-				ot->addParameter(dynamic_cast<TypeVariable*>((*it)->getType(&localenv)));
+			for (it = parameters.begin();it != parameters.end();it++)
+			{
+				ot->addParameter(dynamic_cast<TypeVariable*>((*it)->getType(&localenv, errors)));
+			}
 			env->put(name,ot);
 			return ot;
 		};
@@ -106,10 +108,10 @@ class ModuleStatement : public Statement
 			delete expr;
 		};
 
-		virtual Type *getType(Environment *env)
+		virtual Type *getType(Environment *env, ErrorLocation *errors)
 		{
 			Environment localenv(env);
-			type=expr->getType(env);
+			type=expr->getType(env,errors);
 			env->put(name,type);
 			return type;
 		};
@@ -165,15 +167,15 @@ public:
 
 	inline std::wstring getName(void) { return name; };
 
-	inline void addExport(int line,int pos,const std::wstring &n,TypeExpression *t)
+	inline void addExport(size_t line, size_t col,const std::wstring &n,TypeExpression *t)
 	{
-		MemberTypeDeclaration *otd=new MemberTypeDeclaration(line,pos,n,t);
+		MemberTypeDeclaration *otd=new MemberTypeDeclaration(line,col,n,t);
 		exports.push_back(otd);
 	};
 
-	inline void addOpaque(int line,int pos,const std::wstring &n,std::list<TypeExpression*> params)
+	inline void addOpaque(size_t line, size_t col,const std::wstring &n,std::list<TypeExpression*> params)
 	{
-		OpaqueTypeDeclaration *otd=new OpaqueTypeDeclaration(line,pos,n,params);
+		OpaqueTypeDeclaration *otd=new OpaqueTypeDeclaration(line,col,n,params);
 		exports.push_back(otd);
 	};
 
@@ -187,7 +189,7 @@ public:
 		submodules.insert(make_pair(m->getName(),m));
 	};
 
-	bool makeType(Environment *env)
+	bool makeType(Environment *env, ErrorLocation *errors)
 	{
 		Environment::Module *module;
 		if (relative) module=Environment::getCurrentModule()->getCreatePath(path);
@@ -197,12 +199,17 @@ public:
 		// Iterate over the statements comprising the module body and infer their types.
 		std::list<Statement*>::iterator cit; 
 		bool success=true;
+		std::wstringstream strs;
+		strs << L"module ";
+		printPath(strs);
+		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), strs.str()+L" contents");
 		for (cit=contents.begin();cit!=contents.end();cit++)
 		{
-			success &= (*cit)->makeType(&localenv);
-			if (success) (*cit)->print(std::wcout);
+			success &= (*cit)->makeType(&localenv,logger);
+			//if (success) (*cit)->print(std::wcout);
 		}
-		if (!success) return false;
+		if (success) delete logger;
+		else return false;
 		Environment::pushModule(module);
 		// For each opaque type declaration in the exposed interface,
 		// find the corresponding constructor
@@ -215,10 +222,10 @@ public:
 		// anyways, knowing it is a constructor and which type it is for.
 		std::list<ExportDeclaration*>::iterator exported;
 		Environment exportenv(env);
-
+		logger = new ErrorLocation(getLine(), getColumn(), strs.str()+L" interface");
 		for (exported= exports.begin();exported!=exports.end() && success;exported++)
 		{
-			Type *exptype=(*exported)->getType(&exportenv);
+			Type *exptype=(*exported)->getType(&exportenv,logger);
 			if ((*exported)->isExport()) 
 			{
 				Type *inside=localenv.get((*exported)->getName());

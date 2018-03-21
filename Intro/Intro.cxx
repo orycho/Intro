@@ -17,6 +17,7 @@
 #include "llvm/IR/Verifier.h"
 #include "CodeGenEnvironment.h"
 #include "CodeGenModule.h"
+#include "ErrorLogger.h"
 
 #include "Runtime.h"
 
@@ -99,11 +100,14 @@ int main(int argc, char *argv[])
 				}
 				else
 				{
+					std::wstring pathbuf;
+					pathbuf.assign(Script.begin(), Script.end());
+					intro::ErrorLocation *logger = new intro::ErrorLocation(0, 0, std::wstring(L"file ") + pathbuf);
 					intro::Environment global;
 					bool isOK = true;
 					for (auto iter = parser.parseResult.begin();isOK && iter != parser.parseResult.end();iter++)
 					{
-						isOK = (*iter)->makeType(&global);
+						isOK = (*iter)->makeType(&global,logger);
 						if (!isOK)
 						{
 							std::wcout << L"Error in line:\n";
@@ -114,7 +118,12 @@ int main(int argc, char *argv[])
 					if (isOK)
 						runStatements(parser.parseResult);
 					else
-						std::wcout << L"Type errors detected!\n";
+					{
+						std::wcout << L"Type errors detected!!!\n";
+						logger->print(std::wcout,0);
+						delete logger;
+						logger = nullptr;
+					}
 				}
 				//getchar();
 				parser.deleteStatements();

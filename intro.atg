@@ -127,12 +127,19 @@ COMPILER Intro
 			std::cout << "Found " << errors->count << " errors while parsing!\n";
 			return false;
 		}
+		intro::ErrorLocation *logger = new intro::ErrorLocation(0, 0, std::wstring(L"test"));
 		for (iter=parseResult.begin();iter!=parseResult.end();iter++)
 		{
-			(*iter)->makeType(env);
+			(*iter)->makeType(env,logger);
 			(*iter)->print(std::wcout);
 			std::wcout << std::endl << std::endl;
 		}
+		if (logger->hasErrors())
+		{
+			std::cout << "Type errors:\n";
+			logger->print(std::wcout,0);
+		}
+		delete logger;
 		return true;
 	}
 
@@ -152,17 +159,20 @@ COMPILER Intro
 			errors->count=0;
 			return;
 		}
-		bool isOk=stmt->makeType(getEnv());
+		intro::ErrorLocation *logger = new intro::ErrorLocation(0, 0, std::wstring(L"interactive session"));
+		bool isOk=stmt->makeType(getEnv(),logger);
 		if (isOk) 
 		{
 			intro::executeStatement(stmt);
+			// remember statements for the types they own
+			parseResult.push_back(stmt);
 		}
 		else
 		{
 			std::wcout << L"Type errors detected!\n";
+			logger->print(std::wcout,0);
+			delete stmt;
 		}
-		// remember statements for the types they own
-		parseResult.push_back(stmt);
 	}
 	
 	void Init(void)
@@ -222,28 +232,28 @@ Integer=
 	integer 
 	(. 
 		//long val=_wtol(t->val); 
-		pushExpr(new intro::IntegerConstant(t->line,t->pos,t->val));
+		pushExpr(new intro::IntegerConstant(t->line,t->col,t->val));
 	.)
 .
 
 Boolean=
-	("true" (. pushExpr(new intro::BooleanConstant(t->line,t->pos,true)); .)
+	("true" (. pushExpr(new intro::BooleanConstant(t->line,t->col,true)); .)
 	|
-	"false" (. pushExpr(new intro::BooleanConstant(t->line,t->pos,false)); .)
+	"false" (. pushExpr(new intro::BooleanConstant(t->line,t->col,false)); .)
 	)
 .
 
 Real=
 	real 
 	(. 
-		pushExpr(new intro::RealConstant(t->line,t->pos,t->val));
+		pushExpr(new intro::RealConstant(t->line,t->col,t->val));
 	.)
 .
 
 String=
 	string 
 	(.
-		pushExpr(new intro::StringConstant(t->line,t->pos,t->val));
+		pushExpr(new intro::StringConstant(t->line,t->col,t->val));
 	.)
 .
 
@@ -260,7 +270,7 @@ Generator=
 		"in"
 		Expression // Container contents: This expression should be of type list or dictionary (i.e. <: Container), or generator...
 		(.
-			pushStatement(new intro::ContainerGen(t->line,t->pos,ident,popExpr()));
+			pushStatement(new intro::ContainerGen(t->line,t->col,ident,popExpr()));
 		.)
 	|
 		(.
@@ -275,14 +285,14 @@ Generator=
 			Expression (. by=popExpr(); .)
 		]
 		(.
-			pushStatement(new intro::RangeGen(t->line,t->pos,ident,from,to,by));
+			pushStatement(new intro::RangeGen(t->line,t->col,ident,from,to,by));
 		.)
 	)
 .
 
 GeneratorStatement=
 	(.
-		intro::GeneratorStatement *gen=new intro::GeneratorStatement(t->line,t->pos);
+		intro::GeneratorStatement *gen=new intro::GeneratorStatement(t->line,t->col);
 	.)
 	Generator
 	(.
@@ -370,13 +380,13 @@ Container=
 	(.
 		if (isDictionary)
 		{
-			intro::DictionaryConstant *dict=new intro::DictionaryConstant(t->line,t->pos,dict_elem);
+			intro::DictionaryConstant *dict=new intro::DictionaryConstant(t->line,t->col,dict_elem);
 			if (gen!=NULL) dict->setGenerators(gen);
 			pushExpr(dict);
 		}
 		else
 		{
-			intro::ListConstant *list=new intro::ListConstant(t->line,t->pos,list_elem);
+			intro::ListConstant *list=new intro::ListConstant(t->line,t->col,list_elem);
 			if (gen!=NULL) list->setGenerators(gen);
 			pushExpr(list);
 		}
@@ -398,7 +408,7 @@ RecordField<intro::RecordExpression *record>=
 	|	
 		'('
 		(.
-			intro::Function *fun=new intro::Function(t->line,t->pos);
+			intro::Function *fun=new intro::Function(t->line,t->col);
 		.)
 		[
 			Parameter<(*fun).getParameters()>
@@ -421,8 +431,8 @@ RecordField<intro::RecordExpression *record>=
 
 Record=
 	(.
-		int l=t->line,p=t->pos;
-		intro::RecordExpression *expr=new  intro::RecordExpression(t->line,t->pos);
+		int l=t->line,p=t->col;
+		intro::RecordExpression *expr=new  intro::RecordExpression(t->line,t->col);
 		std::wstring tag; 
 	.)
 	'['
@@ -448,7 +458,7 @@ Function=
 	"fun" 
 	'('
 	(.
-		intro::Function *fun=new intro::Function(t->line,t->pos);
+		intro::Function *fun=new intro::Function(t->line,t->col);
 		functions.push(fun);
 	.)
 	[
@@ -496,7 +506,7 @@ Atom=
 
 		(.
 			{
-				pushExpr(new intro::Variable(t->line,t->pos,rel,str,path));
+				pushExpr(new intro::Variable(t->line,t->col,rel,str,path));
 			}
 		.)
 	| '(' Expression ')'
@@ -519,7 +529,7 @@ Expr7=
 		Identifier<str>
 		(.
 			expr=popExpr();
-			intro::RecordAccess *ra=new intro::RecordAccess(t->line,t->pos,expr,str);
+			intro::RecordAccess *ra=new intro::RecordAccess(t->line,t->col,expr,str);
 			pushExpr(ra);
 		.)
 	}
@@ -532,7 +542,7 @@ Expr7=
 		Atom
 		(.
 			intro::Expression *keyexpr=popExpr();
-			intro::DictionaryErase *de=new intro::DictionaryErase(t->line,t->pos,expr,keyexpr);
+			intro::DictionaryErase *de=new intro::DictionaryErase(t->line,t->col,expr,keyexpr);
 			pushExpr(de);
 		.)
 		
@@ -560,11 +570,11 @@ Expr7=
 
 		]
 		(.
-			//intro::Extraction *ext=new intro::Extraction(t->line,t->pos,expr,op,op2);
+			//intro::Extraction *ext=new intro::Extraction(t->line,t->col,expr,op,op2);
 			//pushExpr(ext);
 			intro::Expression *result;
-			if (isSplice) result=new intro::Splice(t->line,t->pos,expr,op,op2);
-			else result=new intro::Extraction(t->line,t->pos,expr,op);
+			if (isSplice) result=new intro::Splice(t->line,t->col,expr,op,op2);
+			else result=new intro::Extraction(t->line,t->col,expr,op);
 			pushExpr(result);
 		.)
 		']'
@@ -582,7 +592,7 @@ Expr6=
 	{
 		'('
 		(.
-			intro::Application *app=new intro::Application(t->line,t->pos);
+			intro::Application *app=new intro::Application(t->line,t->col);
 			app->setFunction(popExpr());
 		.)
 		[
@@ -601,7 +611,7 @@ Expr6=
 		if (negate) 
 		{
 			intro::Expression *expr=popExpr(); 
-			pushExpr(new intro::UnaryOperation(t->line,t->pos,intro::UnaryOperation::Negate,expr));
+			pushExpr(new intro::UnaryOperation(t->line,t->col,intro::UnaryOperation::Negate,expr));
 		}
 	.)
 .
@@ -620,7 +630,7 @@ Expr5=
 		Expr6
 		(.
 			intro::Expression *expr2=popExpr();
-			pushExpr(new intro::ArithmeticBinary(t->line,t->pos,op,expr1,expr2));
+			pushExpr(new intro::ArithmeticBinary(t->line,t->col,op,expr1,expr2));
 		.)		
 
 	}
@@ -641,7 +651,7 @@ Expr4=
 			Expr5
 			(.
 				intro::Expression *expr2=popExpr();
-				pushExpr(new intro::ArithmeticBinary(t->line,t->pos,op,expr1,expr2));
+				pushExpr(new intro::ArithmeticBinary(t->line,t->col,op,expr1,expr2));
 			.)		
 
 		}
@@ -665,7 +675,7 @@ Expr3=
 		Expr4
 		(.
 			intro::Expression *expr2=popExpr();
-			pushExpr(new intro::CompareOperation(t->line,t->pos,op,expr1,expr2));
+			pushExpr(new intro::CompareOperation(t->line,t->col,op,expr1,expr2));
 		.)		
 	}
 .
@@ -681,7 +691,7 @@ Expr2=
 		if (negate) 
 		{
 			intro::Expression *expr=popExpr(); 
-			pushExpr(new intro::UnaryOperation(t->line,t->pos,intro::UnaryOperation::Not,expr));
+			pushExpr(new intro::UnaryOperation(t->line,t->col,intro::UnaryOperation::Not,expr));
 		}
 	.)
 .
@@ -694,7 +704,7 @@ Expr1=
 		Expr2
 		(.
 			intro::Expression *expr2=popExpr();
-			pushExpr(new intro::BooleanBinary(t->line,t->pos,intro::BooleanBinary::And,expr1,expr2));
+			pushExpr(new intro::BooleanBinary(t->line,t->col,intro::BooleanBinary::And,expr1,expr2));
 		.)		
 	}
 .
@@ -710,7 +720,7 @@ Expr0=
 		 Expr1
 		(.
 			intro::Expression *expr2=popExpr();
-			pushExpr(new intro::BooleanBinary(t->line,t->pos,op,expr1,expr2));
+			pushExpr(new intro::BooleanBinary(t->line,t->col,op,expr1,expr2));
 		.)		
 	}
 	
@@ -723,7 +733,7 @@ Expression=
 		"<-" Expr0 
 		(.
 			intro::Expression *expr2=popExpr();
-			pushExpr(new intro::Assignment(t->line,t->pos,expr1,expr2));
+			pushExpr(new intro::Assignment(t->line,t->col,expr1,expr2));
 		.)		
 	]
 .
@@ -763,12 +773,12 @@ Variable=
 		"<-" Expression
 		(.
 			intro::Expression *expr=popExpr();
-			pushStatement(new intro::ValueStatement(t->line,t->pos,str,expr,isconst,isInteractive));
+			pushStatement(new intro::ValueStatement(t->line,t->col,str,expr,isconst,isInteractive));
 		.)
 	|	
 		'('
 		(.
-			intro::Function *fun=new intro::Function(t->line,t->pos);
+			intro::Function *fun=new intro::Function(t->line,t->col);
 			functions.push(fun);
 		.)
 		[
@@ -785,7 +795,7 @@ Variable=
 		
 		(.
 			functions.pop();
-			pushStatement(new intro::ValueStatement(t->line,t->pos,str,fun,isconst,isInteractive));
+			pushStatement(new intro::ValueStatement(t->line,t->col,str,fun,isconst,isInteractive));
 		.)
 
 	)
@@ -795,7 +805,7 @@ Conditional=
 	(.
 		intro::Expression *cond;
 		intro::Statement *stmt;
-		intro::IfStatement *cs = new intro::IfStatement(t->line,t->pos);
+		intro::IfStatement *cs = new intro::IfStatement(t->line,t->col);
 	.)
 	"if"
 	Expression (. cond=popExpr(); .)
@@ -818,7 +828,7 @@ Conditional=
 
 ForIter=
 	(.
-		intro::ForStatement *fs = new intro::ForStatement(t->line,t->pos);
+		intro::ForStatement *fs = new intro::ForStatement(t->line,t->col);
 		loops.push(fs);
 	.)
 	"for"
@@ -834,7 +844,7 @@ ForIter=
 
 WhileIter=
 	(.
-		intro::WhileStatement *ws = new intro::WhileStatement(t->line,t->pos);
+		intro::WhileStatement *ws = new intro::WhileStatement(t->line,t->col);
 		loops.push(ws);
 	.)
 	"while"
@@ -850,7 +860,7 @@ WhileIter=
 
 Block=
 	(.
-		intro::BlockStatement *bs=new intro::BlockStatement(t->line,t->pos);
+		intro::BlockStatement *bs=new intro::BlockStatement(t->line,t->col);
 		intro::Statement *stmt;
 	.)
 	
@@ -889,7 +899,7 @@ Return=
 		Expression (. expr=popExpr(); .)
 	]
 	(.
-		pushStatement(new intro::ReturnStatement(t->line,t->pos,expr));
+		pushStatement(new intro::ReturnStatement(t->line,t->col,expr));
 	.)
 .
 
@@ -904,7 +914,7 @@ Yield=
 	|	"done" // Leave expr on NULL, indicates the generator has generated all values.
 	)
 	(.
-		pushStatement(new intro::YieldStatement(t->line,t->pos,expr));
+		pushStatement(new intro::YieldStatement(t->line,t->col,expr));
 	.)
 .
 
@@ -922,7 +932,7 @@ FlowControl=
 			if (isContinue) SemErr(L"Found 'continue' statement outside of loop body.");
 			else SemErr(L"Found 'break' statement outside of loop body.");
 		}
-		pushStatement(new intro::FlowCtrlStatement(t->line,t->pos,isContinue
+		pushStatement(new intro::FlowCtrlStatement(t->line,t->col,isContinue
 			? intro::FlowCtrlStatement::Continue
 			: intro::FlowCtrlStatement::Break));
 	.)
@@ -931,7 +941,7 @@ FlowControl=
 Source=
 	"source" string
 	(.
-		pushStatement(new intro::SourceStatement(t->line,t->pos,t->val));
+		pushStatement(new intro::SourceStatement(t->line,t->col,t->val));
 	.)
 .
 
@@ -951,16 +961,16 @@ Import=
 		"::" ident (. path.push_back(t->val); .)
 	}
 	(.
-		pushStatement(new intro::ImportStatement(t->line,t->pos,rel,path));
+		pushStatement(new intro::ImportStatement(t->line,t->col,rel,path));
 	.)
 .
 
-// TBD: Use Blocks instrad of statement lists - 
+// TBD: Use Blocks instead of statement lists - 
 // or should branch inherit block to handle additional vars?
 // Maybe best to have a BlockStatement in the case as member.
 CaseBranch<intro::CaseStatement *parent>=
 	(.
-		intro::CaseStatement::Case *branch= new intro::CaseStatement::Case();
+		intro::CaseStatement::Case *branch= new intro::CaseStatement::Case(t->line,t->col);
 		std::wstring str;
 	.)
 	Identifier<str> // Tag
@@ -986,7 +996,7 @@ CaseBranch<intro::CaseStatement *parent>=
 
 Case=
 	(.
-		intro::CaseStatement *casestmt=new intro::CaseStatement(t->line,t->pos);
+		intro::CaseStatement *casestmt=new intro::CaseStatement(t->line,t->col);
 	.)
 	"case" 
 	Expression 
@@ -1024,7 +1034,7 @@ NonReturnStatement=
 			intro::Statement *stmt;
 			intro::Expression *expr;
 			expr=popExpr(); 
-			stmt=new intro::ExpressionStatement(t->line,t->pos,expr,isInteractive); 
+			stmt=new intro::ExpressionStatement(t->line,t->col,expr,isInteractive); 
 			pushStatement(stmt); 
 		.)
   	)
@@ -1037,7 +1047,7 @@ NonReturnStatement=
 TypeVariable=
 	typevar 
 	(.
-		types.push(new intro::TypeVariableExpression(t->line,t->pos,t->val));
+		types.push(new intro::TypeVariableExpression(t->line,t->col,t->val));
 	.)
 .
 
@@ -1047,7 +1057,7 @@ TypeList=
 	(.
 		buf=types.top();
 		types.pop();
-		types.push(new intro::TypeListExpression(t->line,t->pos,buf));
+		types.push(new intro::TypeListExpression(t->line,t->col,buf));
 	.)
 .
 
@@ -1057,7 +1067,7 @@ TypeGenerator=
 	(.
 		buf=types.top();
 		types.pop();
-		types.push(new intro::TypeGeneratorExpression(t->line,t->pos,buf));
+		types.push(new intro::TypeGeneratorExpression(t->line,t->col,buf));
 	.)
 .
 
@@ -1074,14 +1084,14 @@ TypeDictionary=
 	(.
 		intro::TypeExpression *buf2=types.top();
 		types.pop();
-		types.push(new intro::TypeDictionaryExpression(t->line,t->pos,buf,buf2));
+		types.push(new intro::TypeDictionaryExpression(t->line,t->col,buf,buf2));
 	.)
 .
 
 TypeRecord=
 	(. std::wstring str; intro::TypeExpression *buf; .)
 	'['
-	(.	intro::TypeRecordExpression *rec=new intro::TypeRecordExpression(t->line,t->pos);
+	(.	intro::TypeRecordExpression *rec=new intro::TypeRecordExpression(t->line,t->col);
 	.)
 	{
 		Identifier<str> ':' Type ';'
@@ -1099,7 +1109,7 @@ TypeOpaque=
 	(. std::wstring str; .)
 	Identifier<str>
 	(. 	
-		intro::TypeOpaqueExpression *opaque=new intro::TypeOpaqueExpression(t->line,t->pos,str);
+		intro::TypeOpaqueExpression *opaque=new intro::TypeOpaqueExpression(t->line,t->col,str);
 	.)
 
 	[
@@ -1118,7 +1128,7 @@ TypeOpaque=
 TypeFunction=
 	(. 
 		std::wstring str;
-		intro::TypeFunctionExpression *fun=new intro::TypeFunctionExpression(t->line,t->pos);
+		intro::TypeFunctionExpression *fun=new intro::TypeFunctionExpression(t->line,t->col);
 	.)
 	'('
 	[
@@ -1139,11 +1149,11 @@ TypeFunction=
 //TBD:Variant Type
 Type=
 	(. std::wstring str; .)
-	(	"Boolean"	(. types.push(new intro::TypeSimpleExpression(t->line,t->pos,intro::Type::Boolean)); .)
-	|	"Integer"	(. types.push(new intro::TypeSimpleExpression(t->line,t->pos,intro::Type::Integer)); .)
-	|	"Real"		(. types.push(new intro::TypeSimpleExpression(t->line,t->pos,intro::Type::Real)); .)
-	|	"String"	(. types.push(new intro::TypeSimpleExpression(t->line,t->pos,intro::Type::String)); .)
-	|	"Unit"		(. types.push(new intro::TypeSimpleExpression(t->line,t->pos,intro::Type::Unit)); .)
+	(	"Boolean"	(. types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Boolean)); .)
+	|	"Integer"	(. types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Integer)); .)
+	|	"Real"		(. types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Real)); .)
+	|	"String"	(. types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::String)); .)
+	|	"Unit"		(. types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Unit)); .)
 	|	TypeList
 	|	TypeGenerator
 	|	TypeDictionary
@@ -1159,7 +1169,7 @@ ExportedName=
 		std::wstring str;
 	.)
 	Identifier<str> 
-	(. int line=t->line,pos=t->pos; .)
+	(. int line=t->line,pos=t->col; .)
 	':'	
 	Type
 	(.
@@ -1177,7 +1187,7 @@ AbstractType=
 	"type"
 	Identifier<name>
 	(. 	
-		int line=t->line,pos=t->pos;
+		int line=t->line,pos=t->col;
 	.)
 	[
 		'('
@@ -1215,7 +1225,7 @@ Module=
 		"::" ident (. path.push_back(t->val); .)
 	}
 	(.
-		intro::ModuleStatement *module=new intro::ModuleStatement(t->line,t->pos,rel,path);
+		intro::ModuleStatement *module=new intro::ModuleStatement(t->line,t->col,rel,path);
 		modules.push(module);
 	.)
 	"exports"

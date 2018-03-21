@@ -57,7 +57,7 @@ void cleanupSourceFiles()
 	Also adapt codegen appropriately, generate the code only
 	if not already stored as CodeGenEnv.
 */
-bool intro::SourceStatement::makeType(Environment *env)
+bool intro::SourceStatement::makeType(Environment *env, ErrorLocation *errors)
 {
 	std::unordered_map<std::wstring, SourceFile*>::iterator iter=files.find(path);
 	if (iter == files.end())
@@ -65,8 +65,9 @@ bool intro::SourceStatement::makeType(Environment *env)
 		parse::Scanner scanner(path.c_str());
 		if (!scanner.isOk())
 		{
-			std::wcout << L"Error: Could not load file '"
-				<< path << "'!\n";
+			//std::wcout << L"Error: Could not load file '"
+			//	<< path << "'!\n";
+			errors->addError(new ErrorDescription(getLine(), getColumn(), std::wstring(L"Failed to load file")));
 			return false;
 		}
 
@@ -88,23 +89,27 @@ bool intro::SourceStatement::makeType(Environment *env)
 		file->statements.insert(file->statements.end(), parser.parseResult.begin(), parser.parseResult.end());
 		parser.parseResult.clear();
 		bool isOK = true;
+		ErrorLocation *logger = new ErrorLocation(0, 0, std::wstring(L"source file ") + path);
 		for (auto iter = file->statements.begin();isOK && iter != file->statements.end();iter++)
 		{
-			isOK = (*iter)->makeType(&(file->env));
+			isOK = (*iter)->makeType(&(file->env),logger);
 		}
 		if (!isOK)
 		{
-			std::wcout << L"Type errors encountered while parsing file "
-				<< path << "!\n";
+			//std::wcout << L"Type errors encountered while parsing file "
+			//	<< path << "!\n";
+			errors->addError(logger);
 			delete file;
 			return false;
 		}
+		delete logger;
 		file->state = SourceFile::Done;
 	}
 	else if (iter->second->state != SourceFile::Done)
 	{
-		std::wcout << L"Circular dependency for file '"
-			<< path << "'(it tries to source itself, possibly indirectly)! \n";
+		//std::wcout << L"Circular dependency for file '"
+		//	<< path << "'(it tries to source itself, possibly indirectly)! \n";
+		errors->addError(new ErrorDescription(getLine(), getColumn(), L""));
 		return false;
 
 	}

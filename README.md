@@ -59,7 +59,10 @@ Starting with some arithmetic shows that for expressions, the result of the eval
 >  1+2*3;
  = 7
 </pre>
-Let's compute a list of right angled triangles, using two helper functions and a generator statement.
+Let's compute a list of right angled triangles, using two helper functions 
+and a list defined by a generator statement.
+Triple returns a record that contains three labels (a,b and c), while cond returns true
+if the passed values satisfy Pythagoras' theorem.
 The variable definitions have their name and type printed out:
 <pre>
  > var triple(x,y,z)->return [a&lt;-x;b&lt;-y;c&lt;-z;]; end;
@@ -80,15 +83,6 @@ f:(?T27sup&lt;:{ [ :A x : ?asup&lt;:Number; ] + [ :B a : ?asup&lt;:Number; b : ?
 > f([:B a&lt;-3; b&lt;-4;]);
  = 7
 </pre>
-Moving to something more advanced, here is a generator which takes two sequences, and returns
-all elements of the first, then all elements of the second sequence.
-<pre>
-> var append(s1,s2)->for x in s1 do yield x; done; for x in s2 do yield x; done; yield done; end;
-append:(?T38sup&lt;:Generator(?T39&lt;:Top),?T40sup&lt;:Generator(?T39&lt;:Top)) -> Generator(?T39&lt;:Top)
-> {x | x in append("Hello ","World")};
- = {H, e, l, l, o,  , W, o, r, l, d}
-</pre>
-Note that the last command really states that a list of characters is wanted.
 
 Dictionaries are as easy: 
 <pre>
@@ -99,8 +93,19 @@ d:Dictionary(String,Integer)
 > "d is ${d}";
  = d is {d=>4, x=>20, c=>3, a=>1, b=>2}
 </pre>
-Now for some actual fun with functions. The following function line takes a slope and an offet, two numbers.
-It returns a function which computes points on that line. And the return functions type is dependend
+
+Moving to something more advanced, here is a generator which takes two sequences, and returns
+all elements of the first, then all elements of the second sequence.
+<pre>
+> var append(s1,s2)->for x in s1 do yield x; done; for x in s2 do yield x; done; yield done; end;
+append:(?T38sup&lt;:Generator(?T39&lt;:Top),?T40sup&lt;:Generator(?T39&lt;:Top)) -> Generator(?T39&lt;:Top)
+> {x | x in append("Hello ","World")};
+ = {H, e, l, l, o,  , W, o, r, l, d}
+</pre>
+Note that the last command really states that a list of characters is wanted.
+
+Now for some actual fun with functions. The following function line takes a slope and an offset, two numbers.
+It returns a function which computes points on that line. And the return functions type is dependent
 on the original parameters.
 <pre>
 > var line(slope,offset)->return fun(x)->return slope*x+offset; end; end;
@@ -115,7 +120,7 @@ l1:(Integer) -> Integer
 > l1(1);
  = 5
 </pre>
-Since functions are in variables, we can replace them with other fucntions with the same signature:
+Since functions are in variables, we can replace them with other functions with the same type:
 <pre>
 > l1&lt;-line(3,2);
  = function
@@ -272,7 +277,7 @@ That may look verbose, but it just forces the programmer to handle lookup failur
 * Arithmetic (integer and real): <pre>+,*,-,/,%</pre>
 * boolean: <pre>and, or, xor, not</pre>
 * compares: <pre>==, !=</pre> (all types) and <pre>>, <, >=, <=</pre> (only string, integer, real)
-* sequence (list and string) splice returns a subsequence based on identifiers. Inside the square brackets, 
+* sequence (list and string) splice returns a subsequence based on the start and end index of the subsequence. Inside the square brackets, 
 a special variable "last" holds the index of the last element in the input sequence : <pre>l[1:last]</pre> 
 (new list without the first element)
 * Assignment "&lt;-" (read: "is assigned") returns the value that was written to the destination on the left. E.g.: <pre>y&lt;-2</pre>
@@ -310,6 +315,22 @@ A x then return x;
 | B a b then return a+b; 
 end;</pre>
 
+The <tt>source</tt> statement tries to load a file and interpret it as a intro source file.
+<pre>
+	source "mysource.intro";
+</pre>
+If the file is found and successfully parsed the first time, it is type checked in a fresh global environment.
+That means that it cannot be provided magically with data from the outside.
+Then the code is executed, creating all symbols. These symbols are then all imported into the
+current environment (global symbols only; modules are handled on their own)
+After a file has been sourced successfully the first time, it is not loaded anymore,
+instead the symbols created the first time are imported into the current scope,
+which is more relevant in projects with multiple files.
+
+Note the string passed to the source statement is static, string interpolation will not work.
+It is not possible to select source files to load at runtime.
+
+
 ## Generator Statements
 Generators can only be used in these statements, which are actually always part of another construct: 
 in list or dictionary expressions, they provide the values that are turned into the contents of the containers.
@@ -319,6 +340,9 @@ Generator statements consist of statements that bind a variable (name) to a gene
 * <pre>x in somelist</pre> where x ha the type given for the list's elements
 * <pre>char in string</pre> where char is a strying type with length exacty one.
 * <pre>kv in somedict</pre> where kv is a record with labels key and value with the appropriate types geiven by the dictionary type.
+
+The generator statements create new variables for the name to bind the values to, and this variable will hide
+variables of the same name in the outer environments.
 
 Special syntax sugar is provided for generating integer values:
 identifier "from" startvalue "to" endvalue "by" stepvalue.
@@ -337,8 +361,8 @@ It is probably easiest to type it into the REPL as a list to see the result:
 
 <pre>{ [a&lt;-x; b&lt;-y; c&lt;-z;] | x from 1 to 10 && y from x to 10 && z from y to 10};</pre>
 
-Finally, anywhere after the first generator binding conditions can be introduced by the operator "??", and it can use all
-generator values defined to its left. Any value combination for which the condition is false will be skipped, which
+Finally, anywhere after the first generator binding,  conditions can be introduced by the operator "??". Each condition
+can use all generated values defined to its left. Any value combination for which the condition is false will be skipped, which
 includes any generators to the right. So here is a list of right triangles, without isomorphism and with the hypotenuse
 always in c (in the records in the resulting list):
 
@@ -458,6 +482,7 @@ from
 end.
 </pre>
 In this example, the Pair type is implemented as a record type [first:?a&lt;:Top; second:?b&lt;:Top;].
+The module is also implemented in ./examples/pair.intro.
 
 ## Importing from Modules
 While any interface member can always be named with an absolute path, this can become cumbersome. 

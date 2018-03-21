@@ -13,7 +13,7 @@ class TypeVariableExpression : public TypeExpression
 	Type *mytype;
 
 protected:
-	virtual Type *makeType(Environment *env)
+	virtual Type *makeType(Environment *env, ErrorLocation *errors)
 	{
 		mytype=env->get(name);
 		if (mytype==NULL) 
@@ -53,7 +53,7 @@ class TypeSimpleExpression : public TypeExpression
 	Type::Types type;
 	Type *mytype;
 protected:
-	virtual Type *makeType(Environment *)
+	virtual Type *makeType(Environment *,ErrorLocation *)
 	{
 		mytype=new Type(type);
 		return mytype;
@@ -80,9 +80,20 @@ class TypeListExpression : public TypeExpression
 	TypeExpression *elemtype;
 	Type *myexptype,*mytype;
 protected:
-	virtual Type *makeType(Environment *env)
+	virtual Type *makeType(Environment *env, ErrorLocation *errors)
 	{
-		mytype=new Type(Type::List,elemtype->getType(env));
+		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"list  type parameter"));
+		Type *inner = elemtype->getType(env,logger);
+		if (inner->getKind() == Type::Error)
+		{
+			errors->addError(logger);
+			mytype = new ErrorType(getLine(), getColumn(), L"error in list type");
+		}
+		else
+		{
+			delete logger;
+			mytype = new Type(Type::List, inner);
+		}
 		return mytype;
 	};
 
@@ -111,10 +122,28 @@ class TypeDictionaryExpression : public TypeExpression
 	Type *myval,*mykey,*mytype,*myexptype;
 
 protected:
-	virtual Type *makeType(Environment *env)
+	virtual Type *makeType(Environment *env, ErrorLocation *errors)
 	{
-		mytype=new Type(Type::Dictionary,keytype->getType(env));
-		mytype->addParameter(valtype->getType(env));
+		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"dictionary key type"));
+		Type *kt = keytype->getType(env,logger);
+		if (kt->getKind() == Type::Error)
+		{
+			errors->addError(logger);
+			mytype = new ErrorType(getLine(), getColumn(), L"error in dictionary key type");
+			return mytype;
+		}
+		else delete logger;
+		logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"dictionary value type"));
+		Type *vt = valtype->getType(env,logger);
+		if (vt->getKind() == Type::Error)
+		{
+			errors->addError(logger);
+			mytype = new ErrorType(getLine(), getColumn(), L"error in dictionary value type");
+			return mytype;
+		}
+		else delete logger;
+		mytype = new Type(Type::Dictionary, kt);
+		mytype->addParameter(vt);
 		return mytype;
 	};
 
@@ -146,14 +175,30 @@ public:
 class TypeRecordExpression : public TypeExpression
 {
 	std::list<std::pair<std::wstring,TypeExpression*> > members;
-	RecordType *myrec,*myexptype;
+	Type *myrec;
+	RecordType *myexptype;
 protected:
-	virtual Type *makeType(Environment *env)
+	virtual Type *makeType(Environment *env, ErrorLocation *errors)
 	{
-		RecordType *myrec=new RecordType();
+		RecordType *retval=new RecordType();
 		std::list<std::pair<std::wstring,TypeExpression*> >::iterator it;
-		for (it=members.begin();it!=members.end();it++)
-			myrec->addMember(it->first,it->second->getType(env));
+		
+		for (it = members.begin();it != members.end();it++)
+		{
+			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"record member type for ")+it->first);
+			Type *rmt = it->second->getType(env, logger);
+			if (rmt->getKind() == Type::Error)
+				errors->addError(logger);
+			else
+				delete logger;
+			retval->addMember(it->first, rmt);
+		}
+		if (errors->hasErrors())
+		{
+			delete retval;
+			myrec = new ErrorType(getLine(), getColumn(), L"error in dictionary type");
+		}
+		else myrec = retval;
 		return myrec;
 	};
 
@@ -195,14 +240,37 @@ class TypeFunctionExpression : public TypeExpression
 {
 	std::list<TypeExpression*> parameters;
 	TypeExpression *returned;
-	FunctionType *mytype,*myexptype;
+	Type *mytype;
+	FunctionType *myexptype;
 protected:
-	virtual Type *makeType(Environment *env)
+	virtual Type *makeType(Environment *env, ErrorLocation *errors)
 	{
-		mytype=new FunctionType(returned->getType(env));
+		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"function return type "));
+		Type *rt = returned->getType(env,logger);
+		if (rt->getKind() == Type::Error)
+		{
+			errors->addError(logger);
+			mytype = new ErrorType(getLine(), getColumn(), L"error in function return type");
+			return mytype;
+		}
+		else delete logger;
+		FunctionType *ft=new FunctionType(rt);
 		std::list<TypeExpression*>::iterator it;
-		for (it=parameters.begin();it!=parameters.end();it++)
-			mytype->addParameter((*it)->getType(env));
+		for (it = parameters.begin();it != parameters.end();it++)
+		{
+			logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"function parameter type "));
+			Type *pt = (*it)->getType(env,logger);
+			if (pt->getKind() == Type::Error)
+			{
+				delete ft;
+				errors->addError(logger);
+				mytype = new ErrorType(getLine(), getColumn(), L"error in function parameter type");
+				return mytype;
+			}
+			else delete logger;
+			ft->addParameter(pt);
+		}
+		mytype = ft;
 		return mytype;
 	};
 
@@ -248,35 +316,44 @@ class TypeOpaqueExpression : public TypeExpression
 	Type *myhidden;
 	OpaqueType *myexptype;
 protected:
-	virtual Type *makeType(Environment *env)
+	virtual Type *makeType(Environment *env, ErrorLocation *errors)
 	{
-		myhidden=NULL;
-		Type *buf=env->get(name);
-		if (buf==NULL)
+		myhidden = NULL;
+		Type *buf = env->get(name);
+		if (buf == NULL)
 		{
-			myhidden=Environment::fresh();
+			myhidden = Environment::fresh();
 		}
-		else if (buf->getKind()!=Type::UserDef)
+		else if (buf->getKind() != Type::UserDef)
 		{
-			return getError(std::wstring(L"The identifier '")+name+L"' already exists but does not refer to a user defined type.");
+			std::wstring str = L"The identifier '" + name + L"' already exists but does not refer to a user defined type.";
+			errors->addError(new ErrorDescription(getLine(), getColumn(), str));
+			return getError(str);
 		}
-		else 
+		else
 		{
-			OpaqueType *other=dynamic_cast<OpaqueType*>(buf);
+			OpaqueType *other = dynamic_cast<OpaqueType*>(buf);
 			std::list<TypeVariable*> paramtypes;
 			std::list<TypeExpression*>::iterator pit;
-			for (pit=parameters.begin();pit!=parameters.end();pit++)
+			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"opaque type parameters"));
+			for (pit = parameters.begin();pit != parameters.end();pit++)
 			{
-				Type *paramtype=(*pit)->getType(env);
-				if (paramtype->getKind()==Type::Error) return paramtype;
-				else if (paramtype->getKind()!=Type::Variable)
+				Type *paramtype = (*pit)->getType(env,logger);
+				if (paramtype->getKind() == Type::Error)
 				{
+					errors->addError(logger);
+					return paramtype;
+				}
+				else if (paramtype->getKind() != Type::Variable)
+				{
+					errors->addError(new ErrorDescription(getLine(), getColumn(), L"Parameters in opaque types must be variables!"));
 					return getError(L"Parameters in opaque types must be variables!");
-				};				
+				};
 				paramtypes.push_back(dynamic_cast<TypeVariable*>(paramtype));
 			}
+			delete logger;
 			// Instantiate Opaque type here!
-			myhidden=other->instantiate(paramtypes,getLine(),getPosition());
+			myhidden = other->instantiate(paramtypes, getLine(), getColumn());
 		}
 		return myhidden;
 	};
@@ -334,9 +411,9 @@ class TypeGeneratorExpression : public TypeExpression
 	TypeExpression *valtype;
 	Type *mytype,*myexptype;
 protected:
-	virtual Type *makeType(Environment *env)
+	virtual Type *makeType(Environment *env, ErrorLocation *errors)
 	{
-		mytype=new Type(Type::Generator,valtype->getType(env));
+		mytype=new Type(Type::Generator,valtype->getType(env,errors));
 		return mytype;
 	};
 

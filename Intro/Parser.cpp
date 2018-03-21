@@ -70,29 +70,29 @@ void Parser::Identifier(std::wstring &val) {
 
 void Parser::Integer() {
 		Expect(_integer);
-		pushExpr(new intro::IntegerConstant(t->line,t->pos,t->val));
+		pushExpr(new intro::IntegerConstant(t->line,t->col,t->val));
 		
 }
 
 void Parser::Boolean() {
 		if (la->kind == 7 /* "true" */) {
 			Get();
-			pushExpr(new intro::BooleanConstant(t->line,t->pos,true)); 
+			pushExpr(new intro::BooleanConstant(t->line,t->col,true)); 
 		} else if (la->kind == 8 /* "false" */) {
 			Get();
-			pushExpr(new intro::BooleanConstant(t->line,t->pos,false)); 
+			pushExpr(new intro::BooleanConstant(t->line,t->col,false)); 
 		} else SynErr(80);
 }
 
 void Parser::Real() {
 		Expect(_real);
-		pushExpr(new intro::RealConstant(t->line,t->pos,t->val));
+		pushExpr(new intro::RealConstant(t->line,t->col,t->val));
 		
 }
 
 void Parser::String() {
 		Expect(_string);
-		pushExpr(new intro::StringConstant(t->line,t->pos,t->val));
+		pushExpr(new intro::StringConstant(t->line,t->col,t->val));
 		
 }
 
@@ -103,7 +103,7 @@ void Parser::Generator() {
 		if (la->kind == 9 /* "in" */) {
 			Get();
 			Expression();
-			pushStatement(new intro::ContainerGen(t->line,t->pos,ident,popExpr()));
+			pushStatement(new intro::ContainerGen(t->line,t->col,ident,popExpr()));
 			
 		} else if (la->kind == 10 /* "from" */) {
 			intro::Expression *from=NULL, *to=NULL, *by=NULL;
@@ -119,7 +119,7 @@ void Parser::Generator() {
 				Expression();
 				by=popExpr(); 
 			}
-			pushStatement(new intro::RangeGen(t->line,t->pos,ident,from,to,by));
+			pushStatement(new intro::RangeGen(t->line,t->col,ident,from,to,by));
 			
 		} else SynErr(81);
 }
@@ -131,13 +131,13 @@ void Parser::Expression() {
 			Get();
 			Expr0();
 			intro::Expression *expr2=popExpr();
-			pushExpr(new intro::Assignment(t->line,t->pos,expr1,expr2));
+			pushExpr(new intro::Assignment(t->line,t->col,expr1,expr2));
 			
 		}
 }
 
 void Parser::GeneratorStatement() {
-		intro::GeneratorStatement *gen=new intro::GeneratorStatement(t->line,t->pos);
+		intro::GeneratorStatement *gen=new intro::GeneratorStatement(t->line,t->col);
 		
 		Generator();
 		gen->addGenerator((intro::Generator*) popStatement());
@@ -217,13 +217,13 @@ void Parser::Container() {
 		Expect(19 /* "}" */);
 		if (isDictionary)
 		{
-		intro::DictionaryConstant *dict=new intro::DictionaryConstant(t->line,t->pos,dict_elem);
+		intro::DictionaryConstant *dict=new intro::DictionaryConstant(t->line,t->col,dict_elem);
 		if (gen!=NULL) dict->setGenerators(gen);
 		pushExpr(dict);
 		}
 		else
 		{
-		intro::ListConstant *list=new intro::ListConstant(t->line,t->pos,list_elem);
+		intro::ListConstant *list=new intro::ListConstant(t->line,t->col,list_elem);
 		if (gen!=NULL) list->setGenerators(gen);
 		pushExpr(list);
 		}
@@ -242,7 +242,7 @@ void Parser::RecordField(intro::RecordExpression *record) {
 			
 		} else if (la->kind == 20 /* "(" */) {
 			Get();
-			intro::Function *fun=new intro::Function(t->line,t->pos);
+			intro::Function *fun=new intro::Function(t->line,t->col);
 			
 			if (StartOf(2)) {
 				Parameter((*fun).getParameters());
@@ -282,7 +282,7 @@ void Parser::Parameter(intro::Function::ParameterList &params) {
 }
 
 void Parser::Block() {
-		intro::BlockStatement *bs=new intro::BlockStatement(t->line,t->pos);
+		intro::BlockStatement *bs=new intro::BlockStatement(t->line,t->col);
 		intro::Statement *stmt;
 		
 		if (StartOf(3)) {
@@ -310,8 +310,8 @@ void Parser::Block() {
 }
 
 void Parser::Record() {
-		int l=t->line,p=t->pos;
-		intro::RecordExpression *expr=new  intro::RecordExpression(t->line,t->pos);
+		int l=t->line,p=t->col;
+		intro::RecordExpression *expr=new  intro::RecordExpression(t->line,t->col);
 		std::wstring tag; 
 		
 		Expect(24 /* "[" */);
@@ -337,7 +337,7 @@ void Parser::Record() {
 void Parser::Function() {
 		Expect(28 /* "fun" */);
 		Expect(20 /* "(" */);
-		intro::Function *fun=new intro::Function(t->line,t->pos);
+		intro::Function *fun=new intro::Function(t->line,t->col);
 		functions.push(fun);
 		
 		if (StartOf(2)) {
@@ -393,7 +393,7 @@ void Parser::Atom() {
 			path.pop_back();
 			
 			{
-			pushExpr(new intro::Variable(t->line,t->pos,rel,str,path));
+			pushExpr(new intro::Variable(t->line,t->col,rel,str,path));
 			}
 			
 			break;
@@ -430,7 +430,7 @@ void Parser::Expr7() {
 			Get();
 			Identifier(str);
 			expr=popExpr();
-			intro::RecordAccess *ra=new intro::RecordAccess(t->line,t->pos,expr,str);
+			intro::RecordAccess *ra=new intro::RecordAccess(t->line,t->col,expr,str);
 			pushExpr(ra);
 			
 		}
@@ -440,7 +440,7 @@ void Parser::Expr7() {
 			Get();
 			Atom();
 			intro::Expression *keyexpr=popExpr();
-			intro::DictionaryErase *de=new intro::DictionaryErase(t->line,t->pos,expr,keyexpr);
+			intro::DictionaryErase *de=new intro::DictionaryErase(t->line,t->col,expr,keyexpr);
 			pushExpr(de);
 			
 		}
@@ -460,8 +460,8 @@ void Parser::Expr7() {
 				isSplice=true; 
 			}
 			intro::Expression *result;
-			if (isSplice) result=new intro::Splice(t->line,t->pos,expr,op,op2);
-			else result=new intro::Extraction(t->line,t->pos,expr,op);
+			if (isSplice) result=new intro::Splice(t->line,t->col,expr,op,op2);
+			else result=new intro::Extraction(t->line,t->col,expr,op);
 			pushExpr(result);
 			
 			Expect(27 /* "]" */);
@@ -477,7 +477,7 @@ void Parser::Expr6() {
 		Expr7();
 		while (la->kind == 20 /* "(" */) {
 			Get();
-			intro::Application *app=new intro::Application(t->line,t->pos);
+			intro::Application *app=new intro::Application(t->line,t->col);
 			app->setFunction(popExpr());
 			
 			if (StartOf(1)) {
@@ -496,7 +496,7 @@ void Parser::Expr6() {
 		if (negate) 
 		{
 		intro::Expression *expr=popExpr(); 
-		pushExpr(new intro::UnaryOperation(t->line,t->pos,intro::UnaryOperation::Negate,expr));
+		pushExpr(new intro::UnaryOperation(t->line,t->col,intro::UnaryOperation::Negate,expr));
 		}
 		
 }
@@ -519,7 +519,7 @@ void Parser::Expr5() {
 			}
 			Expr6();
 			intro::Expression *expr2=popExpr();
-			pushExpr(new intro::ArithmeticBinary(t->line,t->pos,op,expr1,expr2));
+			pushExpr(new intro::ArithmeticBinary(t->line,t->col,op,expr1,expr2));
 			
 		}
 }
@@ -539,7 +539,7 @@ void Parser::Expr4() {
 			}
 			Expr5();
 			intro::Expression *expr2=popExpr();
-			pushExpr(new intro::ArithmeticBinary(t->line,t->pos,op,expr1,expr2));
+			pushExpr(new intro::ArithmeticBinary(t->line,t->col,op,expr1,expr2));
 			
 		}
 }
@@ -584,7 +584,7 @@ void Parser::Expr3() {
 			}
 			Expr4();
 			intro::Expression *expr2=popExpr();
-			pushExpr(new intro::CompareOperation(t->line,t->pos,op,expr1,expr2));
+			pushExpr(new intro::CompareOperation(t->line,t->col,op,expr1,expr2));
 			
 		}
 }
@@ -599,7 +599,7 @@ void Parser::Expr2() {
 		if (negate) 
 		{
 		intro::Expression *expr=popExpr(); 
-		pushExpr(new intro::UnaryOperation(t->line,t->pos,intro::UnaryOperation::Not,expr));
+		pushExpr(new intro::UnaryOperation(t->line,t->col,intro::UnaryOperation::Not,expr));
 		}
 		
 }
@@ -611,7 +611,7 @@ void Parser::Expr1() {
 			Get();
 			Expr2();
 			intro::Expression *expr2=popExpr();
-			pushExpr(new intro::BooleanBinary(t->line,t->pos,intro::BooleanBinary::And,expr1,expr2));
+			pushExpr(new intro::BooleanBinary(t->line,t->col,intro::BooleanBinary::And,expr1,expr2));
 			
 		}
 }
@@ -630,7 +630,7 @@ void Parser::Expr0() {
 			}
 			Expr1();
 			intro::Expression *expr2=popExpr();
-			pushExpr(new intro::BooleanBinary(t->line,t->pos,op,expr1,expr2));
+			pushExpr(new intro::BooleanBinary(t->line,t->col,op,expr1,expr2));
 			
 		}
 }
@@ -650,11 +650,11 @@ void Parser::Variable() {
 			Get();
 			Expression();
 			intro::Expression *expr=popExpr();
-			pushStatement(new intro::ValueStatement(t->line,t->pos,str,expr,isconst,isInteractive));
+			pushStatement(new intro::ValueStatement(t->line,t->col,str,expr,isconst,isInteractive));
 			
 		} else if (la->kind == 20 /* "(" */) {
 			Get();
-			intro::Function *fun=new intro::Function(t->line,t->pos);
+			intro::Function *fun=new intro::Function(t->line,t->col);
 			functions.push(fun);
 			
 			if (StartOf(2)) {
@@ -670,7 +670,7 @@ void Parser::Variable() {
 			fun->setBody((intro::BlockStatement*)popStatement()); 
 			Expect(23 /* "end" */);
 			functions.pop();
-			pushStatement(new intro::ValueStatement(t->line,t->pos,str,fun,isconst,isInteractive));
+			pushStatement(new intro::ValueStatement(t->line,t->col,str,fun,isconst,isInteractive));
 			
 		} else SynErr(87);
 }
@@ -678,7 +678,7 @@ void Parser::Variable() {
 void Parser::Conditional() {
 		intro::Expression *cond;
 		intro::Statement *stmt;
-		intro::IfStatement *cs = new intro::IfStatement(t->line,t->pos);
+		intro::IfStatement *cs = new intro::IfStatement(t->line,t->col);
 		
 		Expect(51 /* "if" */);
 		Expression();
@@ -705,7 +705,7 @@ void Parser::Conditional() {
 }
 
 void Parser::ForIter() {
-		intro::ForStatement *fs = new intro::ForStatement(t->line,t->pos);
+		intro::ForStatement *fs = new intro::ForStatement(t->line,t->col);
 		loops.push(fs);
 		
 		Expect(55 /* "for" */);
@@ -721,7 +721,7 @@ void Parser::ForIter() {
 }
 
 void Parser::WhileIter() {
-		intro::WhileStatement *ws = new intro::WhileStatement(t->line,t->pos);
+		intro::WhileStatement *ws = new intro::WhileStatement(t->line,t->col);
 		loops.push(ws);
 		
 		Expect(58 /* "while" */);
@@ -745,7 +745,7 @@ void Parser::Return() {
 			Expression();
 			expr=popExpr(); 
 		}
-		pushStatement(new intro::ReturnStatement(t->line,t->pos,expr));
+		pushStatement(new intro::ReturnStatement(t->line,t->col,expr));
 		
 }
 
@@ -796,7 +796,7 @@ void Parser::NonReturnStatement() {
 			intro::Statement *stmt;
 			intro::Expression *expr;
 			expr=popExpr(); 
-			stmt=new intro::ExpressionStatement(t->line,t->pos,expr,isInteractive); 
+			stmt=new intro::ExpressionStatement(t->line,t->col,expr,isInteractive); 
 			pushStatement(stmt); 
 			
 			break;
@@ -822,7 +822,7 @@ void Parser::Yield() {
 		} else if (la->kind == 57 /* "done" */) {
 			Get();
 		} else SynErr(89);
-		pushStatement(new intro::YieldStatement(t->line,t->pos,expr));
+		pushStatement(new intro::YieldStatement(t->line,t->col,expr));
 		
 }
 
@@ -840,7 +840,7 @@ void Parser::FlowControl() {
 		if (isContinue) SemErr(L"Found 'continue' statement outside of loop body.");
 		else SemErr(L"Found 'break' statement outside of loop body.");
 		}
-		pushStatement(new intro::FlowCtrlStatement(t->line,t->pos,isContinue
+		pushStatement(new intro::FlowCtrlStatement(t->line,t->col,isContinue
 		? intro::FlowCtrlStatement::Continue
 		: intro::FlowCtrlStatement::Break));
 		
@@ -849,7 +849,7 @@ void Parser::FlowControl() {
 void Parser::Source() {
 		Expect(64 /* "source" */);
 		Expect(_string);
-		pushStatement(new intro::SourceStatement(t->line,t->pos,t->val));
+		pushStatement(new intro::SourceStatement(t->line,t->col,t->val));
 		
 }
 
@@ -871,12 +871,12 @@ void Parser::Import() {
 			Expect(_ident);
 			path.push_back(t->val); 
 		}
-		pushStatement(new intro::ImportStatement(t->line,t->pos,rel,path));
+		pushStatement(new intro::ImportStatement(t->line,t->col,rel,path));
 		
 }
 
 void Parser::CaseBranch(intro::CaseStatement *parent) {
-		intro::CaseStatement::Case *branch= new intro::CaseStatement::Case();
+		intro::CaseStatement::Case *branch= new intro::CaseStatement::Case(t->line,t->col);
 		std::wstring str;
 		
 		Identifier(str);
@@ -897,7 +897,7 @@ void Parser::CaseBranch(intro::CaseStatement *parent) {
 }
 
 void Parser::Case() {
-		intro::CaseStatement *casestmt=new intro::CaseStatement(t->line,t->pos);
+		intro::CaseStatement *casestmt=new intro::CaseStatement(t->line,t->col);
 		
 		Expect(66 /* "case" */);
 		Expression();
@@ -916,7 +916,7 @@ void Parser::Case() {
 
 void Parser::TypeVariable() {
 		Expect(_typevar);
-		types.push(new intro::TypeVariableExpression(t->line,t->pos,t->val));
+		types.push(new intro::TypeVariableExpression(t->line,t->col,t->val));
 		
 }
 
@@ -928,7 +928,7 @@ void Parser::TypeList() {
 		Expect(21 /* ")" */);
 		buf=types.top();
 		types.pop();
-		types.push(new intro::TypeListExpression(t->line,t->pos,buf));
+		types.push(new intro::TypeListExpression(t->line,t->col,buf));
 		
 }
 
@@ -937,27 +937,27 @@ void Parser::Type() {
 		switch (la->kind) {
 		case 71 /* "Boolean" */: {
 			Get();
-			types.push(new intro::TypeSimpleExpression(t->line,t->pos,intro::Type::Boolean)); 
+			types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Boolean)); 
 			break;
 		}
 		case 72 /* "Integer" */: {
 			Get();
-			types.push(new intro::TypeSimpleExpression(t->line,t->pos,intro::Type::Integer)); 
+			types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Integer)); 
 			break;
 		}
 		case 73 /* "Real" */: {
 			Get();
-			types.push(new intro::TypeSimpleExpression(t->line,t->pos,intro::Type::Real)); 
+			types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Real)); 
 			break;
 		}
 		case 74 /* "String" */: {
 			Get();
-			types.push(new intro::TypeSimpleExpression(t->line,t->pos,intro::Type::String)); 
+			types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::String)); 
 			break;
 		}
 		case 75 /* "Unit" */: {
 			Get();
-			types.push(new intro::TypeSimpleExpression(t->line,t->pos,intro::Type::Unit)); 
+			types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Unit)); 
 			break;
 		}
 		case 68 /* "List" */: {
@@ -1000,7 +1000,7 @@ void Parser::TypeGenerator() {
 		Expect(21 /* ")" */);
 		buf=types.top();
 		types.pop();
-		types.push(new intro::TypeGeneratorExpression(t->line,t->pos,buf));
+		types.push(new intro::TypeGeneratorExpression(t->line,t->col,buf));
 		
 }
 
@@ -1017,14 +1017,14 @@ void Parser::TypeDictionary() {
 		Expect(21 /* ")" */);
 		intro::TypeExpression *buf2=types.top();
 		types.pop();
-		types.push(new intro::TypeDictionaryExpression(t->line,t->pos,buf,buf2));
+		types.push(new intro::TypeDictionaryExpression(t->line,t->col,buf,buf2));
 		
 }
 
 void Parser::TypeRecord() {
 		std::wstring str; intro::TypeExpression *buf; 
 		Expect(24 /* "[" */);
-		intro::TypeRecordExpression *rec=new intro::TypeRecordExpression(t->line,t->pos);
+		intro::TypeRecordExpression *rec=new intro::TypeRecordExpression(t->line,t->col);
 		
 		while (la->kind == _ident) {
 			Identifier(str);
@@ -1043,7 +1043,7 @@ void Parser::TypeRecord() {
 void Parser::TypeOpaque() {
 		std::wstring str; 
 		Identifier(str);
-		intro::TypeOpaqueExpression *opaque=new intro::TypeOpaqueExpression(t->line,t->pos,str);
+		intro::TypeOpaqueExpression *opaque=new intro::TypeOpaqueExpression(t->line,t->col,str);
 		
 		if (la->kind == 20 /* "(" */) {
 			Get();
@@ -1062,7 +1062,7 @@ void Parser::TypeOpaque() {
 
 void Parser::TypeFunction() {
 		std::wstring str;
-		intro::TypeFunctionExpression *fun=new intro::TypeFunctionExpression(t->line,t->pos);
+		intro::TypeFunctionExpression *fun=new intro::TypeFunctionExpression(t->line,t->col);
 		
 		Expect(20 /* "(" */);
 		if (StartOf(6)) {
@@ -1086,7 +1086,7 @@ void Parser::ExportedName() {
 		std::wstring str;
 		
 		Identifier(str);
-		int line=t->line,pos=t->pos; 
+		int line=t->line,pos=t->col; 
 		Expect(25 /* ":" */);
 		Type();
 		intro::TypeExpression *buf=types.top();
@@ -1101,7 +1101,7 @@ void Parser::AbstractType() {
 		
 		Expect(76 /* "type" */);
 		Identifier(name);
-		int line=t->line,pos=t->pos;
+		int line=t->line,pos=t->col;
 		
 		if (la->kind == 20 /* "(" */) {
 			Get();
@@ -1139,7 +1139,7 @@ void Parser::Module() {
 			Expect(_ident);
 			path.push_back(t->val); 
 		}
-		intro::ModuleStatement *module=new intro::ModuleStatement(t->line,t->pos,rel,path);
+		intro::ModuleStatement *module=new intro::ModuleStatement(t->line,t->col,rel,path);
 		modules.push(module);
 		
 		Expect(78 /* "exports" */);
