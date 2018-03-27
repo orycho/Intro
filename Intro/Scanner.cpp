@@ -342,8 +342,7 @@ size_t Buffer::ReadNextStreamChunk() {
 		buf = newBuf;
 		free = bufLen;
 	}
-	//int read = fread(buf + bufLen, sizeof(unsigned char), free, stream);
-	// OCL: Cheap ass interactie mode using fgets
+	// OCL: Cheap ass interactive mode using fgets
 	size_t read=0;
 	if (CanSeek())
 		read = fread(buf + bufLen, sizeof(unsigned char), free, stream);
@@ -463,28 +462,28 @@ Scanner::~Scanner() {
 void Scanner::Init() {
 	EOL    = '\n';
 	eofSym = 0;
-	maxT = 79;
-	noSym = 79;
+	maxT = 80;
+	noSym = 80;
 	int i;
 	for (i = 65; i <= 90; ++i) start.set(i, 1);
 	for (i = 95; i <= 95; ++i) start.set(i, 1);
 	for (i = 97; i <= 122; ++i) start.set(i, 1);
 	for (i = 48; i <= 57; ++i) start.set(i, 13);
-	start.set(63, 39);
-	start.set(46, 40);
+	start.set(63, 40);
+	start.set(46, 41);
 	start.set(34, 5);
-	start.set(60, 41);
+	start.set(60, 42);
 	start.set(38, 14);
-	start.set(61, 42);
+	start.set(61, 43);
 	start.set(123, 18);
 	start.set(44, 19);
 	start.set(124, 20);
 	start.set(125, 21);
 	start.set(40, 22);
 	start.set(41, 23);
-	start.set(45, 43);
+	start.set(45, 44);
 	start.set(91, 25);
-	start.set(58, 44);
+	start.set(58, 45);
 	start.set(59, 26);
 	start.set(93, 27);
 	start.set(92, 29);
@@ -492,7 +491,7 @@ void Scanner::Init() {
 	start.set(47, 31);
 	start.set(37, 32);
 	start.set(43, 33);
-	start.set(62, 45);
+	start.set(62, 46);
 	start.set(33, 36);
 		start.set(Buffer::EoF, -1);
 	keywords.set(L"true", 7);
@@ -528,17 +527,17 @@ void Scanner::Init() {
 	keywords.set(L"import", 65);
 	keywords.set(L"case", 66);
 	keywords.set(L"of", 67);
-	keywords.set(L"List", 68);
-	keywords.set(L"Generator", 69);
-	keywords.set(L"Dictionary", 70);
-	keywords.set(L"Boolean", 71);
-	keywords.set(L"Integer", 72);
-	keywords.set(L"Real", 73);
-	keywords.set(L"String", 74);
-	keywords.set(L"Unit", 75);
-	keywords.set(L"type", 76);
-	keywords.set(L"module", 77);
-	keywords.set(L"exports", 78);
+	keywords.set(L"List", 69);
+	keywords.set(L"Generator", 70);
+	keywords.set(L"Dictionary", 71);
+	keywords.set(L"Boolean", 72);
+	keywords.set(L"Integer", 73);
+	keywords.set(L"Real", 74);
+	keywords.set(L"String", 75);
+	keywords.set(L"Unit", 76);
+	keywords.set(L"type", 77);
+	keywords.set(L"module", 78);
+	keywords.set(L"exports", 79);
 
 
 	tvalLength = 128;
@@ -834,31 +833,35 @@ Token* Scanner::NextToken() {
 			case_38:
 			{t->kind = 42; break;}
 		case 39:
+			case_39:
+			{t->kind = 68; break;}
+		case 40:
 			if ((ch >= L'A' && ch <= L'Z') || ch == L'_' || (ch >= L'a' && ch <= L'z')) {AddCh(); goto case_2;}
 			else if (ch == L'?') {AddCh(); goto case_16;}
 			else {goto case_0;}
-		case 40:
+		case 41:
 			recEnd = pos; recKind = 30;
 			if ((ch >= L'0' && ch <= L'9')) {AddCh(); goto case_4;}
 			else {t->kind = 30; break;}
-		case 41:
+		case 42:
 			recEnd = pos; recKind = 40;
 			if (ch == L'-') {AddCh(); goto case_12;}
 			else if (ch == L'=') {AddCh(); goto case_35;}
+			else if (ch == L':') {AddCh(); goto case_39;}
 			else {t->kind = 40; break;}
-		case 42:
+		case 43:
 			if (ch == L'>') {AddCh(); goto case_17;}
 			else if (ch == L'=') {AddCh(); goto case_38;}
 			else {goto case_0;}
-		case 43:
+		case 44:
 			recEnd = pos; recKind = 32;
 			if (ch == L'>') {AddCh(); goto case_24;}
 			else {t->kind = 32; break;}
-		case 44:
+		case 45:
 			recEnd = pos; recKind = 25;
 			if (ch == L':') {AddCh(); goto case_28;}
 			else {t->kind = 25; break;}
-		case 45:
+		case 46:
 			recEnd = pos; recKind = 39;
 			if (ch == L'=') {AddCh(); goto case_34;}
 			else {t->kind = 39; break;}

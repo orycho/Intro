@@ -310,10 +310,14 @@ protected:
 
 	//llvm::Value *generateTypedOperator(const cgcb_elem callbacks[],llvm::IRBuilder<> &builder,CodeGenEnvironment *env,Type *bound);
 
+	virtual std::wstring getOperationDescription(void)
+	{
+		return L"function application";
+	};
 public:
 
 	typedef std::vector<Expression*>::iterator iterator;
-	Application(int l,int c) 
+	Application(int l,int c)
 		: Expression(l,c)
 		, myFuncType(NULL)
 		, funvar(NULL)

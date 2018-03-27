@@ -37,6 +37,12 @@ public:
 		, location(location_)
 	{}
 
+	virtual ~ErrorLocation()
+	{
+		for (auto error : errors)
+			delete error;
+	}
+
 	virtual bool hasErrors(void) 
 	{
 		return !errors.empty(); 

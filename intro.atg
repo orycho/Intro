@@ -1045,9 +1045,21 @@ NonReturnStatement=
 //
 
 TypeVariable=
+	(. intro::TypeExpression *super=nullptr; .)
 	typevar 
 	(.
-		types.push(new intro::TypeVariableExpression(t->line,t->col,t->val));
+		intro::TypeVariableExpression *var=new intro::TypeVariableExpression(t->line,t->col,t->val);
+	.)
+	[
+		"<:"
+		NonVariableType
+		(.
+			super=types.top();
+			types.pop();
+		.)
+	]
+	(.
+		types.push(var);
 	.)
 .
 
@@ -1090,7 +1102,7 @@ TypeDictionary=
 
 TypeRecord=
 	(. std::wstring str; intro::TypeExpression *buf; .)
-	'['
+	//'['
 	(.	intro::TypeRecordExpression *rec=new intro::TypeRecordExpression(t->line,t->col);
 	.)
 	{
@@ -1103,6 +1115,33 @@ TypeRecord=
 	}
 	']'
 	(. types.push(rec); .)
+.
+
+TypeVariantTag<intro::TypeVariantExpression *variant>=
+	(. std::wstring tag; .)
+	'['
+	':' Identifier<tag> // tag
+	TypeRecord
+	(.
+		variant->addTag(tag,(intro::TypeRecordExpression*)types.top());
+		types.pop();
+	.)
+.
+
+TypeVariant=
+	(. 
+	std::wstring str; 
+	intro::TypeVariantExpression *buf=new intro::TypeVariantExpression(t->line,t->col);
+	.)
+	[
+		TypeVariantTag<buf>
+		{
+			'+'
+			TypeVariantTag<buf>
+		}
+	]
+	'}'
+	(. types.push(buf); .)
 .
 
 TypeOpaque=
@@ -1146,9 +1185,7 @@ TypeFunction=
 .
 
 
-//TBD:Variant Type
-Type=
-	(. std::wstring str; .)
+NonVariableType=
 	(	"Boolean"	(. types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Boolean)); .)
 	|	"Integer"	(. types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Integer)); .)
 	|	"Real"		(. types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Real)); .)
@@ -1157,10 +1194,16 @@ Type=
 	|	TypeList
 	|	TypeGenerator
 	|	TypeDictionary
-	|	TypeRecord
+	|	'[' TypeRecord
+	|	'{' TypeVariant
 	|	TypeOpaque
-	|	TypeVariable
 	|	TypeFunction
+	)
+.
+
+Type=
+	(	NonVariableType
+	|	TypeVariable
 	)
 .
 

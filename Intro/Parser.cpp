@@ -81,7 +81,7 @@ void Parser::Boolean() {
 		} else if (la->kind == 8 /* "false" */) {
 			Get();
 			pushExpr(new intro::BooleanConstant(t->line,t->col,false)); 
-		} else SynErr(80);
+		} else SynErr(81);
 }
 
 void Parser::Real() {
@@ -121,7 +121,7 @@ void Parser::Generator() {
 			}
 			pushStatement(new intro::RangeGen(t->line,t->col,ident,from,to,by));
 			
-		} else SynErr(81);
+		} else SynErr(82);
 }
 
 void Parser::Expression() {
@@ -208,12 +208,12 @@ void Parser::Container() {
 				GeneratorStatement();
 				gen=dynamic_cast<intro::GeneratorStatement*>(popStatement());
 				
-			} else SynErr(82);
+			} else SynErr(83);
 		} else if (la->kind == 15 /* "=>" */) {
 			Get();
 			isDictionary=true; 
 		} else if (la->kind == 19 /* "}" */) {
-		} else SynErr(83);
+		} else SynErr(84);
 		Expect(19 /* "}" */);
 		if (isDictionary)
 		{
@@ -258,7 +258,7 @@ void Parser::RecordField(intro::RecordExpression *record) {
 			Expect(23 /* "end" */);
 			record->addMember(str,fun);
 			
-		} else SynErr(84);
+		} else SynErr(85);
 }
 
 void Parser::Parameter(intro::Function::ParameterList &params) {
@@ -416,7 +416,7 @@ void Parser::Atom() {
 			Function();
 			break;
 		}
-		default: SynErr(85); break;
+		default: SynErr(86); break;
 		}
 }
 
@@ -643,7 +643,7 @@ void Parser::Variable() {
 		} else if (la->kind == 50 /* "const" */) {
 			Get();
 			isconst=true; 
-		} else SynErr(86);
+		} else SynErr(87);
 		Identifier(str);
 		
 		if (la->kind == _assign) {
@@ -672,7 +672,7 @@ void Parser::Variable() {
 			functions.pop();
 			pushStatement(new intro::ValueStatement(t->line,t->col,str,fun,isconst,isInteractive));
 			
-		} else SynErr(87);
+		} else SynErr(88);
 }
 
 void Parser::Conditional() {
@@ -801,7 +801,7 @@ void Parser::NonReturnStatement() {
 			
 			break;
 		}
-		default: SynErr(88); break;
+		default: SynErr(89); break;
 		}
 }
 
@@ -821,7 +821,7 @@ void Parser::Yield() {
 			expr=popExpr(); 
 		} else if (la->kind == 57 /* "done" */) {
 			Get();
-		} else SynErr(89);
+		} else SynErr(90);
 		pushStatement(new intro::YieldStatement(t->line,t->col,expr));
 		
 }
@@ -834,7 +834,7 @@ void Parser::FlowControl() {
 		} else if (la->kind == 63 /* "continue" */) {
 			Get();
 			isContinue=true; 
-		} else SynErr(90);
+		} else SynErr(91);
 		if (loops.empty()) 
 		{
 		if (isContinue) SemErr(L"Found 'continue' statement outside of loop body.");
@@ -915,14 +915,85 @@ void Parser::Case() {
 }
 
 void Parser::TypeVariable() {
+		intro::TypeExpression *super=nullptr; 
 		Expect(_typevar);
-		types.push(new intro::TypeVariableExpression(t->line,t->col,t->val));
+		intro::TypeVariableExpression *var=new intro::TypeVariableExpression(t->line,t->col,t->val);
 		
+		if (la->kind == 68 /* "<:" */) {
+			Get();
+			NonVariableType();
+			super=types.top();
+			types.pop();
+			
+		}
+		types.push(var);
+		
+}
+
+void Parser::NonVariableType() {
+		switch (la->kind) {
+		case 72 /* "Boolean" */: {
+			Get();
+			types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Boolean)); 
+			break;
+		}
+		case 73 /* "Integer" */: {
+			Get();
+			types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Integer)); 
+			break;
+		}
+		case 74 /* "Real" */: {
+			Get();
+			types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Real)); 
+			break;
+		}
+		case 75 /* "String" */: {
+			Get();
+			types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::String)); 
+			break;
+		}
+		case 76 /* "Unit" */: {
+			Get();
+			types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Unit)); 
+			break;
+		}
+		case 69 /* "List" */: {
+			TypeList();
+			break;
+		}
+		case 70 /* "Generator" */: {
+			TypeGenerator();
+			break;
+		}
+		case 71 /* "Dictionary" */: {
+			TypeDictionary();
+			break;
+		}
+		case 24 /* "[" */: {
+			Get();
+			TypeRecord();
+			break;
+		}
+		case 16 /* "{" */: {
+			Get();
+			TypeVariant();
+			break;
+		}
+		case _ident: {
+			TypeOpaque();
+			break;
+		}
+		case 20 /* "(" */: {
+			TypeFunction();
+			break;
+		}
+		default: SynErr(92); break;
+		}
 }
 
 void Parser::TypeList() {
 		std::wstring str; intro::TypeExpression *buf; 
-		Expect(68 /* "List" */);
+		Expect(69 /* "List" */);
 		Expect(20 /* "(" */);
 		Type();
 		Expect(21 /* ")" */);
@@ -933,68 +1004,16 @@ void Parser::TypeList() {
 }
 
 void Parser::Type() {
-		std::wstring str; 
-		switch (la->kind) {
-		case 71 /* "Boolean" */: {
-			Get();
-			types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Boolean)); 
-			break;
-		}
-		case 72 /* "Integer" */: {
-			Get();
-			types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Integer)); 
-			break;
-		}
-		case 73 /* "Real" */: {
-			Get();
-			types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Real)); 
-			break;
-		}
-		case 74 /* "String" */: {
-			Get();
-			types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::String)); 
-			break;
-		}
-		case 75 /* "Unit" */: {
-			Get();
-			types.push(new intro::TypeSimpleExpression(t->line,t->col,intro::Type::Unit)); 
-			break;
-		}
-		case 68 /* "List" */: {
-			TypeList();
-			break;
-		}
-		case 69 /* "Generator" */: {
-			TypeGenerator();
-			break;
-		}
-		case 70 /* "Dictionary" */: {
-			TypeDictionary();
-			break;
-		}
-		case 24 /* "[" */: {
-			TypeRecord();
-			break;
-		}
-		case _ident: {
-			TypeOpaque();
-			break;
-		}
-		case _typevar: {
+		if (StartOf(6)) {
+			NonVariableType();
+		} else if (la->kind == _typevar) {
 			TypeVariable();
-			break;
-		}
-		case 20 /* "(" */: {
-			TypeFunction();
-			break;
-		}
-		default: SynErr(91); break;
-		}
+		} else SynErr(93);
 }
 
 void Parser::TypeGenerator() {
 		std::wstring str; intro::TypeExpression *buf; 
-		Expect(69 /* "Generator" */);
+		Expect(70 /* "Generator" */);
 		Expect(20 /* "(" */);
 		Type();
 		Expect(21 /* ")" */);
@@ -1006,7 +1025,7 @@ void Parser::TypeGenerator() {
 
 void Parser::TypeDictionary() {
 		std::wstring str; intro::TypeExpression *buf; 
-		Expect(70 /* "Dictionary" */);
+		Expect(71 /* "Dictionary" */);
 		Expect(20 /* "(" */);
 		Type();
 		buf=types.top();
@@ -1023,7 +1042,6 @@ void Parser::TypeDictionary() {
 
 void Parser::TypeRecord() {
 		std::wstring str; intro::TypeExpression *buf; 
-		Expect(24 /* "[" */);
 		intro::TypeRecordExpression *rec=new intro::TypeRecordExpression(t->line,t->col);
 		
 		while (la->kind == _ident) {
@@ -1038,6 +1056,32 @@ void Parser::TypeRecord() {
 		}
 		Expect(27 /* "]" */);
 		types.push(rec); 
+}
+
+void Parser::TypeVariantTag(intro::TypeVariantExpression *variant) {
+		std::wstring tag; 
+		Expect(24 /* "[" */);
+		Expect(25 /* ":" */);
+		Identifier(tag);
+		TypeRecord();
+		variant->addTag(tag,(intro::TypeRecordExpression*)types.top());
+		types.pop();
+		
+}
+
+void Parser::TypeVariant() {
+		std::wstring str; 
+		intro::TypeVariantExpression *buf=new intro::TypeVariantExpression(t->line,t->col);
+		
+		if (la->kind == 24 /* "[" */) {
+			TypeVariantTag(buf);
+			while (la->kind == 36 /* "+" */) {
+				Get();
+				TypeVariantTag(buf);
+			}
+		}
+		Expect(19 /* "}" */);
+		types.push(buf); 
 }
 
 void Parser::TypeOpaque() {
@@ -1065,7 +1109,7 @@ void Parser::TypeFunction() {
 		intro::TypeFunctionExpression *fun=new intro::TypeFunctionExpression(t->line,t->col);
 		
 		Expect(20 /* "(" */);
-		if (StartOf(6)) {
+		if (StartOf(7)) {
 			Type();
 			fun->addParameter(types.top()); types.pop(); 
 			while (la->kind == 17 /* "," */) {
@@ -1099,7 +1143,7 @@ void Parser::AbstractType() {
 		std::wstring str,name;
 		std::list<intro::TypeExpression*> parameters;
 		
-		Expect(76 /* "type" */);
+		Expect(77 /* "type" */);
 		Identifier(name);
 		int line=t->line,pos=t->col;
 		
@@ -1127,7 +1171,7 @@ void Parser::Module() {
 		bool rel=true; 
 		std::list<std::wstring> path; 
 		
-		Expect(77 /* "module" */);
+		Expect(78 /* "module" */);
 		if (la->kind == 29 /* "::" */) {
 			Get();
 			rel=false; 
@@ -1142,8 +1186,8 @@ void Parser::Module() {
 		intro::ModuleStatement *module=new intro::ModuleStatement(t->line,t->col,rel,path);
 		modules.push(module);
 		
-		Expect(78 /* "exports" */);
-		while (la->kind == _ident || la->kind == 76 /* "type" */) {
+		Expect(79 /* "exports" */);
+		while (la->kind == _ident || la->kind == 77 /* "type" */) {
 			clearTypeVariables(); 
 			if (la->kind == _ident) {
 				ExportedName();
@@ -1153,7 +1197,7 @@ void Parser::Module() {
 			Expect(26 /* ";" */);
 		}
 		Expect(10 /* "from" */);
-		while (StartOf(7)) {
+		while (StartOf(8)) {
 			if (StartOf(4)) {
 				NonReturnStatement();
 				intro::Statement *s=popStatement();
@@ -1187,7 +1231,7 @@ void Parser::Intro() {
 			}
 			
 			Expect(26 /* ";" */);
-		} else if (la->kind == 77 /* "module" */) {
+		} else if (la->kind == 78 /* "module" */) {
 			Module();
 			intro::ModuleStatement *mod=modules.top(); modules.pop();
 			//if (mod->makeType(getEnv()))
@@ -1206,8 +1250,8 @@ void Parser::Intro() {
 			*/
 			
 			Expect(30 /* "." */);
-		} else SynErr(92);
-		while (StartOf(7)) {
+		} else SynErr(94);
+		while (StartOf(8)) {
 			if (StartOf(4)) {
 				NonReturnStatement();
 				intro::Statement *s=popStatement();
@@ -1343,7 +1387,7 @@ void Parser::Parse() {
 }
 
 Parser::Parser(Scanner *scanner) {
-	maxT = 79;
+	maxT = 80;
 
 	ParserInitCaller<Parser>::CallInit(this);
 	dummyToken = NULL;
@@ -1358,15 +1402,16 @@ bool Parser::StartOf(int s) {
 	const bool T = true;
 	const bool x = false;
 
-	static bool set[8][81] = {
-		{T,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x},
-		{x,T,x,T, T,T,x,T, T,x,x,x, x,x,x,x, T,x,x,x, T,x,x,x, T,x,x,x, T,T,x,x, T,x,x,x, x,x,x,x, x,x,x,T, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x},
-		{x,T,x,x, x,x,x,x, x,T,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,T, T,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x},
-		{x,T,x,T, T,T,x,T, T,x,x,x, x,x,x,x, T,x,x,x, T,x,x,x, T,x,x,x, T,T,x,x, T,x,x,x, x,x,x,x, x,x,x,T, x,x,x,x, x,T,T,T, x,x,x,T, x,x,T,T, T,T,T,T, T,T,T,x, x,x,x,x, x,x,x,x, x,x,x,x, x},
-		{x,T,x,T, T,T,x,T, T,x,x,x, x,x,x,x, T,x,x,x, T,x,x,x, T,x,x,x, T,T,x,x, T,x,x,x, x,x,x,x, x,x,x,T, x,x,x,x, x,T,T,T, x,x,x,T, x,x,T,T, x,T,T,T, T,T,T,x, x,x,x,x, x,x,x,x, x,x,x,x, x},
-		{x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,T,T,T, T,T,T,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x},
-		{x,T,T,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, T,x,x,x, T,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, T,T,T,T, T,T,T,T, x,x,x,x, x},
-		{x,T,x,T, T,T,x,T, T,x,x,x, x,x,x,x, T,x,x,x, T,x,x,x, T,x,x,x, T,T,x,x, T,x,x,x, x,x,x,x, x,x,x,T, x,x,x,x, x,T,T,T, x,x,x,T, x,x,T,T, x,T,T,T, T,T,T,x, x,x,x,x, x,x,x,x, x,T,x,x, x}
+	static bool set[9][82] = {
+		{T,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x},
+		{x,T,x,T, T,T,x,T, T,x,x,x, x,x,x,x, T,x,x,x, T,x,x,x, T,x,x,x, T,T,x,x, T,x,x,x, x,x,x,x, x,x,x,T, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x},
+		{x,T,x,x, x,x,x,x, x,T,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,T, T,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x},
+		{x,T,x,T, T,T,x,T, T,x,x,x, x,x,x,x, T,x,x,x, T,x,x,x, T,x,x,x, T,T,x,x, T,x,x,x, x,x,x,x, x,x,x,T, x,x,x,x, x,T,T,T, x,x,x,T, x,x,T,T, T,T,T,T, T,T,T,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x},
+		{x,T,x,T, T,T,x,T, T,x,x,x, x,x,x,x, T,x,x,x, T,x,x,x, T,x,x,x, T,T,x,x, T,x,x,x, x,x,x,x, x,x,x,T, x,x,x,x, x,T,T,T, x,x,x,T, x,x,T,T, x,T,T,T, T,T,T,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x},
+		{x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,T,T,T, T,T,T,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x},
+		{x,T,x,x, x,x,x,x, x,x,x,x, x,x,x,x, T,x,x,x, T,x,x,x, T,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,T,T,T, T,T,T,T, T,x,x,x, x,x},
+		{x,T,T,x, x,x,x,x, x,x,x,x, x,x,x,x, T,x,x,x, T,x,x,x, T,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,T,T,T, T,T,T,T, T,x,x,x, x,x},
+		{x,T,x,T, T,T,x,T, T,x,x,x, x,x,x,x, T,x,x,x, T,x,x,x, T,x,x,x, T,T,x,x, T,x,x,x, x,x,x,x, x,x,x,T, x,x,x,x, x,T,T,T, x,x,x,T, x,x,T,T, x,T,T,T, T,T,T,x, x,x,x,x, x,x,x,x, x,x,T,x, x,x}
 	};
 
 
@@ -1455,31 +1500,33 @@ void Errors::SynErr(int line, int col, int n) {
 			case 65: s = coco_string_create(L"\"import\" expected"); break;
 			case 66: s = coco_string_create(L"\"case\" expected"); break;
 			case 67: s = coco_string_create(L"\"of\" expected"); break;
-			case 68: s = coco_string_create(L"\"List\" expected"); break;
-			case 69: s = coco_string_create(L"\"Generator\" expected"); break;
-			case 70: s = coco_string_create(L"\"Dictionary\" expected"); break;
-			case 71: s = coco_string_create(L"\"Boolean\" expected"); break;
-			case 72: s = coco_string_create(L"\"Integer\" expected"); break;
-			case 73: s = coco_string_create(L"\"Real\" expected"); break;
-			case 74: s = coco_string_create(L"\"String\" expected"); break;
-			case 75: s = coco_string_create(L"\"Unit\" expected"); break;
-			case 76: s = coco_string_create(L"\"type\" expected"); break;
-			case 77: s = coco_string_create(L"\"module\" expected"); break;
-			case 78: s = coco_string_create(L"\"exports\" expected"); break;
-			case 79: s = coco_string_create(L"??? expected"); break;
-			case 80: s = coco_string_create(L"invalid Boolean"); break;
-			case 81: s = coco_string_create(L"invalid Generator"); break;
-			case 82: s = coco_string_create(L"invalid Container"); break;
+			case 68: s = coco_string_create(L"\"<:\" expected"); break;
+			case 69: s = coco_string_create(L"\"List\" expected"); break;
+			case 70: s = coco_string_create(L"\"Generator\" expected"); break;
+			case 71: s = coco_string_create(L"\"Dictionary\" expected"); break;
+			case 72: s = coco_string_create(L"\"Boolean\" expected"); break;
+			case 73: s = coco_string_create(L"\"Integer\" expected"); break;
+			case 74: s = coco_string_create(L"\"Real\" expected"); break;
+			case 75: s = coco_string_create(L"\"String\" expected"); break;
+			case 76: s = coco_string_create(L"\"Unit\" expected"); break;
+			case 77: s = coco_string_create(L"\"type\" expected"); break;
+			case 78: s = coco_string_create(L"\"module\" expected"); break;
+			case 79: s = coco_string_create(L"\"exports\" expected"); break;
+			case 80: s = coco_string_create(L"??? expected"); break;
+			case 81: s = coco_string_create(L"invalid Boolean"); break;
+			case 82: s = coco_string_create(L"invalid Generator"); break;
 			case 83: s = coco_string_create(L"invalid Container"); break;
-			case 84: s = coco_string_create(L"invalid RecordField"); break;
-			case 85: s = coco_string_create(L"invalid Atom"); break;
-			case 86: s = coco_string_create(L"invalid Variable"); break;
+			case 84: s = coco_string_create(L"invalid Container"); break;
+			case 85: s = coco_string_create(L"invalid RecordField"); break;
+			case 86: s = coco_string_create(L"invalid Atom"); break;
 			case 87: s = coco_string_create(L"invalid Variable"); break;
-			case 88: s = coco_string_create(L"invalid NonReturnStatement"); break;
-			case 89: s = coco_string_create(L"invalid Yield"); break;
-			case 90: s = coco_string_create(L"invalid FlowControl"); break;
-			case 91: s = coco_string_create(L"invalid Type"); break;
-			case 92: s = coco_string_create(L"invalid Intro"); break;
+			case 88: s = coco_string_create(L"invalid Variable"); break;
+			case 89: s = coco_string_create(L"invalid NonReturnStatement"); break;
+			case 90: s = coco_string_create(L"invalid Yield"); break;
+			case 91: s = coco_string_create(L"invalid FlowControl"); break;
+			case 92: s = coco_string_create(L"invalid NonVariableType"); break;
+			case 93: s = coco_string_create(L"invalid Type"); break;
+			case 94: s = coco_string_create(L"invalid Intro"); break;
 
 		default:
 		{

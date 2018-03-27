@@ -454,6 +454,10 @@ class Extraction: public Application
 
 protected:
 	virtual Type *getCalledFunctionType(Environment *env, ErrorLocation *errors);
+	virtual std::wstring getOperationDescription(void)
+	{
+		return L"dictionary lookup operation";
+	};
 public:
 	Extraction(int l,int p,Expression *source,Expression *key) 
 		: Application(l,p)
@@ -505,6 +509,10 @@ class DictionaryErase: public Application
 
 protected:
 	virtual Type *getCalledFunctionType(Environment *env, ErrorLocation *errors);
+	virtual std::wstring getOperationDescription(void)
+	{
+		return L"erase from dictionary operation";
+	};
 public:
 	DictionaryErase(int l,int p,Expression *source,Expression *key) 
 		: Application(l,p)
@@ -557,6 +565,10 @@ class Splice : public Application
 protected:
 	virtual Type *getCalledFunctionType(Environment *env, ErrorLocation *errors);
 	virtual Type *makeType(Environment *env, ErrorLocation *errors);
+	virtual std::wstring getOperationDescription(void)
+	{
+		return L"splice operator";
+	};
 public:
 	Splice(int l,int p,Expression *source,Expression *start,Expression *end=NULL) 
 		: Application(l,p)
@@ -670,6 +682,11 @@ protected:
 	Type boolean,number;
 	FunctionType* myType;
 	virtual Type *getCalledFunctionType(Environment *, ErrorLocation *);
+	virtual std::wstring getOperationDescription(void)
+	{
+		if (op == Not) return L"not operator";
+		else return L"negate operator";
+	};
 public:
 	UnaryOperation(int l,int p, OpType type,Expression *operand) 
 		: Application(l,p)
@@ -706,6 +723,16 @@ protected:
 	FunctionType *myType;
 	Type boolean;
 	virtual Type *getCalledFunctionType(Environment *, ErrorLocation *);
+	virtual std::wstring getOperationDescription(void)
+	{
+		switch (op)
+		{
+		case And: return L"not operator";
+		case Or: return L"or operator";
+		case Xor: return L"xor operator";
+		}
+		return L"";
+	};
 public:
 	BooleanBinary(int l,int p,OpType optype,Expression *op1,Expression *op2) 
 		: BinaryOperation(l,p,op1,op2)
@@ -743,6 +770,20 @@ protected:
 	Type *myTypeParam;
 	Type comparable;
 	virtual Type *getCalledFunctionType(Environment *, ErrorLocation *);
+	virtual std::wstring getOperationDescription(void)
+	{
+		switch (op)
+		{
+		case Equal: return L"equal comparison";
+		case Different: return L"unequal comparison";
+		case Greater: return L"greater comparison";
+		case GreaterEqual: return L"greater-or-equal comparison";
+		case Less: return L"less comparison";
+		case LessEqual: return L"less-or-equal comparison";
+		}
+		return L"";
+	};
+
 public:
 	CompareOperation(int l,int p,OpType optype,Expression *op1,Expression *op2) 
 		: BinaryOperation(l,p,op1,op2)
@@ -804,6 +845,19 @@ protected:
 	Type *myTypeParam;
 	Type number;
 	virtual Type *getCalledFunctionType(Environment *, ErrorLocation *);
+	virtual std::wstring getOperationDescription(void)
+	{
+		switch (op)
+		{
+		case Add: return L"addition operator";
+		case Sub: return L"subtraction operator";
+		case Mul: return L"multiplication operator";
+		case Div: return L"division operator";
+		case Mod: return L"modulo operator";
+		}
+		return L"";
+	};
+
 public:
 	ArithmeticBinary(int l,int p,OpType optype,Expression *op1,Expression *op2) 
 		: BinaryOperation(l,p,op1,op2)

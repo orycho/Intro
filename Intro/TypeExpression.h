@@ -9,37 +9,49 @@ namespace intro {
 class TypeVariableExpression : public TypeExpression
 {
 	std::wstring name;
-	Type *super;
+	TypeExpression *super;
 	Type *mytype;
-
+	Type mytop;
 protected:
 	virtual Type *makeType(Environment *env, ErrorLocation *errors)
 	{
-		mytype=env->get(name);
-		if (mytype==NULL) 
+		mytype = env->get(name);
+		if (mytype == NULL)
 		{
 			//mytype=env->fresh(name,super->copy());
-			mytype = env->fresh(name, super);
-			env->put(name,mytype);
+			Type *mysuper = &mytop;
+			if (super != nullptr) mysuper = super->getType(env, errors);
+			mytype = env->fresh(name, mysuper);
+			env->put(name, mytype);
 		}
 		return mytype;
-	};
+	}
 
 public:
-	TypeVariableExpression(int l,int p,const wchar_t *varname) : TypeExpression(l,p), name(varname)
+	TypeVariableExpression(int l, int p, const wchar_t *varname)
+		: TypeExpression(l, p)
+		, name(varname)
+		, super(nullptr)
+		, mytop(Type::Top)
 	{
-		super=new Type(Type::Top);
-	};
+	}
 
-	TypeVariableExpression(int l,int p,const std::wstring &varname) : TypeExpression(l,p), name(varname)
-	{ 
-		super=new Type(Type::Top);
-	};
+	TypeVariableExpression(int l, int p, const std::wstring &varname)
+		: TypeExpression(l, p)
+		, name(varname)
+		, super(nullptr)
+		, mytop(Type::Top)
+	{
+	}
 
 	~TypeVariableExpression(void)
 	{
-		//delete super;
-		deleteCopy(super);
+		delete super;
+	};
+
+	inline void setSuper(TypeExpression *expr)
+	{
+		super = expr;
 	};
 
 	virtual Type *getExposedType(void)
@@ -174,14 +186,14 @@ public:
 
 class TypeRecordExpression : public TypeExpression
 {
-	std::list<std::pair<std::wstring,TypeExpression*> > members;
+	std::vector<std::pair<std::wstring,TypeExpression*> > members;
 	Type *myrec;
 	RecordType *myexptype;
 protected:
 	virtual Type *makeType(Environment *env, ErrorLocation *errors)
 	{
 		RecordType *retval=new RecordType();
-		std::list<std::pair<std::wstring,TypeExpression*> >::iterator it;
+		std::vector<std::pair<std::wstring,TypeExpression*> >::iterator it;
 		
 		for (it = members.begin();it != members.end();it++)
 		{
@@ -203,15 +215,16 @@ protected:
 	};
 
 public:
-	TypeRecordExpression(int l,int p) : TypeExpression(l,p)
+	TypeRecordExpression(int l, int p)
+		: TypeExpression(l, p)
+		, myrec(nullptr)
+		, myexptype(nullptr)
 	{
-		myrec = NULL; 
-		myexptype = nullptr;
 	};
 
 	~TypeRecordExpression(void)
 	{
-		std::list<std::pair<std::wstring,TypeExpression*> >::iterator it;
+		std::vector<std::pair<std::wstring,TypeExpression*> >::iterator it;
 		for (it=members.begin();it!=members.end();it++)
 			delete it->second;
 		delete myrec;
@@ -228,9 +241,75 @@ public:
 		if (myexptype == nullptr)
 		{
 			myexptype = new RecordType();
-			std::list<std::pair<std::wstring, TypeExpression*> >::iterator it;
+			std::vector<std::pair<std::wstring, TypeExpression*> >::iterator it;
 			for (it = members.begin();it != members.end();it++)
 				myexptype->addMember(it->first, it->second->getExposedType());
+		}
+		return myexptype;
+	};
+};
+
+class TypeVariantExpression : public TypeExpression
+{
+	std::vector<std::pair<std::wstring, TypeRecordExpression*> > tags;
+	typedef std::vector<std::pair<std::wstring, TypeRecordExpression*> >::iterator iterator;
+	Type *myvariant;
+	VariantType *myexptype;
+protected:
+	virtual Type *makeType(Environment *env, ErrorLocation *errors)
+	{
+		iterator it;
+		VariantType *retval = new VariantType();
+		for (it = tags.begin();it != tags.end();it++)
+		{
+			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"variant type tag ") + it->first);
+			Type *rmt = it->second->getType(env, logger);
+			if (rmt->getKind() == Type::Error)
+				errors->addError(logger);
+			else
+				delete logger;
+			retval->addTag(it->first, (RecordType*) rmt);
+		}
+		if (errors->hasErrors())
+		{
+			delete retval;
+			myvariant = new ErrorType(getLine(), getColumn(), L"error in dictionary type");
+		}
+		else myvariant = retval;
+		return myvariant;
+	};
+
+public:
+	TypeVariantExpression(int l, int p)
+		: TypeExpression(l, p)
+		, myvariant(nullptr)
+		, myexptype(nullptr)
+	{
+
+	}
+
+	~TypeVariantExpression(void)
+	{
+		iterator it;
+		for (it = tags.begin();it != tags.end();it++)
+			delete it->second;
+		delete myvariant;
+		delete myexptype;
+	};
+
+	void addTag(const std::wstring &tag, TypeRecordExpression *contents)
+	{
+		tags.push_back(std::make_pair(tag, contents));
+	};
+
+	virtual Type *getExposedType(void)
+	{
+		if (myexptype == nullptr)
+		{
+			myexptype = new VariantType();
+			iterator it;
+			for (it = tags.begin();it != tags.end();it++)
+				myexptype->addTag(it->first, (RecordType*)it->second->getExposedType());
 		}
 		return myexptype;
 	};

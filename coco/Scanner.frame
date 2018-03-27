@@ -646,8 +646,7 @@ size_t Buffer::ReadNextStreamChunk() {
 		buf = newBuf;
 		free = bufLen;
 	}
-	//int read = fread(buf + bufLen, sizeof(unsigned char), free, stream);
-	// OCL: Cheap ass interactie mode using fgets
+	// OCL: Cheap ass interactive mode using fgets
 	size_t read=0;
 	if (CanSeek())
 		read = fread(buf + bufLen, sizeof(unsigned char), free, stream);

@@ -430,18 +430,18 @@ namespace intro {
 		// is a function type that is a supertype of the called function...
 		//FunctionType *intermediate;//=(FunctionType*)getCalledFunctionType(env);
 		Type *intermediate;//=(FunctionType*)getCalledFunctionType(env);
-		Type *called=getCalledFunctionType(env,errors);
+		Type *called = getCalledFunctionType(env, errors);
 		int flags = Type::Readable | Type::Writable;
-		if (called->getKind()==Type::Error)
+		if (called->getKind() == Type::Error)
 		{
 			return called;
 		}
-		else if (called->getKind()==Type::Function)
+		else if (called->getKind() == Type::Function)
 		{
 			intermediate = called;
 			flags = ((FunctionType*)called)->getReturnType()->find()->getAccessFlags();
 		}
-		else if (called->getKind()==Type::Variable)
+		else if (called->getKind() == Type::Variable)
 		{
 			// Turn the incoming type variable inro a compatible function type:
 			// same number of parameters, all fresh top bound variables.
@@ -463,16 +463,18 @@ namespace intro {
 		}
 		else
 		{
+			// Function operators return hard coded function types,
+			// so cannot trigger this. Hence no need to improve error message.g
 			errors->addError(new ErrorDescription(getLine(), getColumn(), L"Application expects a function value."));
 			return getError(L"Application expects a function value.");
 		};
 		std::list<Type*> paramtypes;
-		Type *retval=Environment::fresh();
+		Type *retval = Environment::fresh();
 		//retval->setAccessFlags(intermediate->getReturnType()->find()->getAccessFlags());
 		retval->setAccessFlags(flags);
 		// Get parameter types from application expression for function type to unify against.
 		//sourceTypes.resize(params.size(),nullptr);
-		for (size_t i=0;i<params.size();++i)
+		for (size_t i = 0;i < params.size();++i)
 		{
 			// Putting the pointers to type variables in the function type here
 			// causes potential specializations to be communicated back into the environement,
@@ -491,10 +493,10 @@ namespace intro {
 			// Anf ultimately, it feels more natural to make the conversion only once, at the latest possible time.
 			// Yet again, if we don't have to explicitely coerce a type, like a record, we need not copy?!
 			std::wstringstream strs;
-			strs << "parameter " << i << " for function call";
+			strs << L"parameter " << i << L" for " << getOperationDescription();
 			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), strs.str());
-			Type *pt=params[i]->getType(env,logger);
-			if (pt->getKind()==Type::Error) 
+			Type *pt = params[i]->getType(env, logger);
+			if (pt->getKind() == Type::Error)
 			{
 				// The very special error type, we should probably check for more and build a more complete mesaage...
 				// also cleanup ;)
@@ -513,29 +515,29 @@ namespace intro {
 			*/
 			paramtypes.push_back(pt);
 		}
-		myFuncType=new FunctionType(paramtypes,retval);
+		myFuncType = new FunctionType(paramtypes, retval);
 		Type *funvar = myFuncType;
 		//if (called->getKind() == Type::Variable) 
 		funvar = Environment::fresh(myFuncType);
-/*
-std::wcout << L"source type: ";
-funvar->find()->print(std::wcout);
-std::wcout << L"\nintermediate: ";
-intermediate->find()->print(std::wcout);
-std::wcout << L"\n";
-*/
+		/*
+		std::wcout << L"source type: ";
+		funvar->find()->print(std::wcout);
+		std::wcout << L"\nintermediate: ";
+		intermediate->find()->print(std::wcout);
+		std::wcout << L"\n";
+		*/
 		// Check all is well...
 		//if (!intermediate->unify(myFuncType)) 
 		if (!intermediate->unify(funvar))
 		{
 			std::wstringstream strs;
-			strs << L"the function called has type\n\t";
+			strs << L"the " << getOperationDescription() << " called has type\n\t";
 			intermediate->find()->print(strs);
-			strs << "\n\tbut the application is for type\n\t";
+			strs << "\n\tbut the values passed result in type\n\t";
 			funvar->find()->print(strs);
 			strs << "\n\tinstead";
 			errors->addError(new ErrorDescription(getLine(), getColumn(), strs.str()));
-			Type *et=getError(strs.str());
+			Type *et = getError(strs.str());
 			retval->unify(et); // makes sure later uses of this return value get the error
 			return et;
 		}
@@ -681,6 +683,7 @@ std::wcout << L"\n";
 		{
 			errors->addError(logger);
 		}
+		else delete logger;
 		return retval;
 	}
 

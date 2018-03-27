@@ -274,6 +274,7 @@ public:
 			}
 		}
 		Environment::popModule();
+		if (success) delete logger;
 		return success;
 	};
 

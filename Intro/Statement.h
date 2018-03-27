@@ -384,13 +384,14 @@ public:
 		ErrorLocation *logger;
 		for (iter=conditions.begin();iter!=conditions.end();iter++)
 		{
-			//logger = new ErrorLocation(getLine(), getColumn(), L"if statement (condition)");
+			logger = new ErrorLocation(getLine(), getColumn(), L"if statement (condition)");
 			Type *cond_type=iter->first->getType(env, logger);
 			if (cond_type->getKind()==Type::Error)
 			{
 				errors->addError(new ErrorDescription(getLine(), getColumn(), L"Could not determine type of condition expression"));
 				return false;
 			}
+			else delete logger;
 			
 			Environment localenv(env);
 			if (!iter->first->getType()->unify(&boolean))
