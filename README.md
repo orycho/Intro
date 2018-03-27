@@ -88,6 +88,12 @@ Dictionaries are as easy:
 <pre>
 > var d&lt;-{"a"=>1, "b"=>2, "c"=>3, "d"=>4};
 d:Dictionary(String,Integer)
+> d["c"];
+ = [ :Some value&lt;-3; ]
+> d\"c";
+ = {d=>4, a=>1, b=>2}
+> d["c"];
+ = [ :None ]
 > d["x"]&lt;-20;
  = 20
 > "d is ${d}";

@@ -1527,7 +1527,7 @@ namespace intro {
 			dict.first,
 			key.first
 		};
-		TmpB.CreateCall(eraseDictF, args, "dict_value");
+		TmpB.CreateCall(eraseDictF, args);
 		return std::make_pair(dict.first,dict.second);
 	}
 
