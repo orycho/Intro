@@ -7,11 +7,15 @@ using namespace std;
 
 namespace intro {
 
-#ifdef WIN32
-	const std::tr1::wregex tokens(L"(\\\\(?:u[[:xdigit:]]{4}|x[[:xdigit:]]+|[[:graph:]])|\\$\\{[[:graph:]]+\\}|[[:space:]]+|[^\\\\$ ]+|\\$(?!\\{))");
-#else
-	const std::wregex tokens(L"(\\\\(?:u[[:xdigit:]]{4}|x[[:xdigit:]]+|[[:graph:]])|\\$\\{[[:graph:]]+\\}|[[:space:]]+|[^\\\\$ ]+|\\$(?!\\{))");
-#endif
+	const std::wregex tokens(
+		L"("
+		L"\\\\(?:u[[:xdigit:]]{4}|x[[:xdigit:]]+|[[:graph:]])"
+		L"|[[:space:]]+"
+		L"|\\$\\{[a-zA-Z][a-zA-Z0-9]*\\}"
+		L"|\\\\\\$"
+		L"|[[:graph:]]+"
+		L")");
+//		L"|[^\\\\$]+"
 
 	Type *Expression::getType(CodeGenEnvironment *env)
 	{
@@ -47,19 +51,10 @@ namespace intro {
 		// Trim quotation marks read from source from string
 		std::wstring trimmed=value.substr(1,value.size()-2);
 		// Prepare tokenization of string based on regular expressions (regex does efficint preprocessing here...)
-		/*
-#ifdef WIN32
-		//std::tr1::wsregex_token_iterator i(value.begin(),value.end(), tokens, 1);
-		std::tr1::wsregex_token_iterator i(trimmed.begin(),trimmed.end(), tokens, 1);
-		std::tr1::wsregex_token_iterator j; // represents end of token stream
-#else 
-		*/
-		//std::wsregex_token_iterator i(value.begin(),value.end(), tokens, 1);
 		std::wsregex_token_iterator i(trimmed.begin(),trimmed.end(), tokens, 1);
-		std::wsregex_token_iterator j; // represents end of token stream
-//#endif
+		std::wsregex_token_iterator eot; // represents end of token stream
 		std::wstring curbuf; // Collect a sequence of consecutive tokens that are not interpolations (constant)
-		while(i != j)
+		while(i != eot)
 		{
 			if (i->str().size()==1)
 			{
@@ -74,7 +69,7 @@ namespace intro {
 					case L'r': curbuf.append(L"\r"); break;
 					case L't': curbuf.append(L"\t"); break;
 					case L'0': curbuf.append(L"\0"); break;
-					default: curbuf.append(1,i->str()[1]); // If it has no special meaning, copy as is (e.g. backslash and dollar sign).
+					default: curbuf.append(i->str().substr(1)); // If it has no special meaning, copy as is (e.g. backslash and dollar sign).
 					}
 					
 					break;

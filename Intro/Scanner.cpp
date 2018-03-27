@@ -740,7 +740,7 @@ Token* Scanner::NextToken() {
 			else {goto case_0;}
 		case 6:
 			case_6:
-			if (ch == L'"' || ch == 39 || ch == 92 || ch == L'b' || ch == L'f' || ch == L'n' || ch == L'r' || ch == L't') {AddCh(); goto case_5;}
+			if (ch == L'"' || ch == L'$' || ch == 39 || ch == 92 || ch == L'b' || ch == L'f' || ch == L'n' || ch == L'r' || ch == L't') {AddCh(); goto case_5;}
 			else if (ch == L'u') {AddCh(); goto case_7;}
 			else {goto case_0;}
 		case 7:

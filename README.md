@@ -59,6 +59,18 @@ Starting with some arithmetic shows that for expressions, the result of the eval
 >  1+2*3;
  = 7
 </pre>
+
+It's always useful to concatenate strings:
+<pre>
+>  var cat(a,b)->return "${a}${b}"; end;
+cat:(?T2&lt;:Top,?T3&lt;:Top) -> String
+> cat("Hello, ","World");
+ = Hello, World
+> cat(12*4,true xor false);
+ = 48true
+</pre>
+
+
 Let's compute a list of right angled triangles, using two helper functions 
 and a list defined by a generator statement.
 Triple returns a record that contains three labels (a,b and c), while cond returns true
