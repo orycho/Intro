@@ -203,6 +203,7 @@ public:
 class Scanner {
 public:
 private:
+	bool fileLoaded;
 	void *firstHeap;
 	void *heap;
 	void *heapTop;
@@ -244,8 +245,7 @@ private:
 	bool Comment1();
 
 	Token* NextToken();
-
-	bool fileLoaded;
+	
 public:
 	Buffer *buffer;   // scanner buffer
 	

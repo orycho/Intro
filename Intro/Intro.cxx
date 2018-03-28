@@ -42,6 +42,15 @@ namespace llvm
 	void llvm_shutdown();
 }
 
+/*
+	#include <cstdlib>
+	std::string output_path;
+	std::string cmdbuffer("llvm-link -o " + output_path + "-linked.buf.bc IntroRuntime.bc " + gerated_code_file);
+	std::system(cmdbuffer.c_str());
+	cmdbuffer="llc -O3 -o" + output_path +" "+ output_path + "-linked.buf.bc";
+	std::system(cmdbuffer.c_str());
+*/
+
 void cleanupSourceFiles();
 
 llvm::cl::opt<std::string> Script(llvm::cl::Positional, llvm::cl::desc("<input script>"), llvm::cl::init("-"));
@@ -108,12 +117,14 @@ int main(int argc, char *argv[])
 					for (auto iter = parser.parseResult.begin();isOK && iter != parser.parseResult.end();iter++)
 					{
 						isOK = (*iter)->makeType(&global,logger);
+						/*
 						if (!isOK)
 						{
 							std::wcout << L"Error in line:\n";
 							(*iter)->print(std::wcout);
 							std::wcout << L"\n";
 						}
+						*/
 					}
 					if (isOK)
 						runStatements(parser.parseResult);

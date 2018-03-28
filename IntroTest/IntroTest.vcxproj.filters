@@ -66,6 +66,12 @@
     <ClCompile Include="..\Intro\CodeGenModule.cxx">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\Intro\Statement.cxx">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Intro\LibBasic.cxx">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Intro\CodeGen.h">
@@ -132,6 +138,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\Intro\CodeGenModule.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Intro\LibBasic.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Intro\ErrorLogger.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

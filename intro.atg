@@ -199,9 +199,9 @@ TOKENS
 	real = { digit  } '.' digit { digit  }.
 	//string = quote { notquote } quote.
 	string = '"' { stringChar
-         | '\\' ( 'b' | 't' | 'n' | 'f' | 'r' | '"' | '\'' | '\\' | '$'
-                | 'u'  hexDigit hexDigit hexDigit hexDigit
-                )
+        | '\\' [ 'b' | 't' | 'n' | 'f' | 'r' | '"' | '\'' | '\\' | '$'
+               | 'u'  hexDigit hexDigit hexDigit hexDigit
+               ]
          } 
     '"'.
 	assign = "<-".

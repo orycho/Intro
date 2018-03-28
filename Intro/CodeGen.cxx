@@ -695,7 +695,7 @@ namespace intro {
 	/// Generate code for operations that have one operator and return the input type (negation, splice, ...)
 	static Expression::cgvalue genTypeChoiceOps(llvm::IRBuilder<> &builder,CodeGenEnvironment *env,
 		Expression::cgvalue &input,intro::Type *inferred,
-		Application::cgcb_elem ops[],size_t op_count,bool ignoreResult=false,
+		Application::cgcb_elem ops[],size_t op_count,llvm::Type *returned_type=builtin_t,//bool ignoreResult=false,
 		Expression::cgvalue extrainput[]=nullptr,size_t extras_count=0)
 	{
 		std::vector<llvm::Value*> args{ input.first };
@@ -725,11 +725,11 @@ namespace intro {
 		builder.SetInsertPoint(postcase);
 		llvm::PHINode *result=nullptr;
 		llvm::PHINode *resultrtt=nullptr;
-		if (!ignoreResult)
+		if (returned_type!=nullptr)
 		{
-			result=builder.CreatePHI(builtin_t,op_count+1,"result");
+			result=builder.CreatePHI(returned_type,op_count+1,"result");
 			resultrtt=builder.CreatePHI(rttype_t,op_count+1,"resultrtt");
-			result->addIncoming(llvm::Constant::getNullValue(builtin_t),startblock);
+			result->addIncoming(llvm::Constant::getNullValue(returned_type),startblock);
 			resultrtt->addIncoming(llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext), rtt::Undefined,false),startblock);
 		}
 		for (size_t i=0;i<op_count;++i)
@@ -742,7 +742,7 @@ namespace intro {
 			llvm::Value *output=ops[i].callback(builder,args);
 			builder.CreateBr(postcase);
 			current=builder.GetInsertBlock();
-			if (!ignoreResult)
+			if (returned_type!=nullptr)
 			{
 				result->addIncoming(output,current);
 				resultrtt->addIncoming(rttval,current);
@@ -1543,7 +1543,7 @@ namespace intro {
 				rtt::String,
 				[](llvm::IRBuilder<> &builder,std::vector<llvm::Value*> &args){
 					llvm::Function *sizeF = TheModule->getFunction("sizeString");
-					llvm::Value *retval=builder.CreateCall(sizeF, args,"substr");
+					llvm::Value *retval=builder.CreateCall(sizeF, args,"sizestr");
 					return retval;
 				}
 			},
@@ -1551,7 +1551,7 @@ namespace intro {
 				rtt::List,
 				[](llvm::IRBuilder<> &builder,std::vector<llvm::Value*> &args){
 					llvm::Function *sizeF = TheModule->getFunction("sizeList");
-					llvm::Value *retval=builder.CreateCall(sizeF, args,"sublist");
+					llvm::Value *retval=builder.CreateCall(sizeF, args,"sizelist");
 					return retval;
 				}
 			}
@@ -1559,7 +1559,7 @@ namespace intro {
 		std::vector<llvm::Value*> args {
 			source.first
 		};
-		Expression::cgvalue length=genTypeChoiceOps(TmpB,env,source,pt,getlen,2);
+		Expression::cgvalue length=genTypeChoiceOps(TmpB,env,source,pt,getlen,2,integer_t);
 		Type tI(Type::Integer);
 		llvm::Value *lastval=TmpB.CreateSub(length.first,llvm::ConstantInt::get(integer_t, -1,true),"lastitem");
 		lastval = createBoxValue(TmpB, env, lastval, &tI);
@@ -1597,7 +1597,7 @@ namespace intro {
 				}
 			}
 		};
-		return genTypeChoiceOps(TmpB,env,source,pt,splice,2,false,extras,2);
+		return genTypeChoiceOps(TmpB,env,source,pt,splice,2,builtin_t,extras,2);
 	}
 
 	Expression::cgvalue Assignment::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
@@ -2410,7 +2410,7 @@ namespace intro {
 			//generator.first,
 			TmpB.CreateLoad(rawcontval.first, "src"),
 			TmpB.CreateLoad(rawcontval.second, "srcrtt"));
-		genTypeChoiceOps(TmpB,env,resetval,source_type,resetGen,4,true);
+		genTypeChoiceOps(TmpB,env,resetval,source_type,resetGen,4,nullptr);
 	}
 	
 	bool GeneratorStatement::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)

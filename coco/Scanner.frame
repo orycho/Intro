@@ -234,6 +234,7 @@ public:
 class Scanner {
 public:
 private:
+	bool fileLoaded;
 	void *firstHeap;
 	void *heap;
 	void *heapTop;
@@ -273,8 +274,7 @@ private:
 	void AddCh();
 -->commentsheader
 	Token* NextToken();
-
-	bool fileLoaded;
+	
 public:
 	Buffer *buffer;   // scanner buffer
 	
@@ -706,7 +706,13 @@ int UTF8Buffer::Read() {
 }
 
 Scanner::Scanner(const unsigned char* buf, size_t len) 
-	:  fileLoaded(true)
+	: fileLoaded(true)
+	, firstHeap(nullptr)
+	, heap(nullptr)
+	, heapTop(nullptr)
+	, heapEnd(nullptr)
+	, tval(nullptr)
+	, buffer(nullptr)
 {
 	buffer = new Buffer(buf, len);
 	Init();
@@ -714,6 +720,12 @@ Scanner::Scanner(const unsigned char* buf, size_t len)
 
 Scanner::Scanner(const wchar_t* fileName) 
 	:  fileLoaded(false)
+	, firstHeap(nullptr)
+	, heap(nullptr)
+	, heapTop(nullptr)
+	, heapEnd(nullptr)
+	, tval(nullptr)
+	, buffer(nullptr)
 {
 	FILE* stream;
 	char *chFileName = coco_string_create_char(fileName);
@@ -731,6 +743,12 @@ Scanner::Scanner(const wchar_t* fileName)
 // OCL: Added c'tor
 Scanner::Scanner(const char* fileName) 
 	:  fileLoaded(false)
+	, firstHeap(nullptr)
+	, heap(nullptr)
+	, heapTop(nullptr)
+	, heapEnd(nullptr)
+	, tval(nullptr)
+	, buffer(nullptr)
 {
 	FILE* stream;
 	if ((stream = fopen(fileName, "rb")) == NULL) {
@@ -745,6 +763,12 @@ Scanner::Scanner(const char* fileName)
 
 Scanner::Scanner(FILE* s) 
 	: fileLoaded(true)
+	, firstHeap(nullptr)
+	, heap(nullptr)
+	, heapTop(nullptr)
+	, heapEnd(nullptr)
+	, tval(nullptr)
+	, buffer(nullptr)
 {
 
 	buffer = new Buffer(s, true);

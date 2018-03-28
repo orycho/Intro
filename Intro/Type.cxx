@@ -543,11 +543,11 @@ bool Type::internalUnify(Type *other, bool specialize)
 	std::vector<Type*>::iterator iter;
 	std::vector<Type*>::iterator oit;
 	// First, check the type graph if a legal path actually exists
-	PartialOrder order = theGraph.findSupertype(this, other, currentMapping, excludeMapping);
+	PartialOrder order = theGraph.findSupertype(find(), other->find(), currentMapping, excludeMapping);
 
 	if (order == ERROR) return false;
-	Type *goal = this;
-	Type *source = other;
+	Type *goal = find();
+	Type *source = other->find();
 	if (order == LESS) std::swap(goal, source); // order indepenent code hereafter ;)
 
 	// Perform the actual unification by making one type the others parent,

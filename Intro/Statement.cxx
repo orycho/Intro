@@ -120,7 +120,7 @@ bool intro::SourceStatement::makeType(Environment *env, ErrorLocation *errors)
 		return false;
 	}
 	return true;
-};
+}
 
 extern std::unique_ptr<llvm::Module> TheModule;
 

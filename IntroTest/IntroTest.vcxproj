@@ -206,6 +206,7 @@
     <ClInclude Include="..\Intro\CodeGenEnvironment.h" />
     <ClInclude Include="..\Intro\CodeGenModule.h" />
     <ClInclude Include="..\Intro\Environment.h" />
+    <ClInclude Include="..\Intro\ErrorLogger.h" />
     <ClInclude Include="..\Intro\Expression.h" />
     <ClInclude Include="..\Intro\Generators.h" />
     <ClInclude Include="..\Intro\Intro.h" />
