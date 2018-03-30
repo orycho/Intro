@@ -146,7 +146,7 @@ bool intro::SourceStatement::codeGen(llvm::IRBuilder<>& TmpB, intro::CodeGenEnvi
 	for (eit = iter->second->cgenv->begin();eit != iter->second->cgenv->end();eit++)
 	{
 		//std::wcout << "Found import: " << eit->first << "!\n";
-		CodeGenEnvironment::iterator iter = env->importElement(eit->first, eit->second);
+		env->importElement(eit->first, eit->second);
 	}
 	return isOK;
 }

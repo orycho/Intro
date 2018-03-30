@@ -338,7 +338,7 @@ class TypeVariable : public Type
 protected:
 	virtual Type *internalCopy(TypeVariableMap &conv);
 public:
-	TypeVariable(std::wstring n)
+	TypeVariable(const std::wstring &n)
 		: Type(Type::Variable)
 		, name(n)
 		, top(Type::Top)
@@ -346,7 +346,7 @@ public:
 		super = &top;
 	};
 
-	TypeVariable(std::wstring n, Type *sup)
+	TypeVariable(const std::wstring &n, Type *sup)
 		: Type(Type::Variable)
 		, name(n+L"sup")
 		, top(Type::Top)
@@ -354,7 +354,7 @@ public:
 		super = sup;
 	};
 
-	TypeVariable(std::wstring n,Type *sup, TypeVariableMap &conv)
+	TypeVariable(const std::wstring &n,Type *sup, TypeVariableMap &conv)
 		: Type(Type::Variable)
 		, name(n+L"subst")
 		, top(Type::Top)

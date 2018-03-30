@@ -1045,7 +1045,6 @@ NonReturnStatement=
 //
 
 TypeVariable=
-	(. intro::TypeExpression *super=nullptr; .)
 	typevar 
 	(.
 		intro::TypeVariableExpression *var=new intro::TypeVariableExpression(t->line,t->col,t->val);
@@ -1054,7 +1053,7 @@ TypeVariable=
 		"<:"
 		NonVariableType
 		(.
-			super=types.top();
+			var->setSuper(types.top());
 			types.pop();
 		.)
 	]

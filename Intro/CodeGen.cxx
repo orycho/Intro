@@ -114,9 +114,10 @@ namespace intro {
 	/// Called by non-interactive mode to execute all statements
 	void runStatements(const std::list<intro::Statement*> &statements)
 	{
-		llvm::Function *root = intro::generateCode(statements);
+		//llvm::Function *root = 
+		intro::generateCode(statements);
 		//TheModule->dump();
-		auto H = TheJIT->addModule(std::move(TheModule));
+		TheJIT->addModule(std::move(TheModule));
 		auto ExprSymbol = TheJIT->findSymbol("rootfunc"); // name by agreement with codegen.cxx
 		void(*FP)() = (void(*)())(intptr_t)cantFail(ExprSymbol.getAddress());
 		FP();
@@ -143,7 +144,7 @@ namespace intro {
 		}
 		builder.CreateRetVoid();
 		llvm::verifyFunction(*func);
-		auto H = TheJIT->addModule(std::move(TheModule));
+		TheJIT->addModule(std::move(TheModule));
 		initModule();
 		env->addExternalsForGlobals();
 		//global.addExternalsForGlobals();
@@ -183,12 +184,6 @@ namespace intro {
 			GV->setAlignment(sizeof(wchar_t));
 			//global_strings.insert(make_pair(s,GV));
 		}
-		llvm::Type *string_t=llvm::ArrayType::get(llvm::Type::getInt16Ty(theContext),0);
-		llvm::Constant *zeros[]=
-		{
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext),0,false),
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext),0,false)
-		};
 		return ConstantExpr::getBitCast(GV, llvm::Type::getInt16Ty(theContext)->getPointerTo());
 		//return GV;
 	}
@@ -2503,7 +2498,7 @@ namespace intro {
 		for (eit = myself->begin();eit != myself->end();eit++)
 		{
 			//std::wcout << "Found import: " << eit->first << "!\n";
-			CodeGenEnvironment::iterator iter = env->importElement(eit->first, eit->second);
+			env->importElement(eit->first, eit->second);
 		}
 		return true;
 	}
@@ -2557,7 +2552,7 @@ namespace intro {
 				return false;
 			}
 			//std::wcout << "Found export: " << (*eit)->getName() << "!\n";
-			CodeGenEnvironment::iterator iter = myself->importElement(exportvalue->first, exportvalue->second);
+			myself->importElement(exportvalue->first, exportvalue->second);
 		}
 		return true;
 	}

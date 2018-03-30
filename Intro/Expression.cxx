@@ -615,13 +615,9 @@ namespace intro {
 
 	Type *Extraction::getCalledFunctionType(Environment *env, ErrorLocation *errors)
 	{
-		//Type *in=params.front()->getType(env)->find();
 		Type *ret=NULL;
 		std::list<Type*> pin;
-
 		dict=new Type(Type::Dictionary,Type::Readable|Type::Writable);
-		//Type *in=new Type(Type::Dictionary,Type::Readable|Type::Writable);
-		//Type *in=dict;
 		dict->addParameter(Environment::fresh(L"?key"));
 		dict->addParameter(Environment::fresh(L"?value"));
 		maybe.addTag(std::wstring(L"None"),&none);
@@ -638,10 +634,7 @@ namespace intro {
 	
 	Type *DictionaryErase::getCalledFunctionType(Environment *env, ErrorLocation *errors)
 	{
-		//Type *in=params.front()->getType(env)->find();
-		Type *ret=NULL;
 		std::list<Type*> pin;
-		// Our expected source type is a dictionary.
 		dict=new Type(Type::Dictionary,Type::Readable|Type::Writable);
 		dict->addParameter(Environment::fresh(L"?key"));
 		dict->addParameter(Environment::fresh(L"?value"));

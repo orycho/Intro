@@ -915,14 +915,13 @@ void Parser::Case() {
 }
 
 void Parser::TypeVariable() {
-		intro::TypeExpression *super=nullptr; 
 		Expect(_typevar);
 		intro::TypeVariableExpression *var=new intro::TypeVariableExpression(t->line,t->col,t->val);
 		
 		if (la->kind == 68 /* "<:" */) {
 			Get();
 			NonVariableType();
-			super=types.top();
+			var->setSuper(types.top());
 			types.pop();
 			
 		}
