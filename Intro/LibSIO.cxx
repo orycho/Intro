@@ -146,19 +146,21 @@ MKCLOSURE(sioSaveFile, sioSaveFile_)
 }
 #endif
 
-intro::Type unit_type(intro::Type::Unit);
-intro::Type top_type(intro::Type::Top);
-intro::Type string_type(intro::Type::String);
-intro::Type bool_type(intro::Type::Boolean);
-intro::VariantType maybe_string_type(&string_type);
-intro::FunctionType sioPrintType(&top_type, &unit_type);
-intro::FunctionType sioReadType(&string_type);
-intro::FunctionType sioLoadFileType(&string_type,&maybe_string_type);
-intro::FunctionType sioSaveFileType(&string_type, &top_type, &bool_type);
+namespace {
+	intro::Type unit_type(intro::Type::Unit);
+	intro::Type top_type(intro::Type::Top);
+	intro::Type string_type(intro::Type::String);
+	intro::Type bool_type(intro::Type::Boolean);
+	intro::VariantType maybe_string_type(&string_type);
+	intro::FunctionType sioPrintType(&top_type, &unit_type);
+	intro::FunctionType sioReadType(&string_type);
+	intro::FunctionType sioLoadFileType(&string_type, &maybe_string_type);
+	intro::FunctionType sioSaveFileType(&string_type, &top_type, &bool_type);
 
-REGISTER_MODULE(sio)
-	EXPORT(L"print", "sioPrint", &sioPrintType)
-	EXPORT(L"read", "sioRead", &sioReadType)
-	EXPORT(L"loadFile", "sioLoadFile", &sioLoadFileType)
-	EXPORT(L"saveFile", "sioSaveFile", &sioSaveFileType)
-CLOSE_MODULE
+	REGISTER_MODULE(sio)
+		EXPORT(L"print", "sioPrint", &sioPrintType)
+		EXPORT(L"read", "sioRead", &sioReadType)
+		EXPORT(L"loadFile", "sioLoadFile", &sioLoadFileType)
+		EXPORT(L"saveFile", "sioSaveFile", &sioSaveFileType)
+	CLOSE_MODULE
+}

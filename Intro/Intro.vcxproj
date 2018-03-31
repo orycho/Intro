@@ -220,6 +220,7 @@
     <ClInclude Include="CodeGenEnvironment.h" />
     <ClInclude Include="CodeGenModule.h" />
     <ClInclude Include="Environment.h" />
+    <ClInclude Include="ErrorLogger.h" />
     <ClInclude Include="Expression.h" />
     <ClInclude Include="Generators.h" />
     <ClInclude Include="Intro.h" />
