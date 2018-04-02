@@ -173,6 +173,7 @@ COMPILER Intro
 			logger->print(std::wcout,0);
 			delete stmt;
 		}
+		delete logger;
 	}
 	
 	void Init(void)
