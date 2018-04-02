@@ -22,10 +22,7 @@ namespace intro
 			return;
 		// Not found: already reference. Increment counter
 		llvm::Function *incr_op = TheModule->getFunction("increment");
-		std::vector<llvm::Value*> args{
-			builder.CreateLoad(address,"value"),
-			builder.CreateLoad(rtt,"type")
-		};
+		std::vector<llvm::Value*> args{	address,rtt	};
 		builder.CreateCall(incr_op, args);
 	}
 	
@@ -43,7 +40,7 @@ namespace intro
 	}
 	*/
 
-	void CodeGenEnvironment::decrementIntermediates(llvm::IRBuilder<> &builder)
+	void CodeGenEnvironment::decrementIntermediates(llvm::IRBuilder<> &builder,bool clear)
 	{
 		llvm::Function *decr_op = TheModule->getFunction("decrement");
 		llvm::Value* args[]={ nullptr,nullptr };
@@ -54,7 +51,30 @@ namespace intro
 			builder.CreateCall(decr_op, args);
 		}
 		// Now that we are done with the intermendiates, we can forget them
+		if (clear)
 		intermediates.clear();
+	}
+
+	void CodeGenEnvironment::closeScope(llvm::IRBuilder<> &builder)
+	{
+		llvm::Function *decr_op = TheModule->getFunction("decrement");
+		llvm::Value* args[] = { nullptr,nullptr };
+		for (auto item : elements)
+		{
+			if (item.second.isParameter) continue;
+			args[0] = builder.CreateLoad(item.second.address,"value");
+			args[1] = builder.CreateLoad(item.second.rtt,"type");
+			builder.CreateCall(decr_op, args);
+
+		}
+		//elements.clear(); // May delete multiple times in function, i.e. multiple return statements
+	}
+
+	void CodeGenEnvironment::closeAllScopes(llvm::IRBuilder<> &builder)
+	{
+		closeScope(builder);
+		if (parent != nullptr && scope_type != Closure && scope_type != Generator)
+			parent->closeAllScopes(builder);
 	}
 
 	bool CodeGenEnvironment::removeIntermediateOrIncrement(llvm::IRBuilder<> &builder, Type *type, llvm::Value *address, llvm::Value *rtt)

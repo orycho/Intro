@@ -1470,13 +1470,18 @@ namespace intro {
 		
 		if (returnsValue)
 		{
-			retval=TmpB.CreateCall(fun, ArgsV, "application");
-			returntype=TmpB.CreateLoad(returntypeptr,"retvalrtt");
+			retval = TmpB.CreateCall(fun, ArgsV, "application");
+			returntype = TmpB.CreateLoad(returntypeptr, "retvalrtt");
+			// Function return values are intermediate
+			if (isReferenced(getType()->getRTKind()))
+				env->addIntermediate(retval, returntype);
 		}
-		else TmpB.CreateCall(fun, ArgsV); 
+		else
+		{
+			TmpB.CreateCall(fun, ArgsV);
+			returntype = env->getRTT(intro::rtt::Undefined);
+		}
 		return std::make_pair(retval,returntype);
-		
-		//return std::make_pair(retval,returntype);
 	}
 
 	Expression::cgvalue Extraction::getWriteAddress(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env)
@@ -1939,7 +1944,8 @@ namespace intro {
 		TmpB.CreateStore(rhs.first, iter->second.address);
 		TmpB.CreateStore(rhs.second, iter->second.rtt);
 		// The value we just stored is not intermediate anymore!
-		env->removeIntermediateOrIncrement(TmpB, t->find(), iter->second.address, iter->second.rtt);
+		//env->removeIntermediateOrIncrement(TmpB, t->find(), iter->second.address, iter->second.rtt);
+		env->removeIntermediateOrIncrement(TmpB, t->find(), rhs.first, rhs.second);
 		env->decrementIntermediates(TmpB);
 		return true;
 	}
@@ -2100,10 +2106,9 @@ namespace intro {
 			input.first
 		};
 		llvm::Value *variant_tag=TmpB.CreateCall(getTagVariantF, args, "theTag");
-		env->decrementIntermediates(TmpB);
 		llvm::BasicBlock *postcase = nullptr;
 		llvm::SwitchInst *jumptable;
-		if (isRetLike) // Return oike statement, default to exit block
+		if (isRetLike) // Return like statement, default to exit block
 		{
 			jumptable=TmpB.CreateSwitch(variant_tag,env->getExitBlock()); 
 		}
@@ -2151,13 +2156,18 @@ namespace intro {
 			// The environment is set up, generate the body
 			(*iter)->body->codeGen(TmpB,&local);
 			// done, jump to end of case if we did not have a return statement in here
+			local.decrementIntermediates(TmpB);
+			local.closeScope(TmpB);
+			//env->decrementIntermediates(TmpB);
 			if (!isRetLike) TmpB.CreateBr(postcase);
+			else env->decrementIntermediates(TmpB,false);
 		}
 		// Create block after csae statement if needed
 		if (!isRetLike) 
 		{
 			TheFunction->getBasicBlockList().push_back(postcase);
 			TmpB.SetInsertPoint(postcase);
+			env->decrementIntermediates(TmpB);
 		}
 		return true;
 	}
@@ -2173,7 +2183,7 @@ namespace intro {
 			TmpB.CreateStore(result.first,v->second.address);
 			TmpB.CreateStore(result.second,v->second.rtt);
 			// The value we just stored is not intermediate anymore!
-			env->removeIntermediateOrIncrement(TmpB, expr->getType(), v->second.address, v->second.rtt);
+			env->removeIntermediateOrIncrement(TmpB, expr->getType(), result.first, result.second);
 		}
 		// Create cleanup from cgenv, jump to next cgenv.
 		// Needs pointer to it's function, which can then keep track of next cleanup block needed
@@ -2317,7 +2327,7 @@ namespace intro {
 		//llvm::BasicBlock *rawcontblock=TmpB.GetInsertBlock();
 		// All our possible input types
 		std::wstring genvar_name(getVariableName());
-		genvar_name += L"_variable";
+		genvar_name += L"_generator";
 		llvm::Function *ensureGenF = TheModule->getFunction("ensureGenerator");
 		llvm::Value *genargs[] = { rawcontval.first,rawcontval.second };
 		generator = makeRTValue(TmpB.CreateCall(ensureGenF, genargs, "thegen"), intro::rtt::Generator);

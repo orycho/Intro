@@ -777,7 +777,7 @@ bool stringLiteralsCodeGen(void)
 bool globalVariablesCodeGen(void)
 {
 	cout << "\n--- Global VariablesCode Generation:\n";
-	const char *test="var x<-42; var y<-x+51; var z<-x+2.58;";
+	const char *test="var x<-42; var y<-x+51; var z<-x+2;";
 	//parse::Parser parser=getParser(test);
 	cout << test << endl << endl;
 	parse::Scanner scanner((const unsigned char *)test, strlen(test));
@@ -1279,31 +1279,31 @@ bool typeTests(void)
 // Execute all code generation tests
 bool codeGenTests(void)
 {
-	//constantExpressionCodeGen();
-	//globalVariablesCodeGen();
-	//stringLiteralsCodeGen();
-	//stringInterpolationCodeGen();
-	//basicFunctionCodeGen();
-	//arithFunctionCodeGen();
-	//polyFunctionCodeGen();
-	//polyClosureCodeGen();
-	//recordCodeGen();
-	//variantCodeGen();
-	//basicCompareCodeGen();
-	//polyCompareCodeGen();
-	//basicListCodeGen();
-	//genListCodeGen();
-	//emptyGeneratorCodeGen();
-	//simpleGeneratorCodeGen();
-	//complexGeneratorCodeGen();
-	//elementCountCodeGen();
-	//conditionGeneratorCodeGen();
-	//retLikeCodeGen();
-	//variantsUseCodeGen();
+	constantExpressionCodeGen();
+	globalVariablesCodeGen();
+	stringLiteralsCodeGen();
+	stringInterpolationCodeGen();
+	basicFunctionCodeGen();
+	arithFunctionCodeGen();
+	polyFunctionCodeGen();
+	polyClosureCodeGen();
+	recordCodeGen();
+	variantCodeGen();
+	basicCompareCodeGen();
+	polyCompareCodeGen();
+	basicListCodeGen();
+	genListCodeGen();
+	emptyGeneratorCodeGen();
+	simpleGeneratorCodeGen();
+	complexGeneratorCodeGen();
+	elementCountCodeGen();
+	conditionGeneratorCodeGen();
+	retLikeCodeGen();
+	variantsUseCodeGen();
 	filterCodeGen();
-	//recursiveFunctionCodeGen();
+	recursiveFunctionCodeGen();
 	FlowControlCodeGen();
-	//moduleCodeGen();
+	moduleCodeGen();
 	
 	return true;
 }

@@ -169,10 +169,13 @@ public:
 	}
 	
 	bool removeIntermediateOrIncrement(llvm::IRBuilder<> &builder,Type *type,llvm::Value *address,llvm::Value *rtt);
-	void decrementIntermediates(llvm::IRBuilder<> &builder);
+	void decrementIntermediates(llvm::IRBuilder<> &builder, bool clear=true);
 
 	/// Used by interpreter to add elements of the global scope to mdoules for each line.
 	void addExternalsForGlobals(void);
+	void closeScope(llvm::IRBuilder<> &builder);
+	void closeAllScopes(llvm::IRBuilder<> &builder);
+	
 	/// 
 	//inline void setParent(CodeGenEnvironment *p) { parent=p; }
 

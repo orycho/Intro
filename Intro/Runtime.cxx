@@ -430,6 +430,17 @@ rtlist *allocList(std::uint64_t size,rtt_t type)
     return result;
 }
 
+rtlist *copyList(rtlist *list)
+{
+	rtlist *result = allocList(list->used, list->elem_type);
+	memcpy(result->data, list->data, list->used*sizeof(rtdata));
+	result->used = list->used;
+	// Update reference counts of all contained elements
+	if (isReferenced(list->elem_type)) for (std::uint64_t i = 0;i<result->used;++i)
+		increment(result->data[i], result->elem_type);
+	return result;
+}
+
 rtt_t getElemTypeList(rtlist *list)
 {
 	return list->elem_type;
@@ -520,6 +531,14 @@ rtstring *allocString(std::uint64_t size)
 	return result;
 }
 
+rtstring *copyString(rtstring *string)
+{
+	rtstring *result = allocString(string->used + 1);
+	memcpy(result->data, string->data, string->used * sizeof(wchar_t));
+	result->used = string->used;
+	result->data[result->used] = '\0'; // Allocated one more for this
+	return result;
+}
 
 void freeString(rtstring *str)
 {
@@ -695,25 +714,35 @@ void grow(rtdict *dict,std::uint64_t increase=1)
 	free(usedflag);
 }
 
-rtdict *allocDict(rtt_t key_type,rtt_t value_type)
+rtdict *allocDictSize(rtt_t key_type, rtt_t value_type, size_t size)
 {
-    rtdict *dict=(rtdict*)malloc(sizeof(rtdict));
+	rtdict *dict = (rtdict*)malloc(sizeof(rtdict));
 	initGC(&(dict->gc));
-	dict->key_type=key_type;
-	dict->value_type=value_type;
-	dict->usedcount=0;
-	dict->size_pow=8;
-	std::uint64_t capacity=getDictCapacity(dict->size_pow);
+	dict->key_type = key_type;
+	dict->value_type = value_type;
+	dict->usedcount = 0;
+	dict->size_pow = 8;
+	std::uint64_t capacity = getDictCapacity(dict->size_pow);
+	while (capacity < size)
+	{
+		dict->size_pow++;
+		capacity = getDictCapacity(dict->size_pow);
+	}
 	//wprintf(L"Allocating %ld slots.\n",capacity);
-	dict->hashes=(std::uint64_t*)malloc(sizeof(std::uint64_t)*capacity);
-	dict->keys=(rtdata*)malloc(sizeof(rtdata)*capacity);
-	dict->values=(rtdata*)malloc(sizeof(rtdata)*capacity);
-	dict->usedflag=(bool*)malloc(sizeof(bool)*capacity);
-	memset(dict->hashes,0,sizeof(std::uint64_t)*capacity);
-	memset(dict->values,0,sizeof(rtdata)*capacity);
-	memset(dict->keys,0,sizeof(rtdata)*capacity);
-	memset(dict->usedflag,0,sizeof(bool)*capacity);
+	dict->hashes = (std::uint64_t*)malloc(sizeof(std::uint64_t)*capacity);
+	dict->keys = (rtdata*)malloc(sizeof(rtdata)*capacity);
+	dict->values = (rtdata*)malloc(sizeof(rtdata)*capacity);
+	dict->usedflag = (bool*)malloc(sizeof(bool)*capacity);
+	memset(dict->hashes, 0, sizeof(std::uint64_t)*capacity);
+	memset(dict->values, 0, sizeof(rtdata)*capacity);
+	memset(dict->keys, 0, sizeof(rtdata)*capacity);
+	memset(dict->usedflag, 0, sizeof(bool)*capacity);
 	return dict;
+}
+
+rtdict *allocDict(rtt_t key_type, rtt_t value_type)
+{
+	return allocDictSize(key_type, value_type, 8);
 }
 
 rtt_t getKeyTypeDict(rtdict *dict)
@@ -760,10 +789,9 @@ void resizeDict(rtdict *dict,rtt_t type,std::uint64_t newsize)
 	//uint64_t capacity=getDictCapacity(dict->size_pow);
 }
 
-rtdata *getCreateSlotDict(rtdict *dict,rtdata key)
+rtdata *getCreateSlotDictHash(rtdict *dict,rtdata key, std::uint64_t hash)
 {
 	std::uint64_t capacity=getDictCapacity(dict->size_pow);
-	std::uint64_t hash=hashPoly(key,dict->key_type);
 	size_t slot=findSlot(dict,hash,key);
 	if (slot>=capacity)
 	{
@@ -781,12 +809,38 @@ rtdata *getCreateSlotDict(rtdict *dict,rtdata key)
 	} 
 	return &dict->values[slot];
 }
+
+rtdata *getCreateSlotDict(rtdict *dict, rtdata key)
+{
+	std::uint64_t hash = hashPoly(key, dict->key_type);
+	return getCreateSlotDictHash(dict, key, hash);
+}
+
 void insertDict(rtdict *dict,rtdata key,rtdata value)
 {
 	rtdata *slot=getCreateSlotDict(dict,key);
 	slot->ptr=value.ptr;
 	increment(*slot,dict->value_type);
 	return;
+}
+
+void insertDictHash(rtdict *dict, rtdata key, rtdata value, std::uint64_t hash)
+{
+	rtdata *slot = getCreateSlotDictHash(dict, key, hash);
+	slot->ptr = value.ptr;
+	increment(*slot, dict->value_type);
+	return;
+}
+
+rtdict *copyDict(rtdict *dict)
+{
+	rtdict *result = allocDictSize(dict->key_type, dict->value_type, dict->usedcount);
+	std::uint64_t capacity = getDictCapacity(result->size_pow);
+	for (std::uint64_t i = 0;i < capacity;++i)
+		if (dict->usedflag[i])
+			insertDictHash(result, dict->keys[i], dict->values[i], dict->hashes[i]);
+	result->usedcount = dict->usedcount;
+	return result;
 }
 
 rtdata findDict(rtdict *dict,rtdata key)
@@ -884,6 +938,9 @@ void setInnerRecord(innerrecord *ir,std::int32_t *offsets,const wchar_t **labels
 
 void freeInnerrecord(innerrecord *ir)
 {
+	// TODO: decrement label values!
+	for (size_t i=0;i<ir->size;++i)
+		decrement(ir->fields[i], ir->fieldrtt[i]);
 	free(ir->fields);
 	free(ir->fieldrtt);
 }
@@ -895,6 +952,18 @@ rtrecord *allocRecord(std::int32_t *offsets,const wchar_t **labels,std::uint32_t
 	initGC(&(record->gc));
 	setInnerRecord(&(record->r),offsets,labels,fieldcount);
 	return record;
+}
+
+rtrecord *copyRecord(rtrecord *record)
+{
+	rtrecord *result = allocRecord(record->r.offsets, record->r.labels, record->r.size);
+	for (size_t i = 0;i < record->r.size;++i)
+	{
+		result->r.fields[i] = record->r.fields[i];
+		result->r.fieldrtt[i] = record->r.fieldrtt[i];
+		increment(result->r.fields[i], result->r.fieldrtt[i]);
+	}
+	return result;
 }
 
 void freeRecord(rtrecord *record)
@@ -936,6 +1005,18 @@ rtvariant *allocVariant(std::int32_t *offsets,const wchar_t **labels, std::uint6
 	return variant;
 }
 
+rtvariant *copyVariant(rtvariant *variant)
+{
+	rtvariant *result = allocVariant(variant->r.offsets, variant->r.labels, variant->tag, variant->r.size);
+	for (size_t i = 0;i < variant->r.size;++i)
+	{
+		result->r.fields[i] = variant->r.fields[i];
+		result->r.fieldrtt[i] = variant->r.fieldrtt[i];
+		increment(result->r.fields[i], result->r.fieldrtt[i]);
+	}
+	return result;
+}
+
 void freeVariant(rtvariant *variant)
 {
 	freeInnerrecord(&(variant->r));
@@ -974,6 +1055,20 @@ rtclosure *allocClosure(std::uint32_t freevarcount)
 	initGC(&(closure->gc));
 	closure->size=(std::uint64_t)freevarcount;
 	return closure;
+}
+
+rtclosure *copyClosure(rtclosure *closure)
+{
+	rtclosure *result = allocClosure((std::uint32_t)closure->size);
+	result->code = closure->code;
+	for (size_t i = 0;i < result->size;++i)
+	{
+		rtclosure_field &field = result->fields[i];
+		field.field = closure->fields[i].field;
+		field.type = closure->fields[i].type;
+		increment(field.field, field.type);
+	}
+	return result;
 }
 
 void freeClosure(rtclosure *closure)
@@ -1055,6 +1150,12 @@ bool stringGenerator(rtgenerator *gen)
 			return true;
 		}
 		case 2:
+			if (gen->retvalrtt != intro::rtt::Undefined)
+			{
+				decrement(gen->retval, gen->retvalrtt);
+				gen->retval.ptr = nullptr;
+				gen->retvalrtt = intro::rtt::Undefined;
+			}
 			return false;
 	}
 	return true;
@@ -1104,59 +1205,98 @@ bool dictGenerator(rtgenerator *gen)
 	return true;
 }
 
-rtgenerator *allocGenerator(std::uint32_t varcount,genbody code)
+rtgenerator *allocGenerator(std::uint32_t closurecount, std::uint32_t varcount, genbody code)
 {
-	rtgenerator *result=(rtgenerator*)malloc(offsetof(rtgenerator, fields[varcount]));
+	rtgenerator *result = (rtgenerator*)malloc(offsetof(rtgenerator, fields[closurecount + varcount]));
 	initGC(&(result->gc));
-	result->code=code;
-	result->state=0;
-	result->size=varcount;
-	result->retvalrtt=Undefined;
-	result->retval.ptr=nullptr;
+	result->code = code;
+	result->state = 0;
+	result->closurecount = closurecount;
+	result->varcount = varcount;
+	result->retvalrtt = Undefined;
+	result->retval.ptr = nullptr;
+	if (result->varcount > 0)
+		memset(&(result->fields[result->closurecount]), 0, result->varcount * sizeof(rtclosure_field));
+	return result;
+}
+
+rtgenerator *copyGenerator(rtgenerator *gen)
+{
+	rtgenerator *result = allocGenerator((std::uint32_t)gen->closurecount, (std::uint32_t)gen->varcount, gen->code);
+	for (size_t i = 0;i < gen->closurecount;++i)
+	{
+		rtclosure_field &field = result->fields[i];
+		field.field = gen->fields[i].field;
+		field.type = gen->fields[i].type;
+		increment(field.field, field.type);
+	}
+	if (result->varcount > 0)
+		memset(&(result->fields[result->closurecount]), 0, result->varcount * sizeof(rtclosure_field));
 	return result;
 }
 
 rtgenerator *allocListGenerator(rtlist *list)
 {
-	rtgenerator *result=allocGenerator(2,listGenerator);
-	result->fields[0].field.ptr=(gcdata*)list;
-	result->fields[1].field.integer=0;
-	result->fields[0].type=intro::rtt::List;
-	result->fields[1].type=intro::rtt::Integer;
+	rtgenerator *result = allocGenerator(0, 2, listGenerator);
+	result->fields[0].field.ptr = (gcdata*)list;
+	result->fields[1].field.integer = 0;
+	result->fields[0].type = intro::rtt::List;
+	result->fields[1].type = intro::rtt::Integer;
 	result->retvalrtt = Undefined;
 	result->retval.ptr = nullptr;
-	increment(result->fields[0].field,intro::rtt::List);
+	increment(result->fields[0].field, intro::rtt::List);
 	return result;
 }
 
 rtgenerator *allocStringGenerator(rtstring *str)
 {
-	rtgenerator *result=allocGenerator(2,stringGenerator);
-	result->fields[0].field.ptr=(gcdata*)str;
-	result->fields[1].field.integer=0;
-	result->fields[0].type=intro::rtt::String;
-	result->fields[1].type=intro::rtt::Integer;
+	rtgenerator *result = allocGenerator(0, 2, stringGenerator);
+	result->fields[0].field.ptr = (gcdata*)str;
+	result->fields[1].field.integer = 0;
+	result->fields[0].type = intro::rtt::String;
+	result->fields[1].type = intro::rtt::Integer;
 	result->retvalrtt = Undefined;
 	result->retval.ptr = nullptr;
-	increment(result->fields[0].field,intro::rtt::String);
+	increment(result->fields[0].field, intro::rtt::String);
 	return result;
 }
 
 rtgenerator *allocDictGenerator(rtdict *dict)
 {
-	rtgenerator *result=allocGenerator(3,dictGenerator);
-	result->fields[0].field.ptr=(gcdata*)dict;
-	result->fields[1].field.integer=0;
-	result->fields[2].field.integer=0;
-	result->fields[0].type=intro::rtt::Dictionary;
-	result->fields[1].type=intro::rtt::Integer;
-	result->fields[2].type=intro::rtt::Integer;
+	rtgenerator *result = allocGenerator(0, 3, dictGenerator);
+	result->fields[0].field.ptr = (gcdata*)dict;
+	result->fields[1].field.integer = 0;
+	result->fields[2].field.integer = 0;
+	result->fields[0].type = intro::rtt::Dictionary;
+	result->fields[1].type = intro::rtt::Integer;
+	result->fields[2].type = intro::rtt::Integer;
 	result->retvalrtt = Undefined;
 	result->retval.ptr = nullptr;
 	rtdata buf;
-	buf.ptr=(gcdata*)dict;
-	increment(buf,Dictionary);
+	buf.ptr = (gcdata*)dict;
+	increment(buf, Dictionary);
 	return result;
+}
+
+rtdata ensureGenerator(rtdata data, rtt_t type)
+{
+	rtdata retval;
+	switch (type)
+	{
+	case intro::rtt::List:
+		retval.ptr = (gcdata*)allocListGenerator((rtlist*)data.ptr);
+		break;
+	case intro::rtt::Dictionary:
+		retval.ptr = (gcdata*)allocDictGenerator((rtdict*)data.ptr);
+		break;
+	case intro::rtt::String:
+		retval.ptr = (gcdata*)allocStringGenerator((rtstring*)data.ptr);
+		break;
+	case intro::rtt::Generator:
+		retval.ptr = (gcdata*)copyGenerator((rtgenerator*)data.ptr);
+		break;
+	}
+	return retval;
 }
 
 bool callGenerator(rtgenerator *gen)
@@ -1193,7 +1333,8 @@ void freeGenerator(rtgenerator *gen)
 {
 	if (gen->retvalrtt!=Undefined)
 		decrement(gen->retval,gen->retvalrtt);
-	for (size_t i=0;i<gen->size;++i)
+	size_t size = gen->closurecount + gen->varcount;
+	for (size_t i=0;i<size;++i)
 		decrement(gen->fields[i].field,gen->fields[i].type);
 	free(gen);
 }
@@ -1287,8 +1428,9 @@ void iterateChildren(gcdata *ptr,rtt_t type,rtoper op)
 			rtgenerator *gen=(rtgenerator*)ptr;
 			if (gen->retvalrtt!=Undefined)
 				op(gen->retval.ptr,gen->retvalrtt);
-			if (gen->size==0) return; // empty closure, nothing to do
-			for (size_t i=0;i<gen->size;++i)
+			size_t size = gen->closurecount + gen->varcount;
+			if (size==0) return; // empty closure, nothing to do
+			for (size_t i=0;i<size;++i)
 			{
 				op(gen->fields[i].field.ptr,gen->fields[i].type);
 			}
