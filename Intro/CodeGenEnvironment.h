@@ -2,6 +2,7 @@
 #define CODE_GENERATION_ENVIRONMENT
 
 #include <map>
+#include <unordered_map>
 #include <string>
 #include "Intro.h"
 #include "Type.h"
@@ -64,7 +65,7 @@ public:
 		{
 		};
 	};
-	typedef std::map<std::wstring,element>::iterator iterator;
+	typedef std::unordered_map<std::wstring,element>::iterator iterator;
 	
 private:
 	CodeGenEnvironment *parent;
@@ -77,7 +78,7 @@ private:
 	// Scope type, important are mostly Global, CLosure and Generator. All else is vanlla Local
 	ScopeType scope_type;
 	/// Variables declared in this scope, also with parameters.
-	std::map<std::wstring,element> elements;
+	std::unordered_map<std::wstring,element> elements;
 	/// State based dispatch to entry points for yield statements
 	llvm::SwitchInst *generatorStateDispatch;
 	/// Generators get their variables allocated from the closure
@@ -112,6 +113,31 @@ private:
 	/// Closure vars are special, as the address of value and it's rtt come from function parameters.
 	/// The are dereferenced when the closure itself is released.
 	void setClosure(llvm::IRBuilder<> &builder,llvm::Value *closure, llvm::StructType *myclosure_t,const std::vector<std::wstring> &freeVars);
+	
+	/// Set of intermediates, mapping the address of the value to the rtt of the value
+	/**
+		- not intermidates: values beonging to value types
+		Intermediates are
+		- Expressions creating new reference types (string, list, record, etc., splice, fun)
+		- Results of function applications, unless known value types.
+		- But is that really so? What about the identity function, which does not change intermediateness
+		  (intermediate input is intermediate output, e.g. 'id("Hello");'
+		  Idea: return statement also performs removeIntermediateOrIncrement, then the
+		  passed value is returned with a count of 2 as it is not intermediate in the function.
+		  Then, we can safely decrement the value passed and the value returned (if it is still intermediate).
+		
+		values stop being intermediate once they are assigned to a variable, label or are placed in a container.
+		When known in advance that a value will stpo being intermediate (e.g. list "constant" expression)
+		then the value can be not made intermediate.
+		
+		Whenever a CGEnv is about to go out of scope, the cleanup function (which generates calls
+		to the runtime decrement function) should be called. It needs an up-to-date IRBuilder object,
+		so is tricky to do in the destructor. Furthermore, some statements, like if-then-else,
+		may have several sub-expressions that are independent of each other, and which are not usable 
+		by the blocks inside the statement. So the if statement may cleanup intermediates several times.
+	*/
+	std::unordered_map<llvm::Value*,llvm::Value*> intermediates;
+	typedef std::unordered_map<llvm::Value*,llvm::Value*>::iterator im_iter;
 public:
 
 	CodeGenEnvironment(CodeGenEnvironment *parent_,ScopeType st=LocalScope) 
@@ -136,6 +162,14 @@ public:
 		if (parent == nullptr) return nullptr;
 		return parent->getCurrentModule();
 	}
+	
+	void addIntermediate(llvm::Value *address,llvm::Value *rtt)
+	{
+		intermediates.insert(std::make_pair(address,rtt));
+	}
+	
+	bool removeIntermediateOrIncrement(llvm::IRBuilder<> &builder,Type *type,llvm::Value *address,llvm::Value *rtt);
+	void decrementIntermediates(llvm::IRBuilder<> &builder);
 
 	/// Used by interpreter to add elements of the global scope to mdoules for each line.
 	void addExternalsForGlobals(void);

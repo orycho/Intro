@@ -69,7 +69,11 @@ rtdata seqAppendTo_(rtclosure *closure, rtt_t *retvalrtt, rtdata destseq, rtt_t 
 	}
 	else
 	{
-		appendList((rtlist*)destseq.ptr, data);
+		rtlist *list=(rtlist*)destseq.ptr;
+		// In case of empty list make sure element type is set
+		if (getElemTypeList(list)==intro::rtt::Undefined)
+			setElemTypeList(list,datartt);
+		appendList(list, data);
 	}
 	*retvalrtt = destseqrtt;
 	return destseq;

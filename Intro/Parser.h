@@ -225,6 +225,7 @@ std::vector<intro::Expression*> exprstack;
 			logger->print(std::wcout,0);
 			delete stmt;
 		}
+		delete logger;
 	}
 	
 	void Init(void)

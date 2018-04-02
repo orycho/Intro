@@ -91,6 +91,7 @@ namespace intro
 	{
 		// GCData=0,
 		GeneratorFunction=1,
+		GeneratorClosureCount,
 		GeneratorFieldCount,
 		GeneratorRetVal,
 		GeneratorRetValType,

@@ -230,7 +230,8 @@ namespace intro {
 		llvm::Type *vGenerator[] = {
 			integer_t,	// GC
 			genfunc_t->getPointerTo(),	// generators have a fixed type? But is it legal?
-			integer_t,	// number of fields?!
+			integer_t,	// number of closure values
+			integer_t,	// number of variables
 			builtin_t,	// result value
 			rttype_t, 	// result rtt
 			integer_t,	// state
@@ -279,6 +280,7 @@ namespace intro {
 		llvm::Type *v_ols[]={int32_t->getPointerTo(),charptr_t->getPointerTo(),int32_t};
 		llvm::Type *v_olis[]={int32_t->getPointerTo(),charptr_t->getPointerTo(),integer_t,int32_t};		
 		llvm::Type *v_sg[] = { int32_t, genfunc_t->getPointerTo() };
+		llvm::Type *v_ssg[] = { int32_t, int32_t, genfunc_t->getPointerTo() };
 		// Import runtime ,library functions into llvm Module - constant array data driven ;)
 		/* The ReadOnly function attribute states that "A readonly function always returns 
 		   the same value (or unwinds an exception identically) when called with the same 
@@ -337,10 +339,11 @@ namespace intro {
 			// closure intrinsics
 			{ "allocClosure",		llvm::FunctionType::get(builtin_t,	v_i32,	false) },
 			// Generator Intrinsics
-			{ "allocGenerator",		llvm::FunctionType::get(builtin_t,	v_sg,	false) },
+			{ "allocGenerator",		llvm::FunctionType::get(builtin_t,	v_ssg,	false) },
 			{ "allocListGenerator",	llvm::FunctionType::get(builtin_t,	v_u,	false) },
 			{ "allocStringGenerator", llvm::FunctionType::get(builtin_t,	v_u,	false) },
 			{ "allocDictGenerator", llvm::FunctionType::get(builtin_t,	v_u,	false) },
+			{ "ensureGenerator",	llvm::FunctionType::get(builtin_t,	v_ut,	false) },
 			{ "callGenerator",		llvm::FunctionType::get(boolean_t,	v_u,	false) } ,
 			{ "getResultGenerator",	llvm::FunctionType::get(builtin_t,	v_u,	false) },
 			{ "getResultTypeGenerator",	llvm::FunctionType::get(rttype_t,	v_u,	false) },
@@ -757,6 +760,7 @@ namespace intro {
 	{
 		llvm::Value *constant=llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), value,true);
 		constant=createBoxValue(TmpB,env,constant,getType());
+		// Value type need not be made intermediate
 		return makeRTValue(constant,rtt::Integer);
 	}
 
@@ -764,6 +768,7 @@ namespace intro {
 	{
 		llvm::Value *constant=llvm::ConstantInt::get(llvm::Type::getInt1Ty(theContext), value,false);
 		constant=createBoxValue(TmpB,env,constant,getType());
+		// Value type need not be made intermediate
 		return makeRTValue(constant,rtt::Boolean);
 	}
 
@@ -771,6 +776,7 @@ namespace intro {
 	{
 		llvm::Value *constant=llvm::ConstantFP::get(theContext, llvm::APFloat(value));
 		constant=createBoxValue(TmpB,env,constant,getType());
+		// Value type need not be made intermediate
 		return makeRTValue(constant,rtt::Real);
 	}
 
@@ -838,7 +844,9 @@ namespace intro {
 			}
 		}
 		//return retval;
-		return makeRTValue(retval,rtt::String);
+		Expression::cgvalue cgv= makeRTValue(retval, rtt::String);
+		env->addIntermediate(cgv.first, cgv.second);
+		return cgv;
 	}
 
 	Expression::cgvalue ListConstant::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
@@ -885,7 +893,9 @@ namespace intro {
 			});
 			generators->codeGen(TmpB,env);
 		}
-		return makeRTValue(retval,rtt::List);
+		Expression::cgvalue cgv = makeRTValue(retval,rtt::List);
+		env->addIntermediate(cgv.first, cgv.second);
+		return cgv;
 	}
 
 	Expression::cgvalue DictionaryConstant::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
@@ -944,7 +954,9 @@ namespace intro {
 			});
 			generators->codeGen(TmpB,env);
 		}
-		return makeRTValue(retval,rtt::Dictionary);
+		Expression::cgvalue cgv = makeRTValue(retval,rtt::Dictionary);
+		env->addIntermediate(cgv.first, cgv.second);
+		return cgv;
 	}
 	
 	/// (Use after type inference) Generate the address that can be written to, if this expression is writable;
@@ -952,6 +964,7 @@ namespace intro {
 	{
 		// Find address for relative and absolute paths, too
 		CodeGenEnvironment::iterator iter=env->find(name);
+		// Variables are by defition not intermediate
 		return std::make_pair(iter->second.address,iter->second.rtt);
 	}
 	
@@ -1086,7 +1099,9 @@ namespace intro {
 			TmpB.CreateCall(setFieldRecordF, args);
 		}
 		delete [] offsets;
-		return makeRTValue(record,rtt::Record);
+		Expression::cgvalue cgv = makeRTValue(record,rtt::Record);
+		env->addIntermediate(cgv.first, cgv.second);
+		return cgv;
 	}
 
 
@@ -1139,7 +1154,9 @@ namespace intro {
 			TmpB.CreateCall(setFieldVariantF, args);
 		}
 		delete [] offsets;
-		return makeRTValue(variant,rtt::Variant);
+		Expression::cgvalue cgv = makeRTValue(variant,rtt::Variant);
+		env->addIntermediate(cgv.first, cgv.second);
+		return cgv;
 	}
 
 	Expression::cgvalue RecordAccess::getWriteAddress(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env)
@@ -1281,7 +1298,9 @@ namespace intro {
 		
 		// WRite free variables into closure, then done
 		populateClosure(TmpB,env,closure_t,cast_closure, free);
-		return makeRTValue(closure,rtt::Function);
+		Expression::cgvalue cgv = makeRTValue(closure,rtt::Function);
+		env->addIntermediate(cgv.first, cgv.second);
+		return cgv;
 	}
 
 	/// internal helper function to convert an Intro Function Type to an LLVM Function Type
@@ -1338,9 +1357,11 @@ namespace intro {
 		// Always return false if we know not what to to with an iteration function.
 		builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt1Ty(theContext), 0,false));
 		llvm::verifyFunction(*GF);
-		
+		std::uint32_t closurecount = free.size(); // Number of variables captured in closure
+		std::uint32_t varcount = local.getClosureSize()-closurecount; // number of generator variables captured after closure values.
 		std::vector<llvm::Value*> ArgsAlloc {
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), local.getClosureSize(),false),
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), closurecount,false),
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), varcount,false),
 			GF
 		};
 		llvm::Value *generator=closure_builder.CreateCall(TheModule->getFunction("allocGenerator"), ArgsAlloc, "generator" );
@@ -1499,7 +1520,9 @@ namespace intro {
 			key.first
 		};
 		llvm::Value *retval=TmpB.CreateCall(findDictF, args, "dict_value");
-		return makeRTValue(retval,rtt::Variant);
+		Expression::cgvalue cgv = makeRTValue(retval, rtt::Variant);
+		env->addIntermediate(cgv.first, cgv.second);
+		return cgv;
 	}
 	
 	Expression::cgvalue DictionaryErase::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
@@ -1592,7 +1615,9 @@ namespace intro {
 				}
 			}
 		};
-		return genTypeChoiceOps(TmpB,env,source,pt,splice,2,builtin_t,extras,2);
+		Expression::cgvalue cgv = genTypeChoiceOps(TmpB,env,source,pt,splice,2,builtin_t,extras,2);
+		env->addIntermediate(cgv.first, cgv.second);
+		return cgv;
 	}
 
 	Expression::cgvalue Assignment::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
@@ -1886,6 +1911,7 @@ namespace intro {
 			subF = TheModule->getFunction("decrement");
 			TmpB.CreateCall(subF, argsDecr);
 		}
+		env->decrementIntermediates(TmpB);
 		return true;
 	}
 
@@ -1912,6 +1938,9 @@ namespace intro {
 		if (iter == env->end()) return false;
 		TmpB.CreateStore(rhs.first, iter->second.address);
 		TmpB.CreateStore(rhs.second, iter->second.rtt);
+		// The value we just stored is not intermediate anymore!
+		env->removeIntermediateOrIncrement(TmpB, t->find(), iter->second.address, iter->second.rtt);
+		env->decrementIntermediates(TmpB);
 		return true;
 	}
 
@@ -1949,6 +1978,7 @@ namespace intro {
 			TmpB.SetInsertPoint(alternatives[i]);
 			Expression::cgvalue condition=iter->first->codeGen(TmpB,env);
 			llvm::Value *condval=createUnboxValue(TmpB,env,condition.first,&TBoolean);
+			env->decrementIntermediates(TmpB);
 			// Body block and conditional branch
 			llvm::BasicBlock *block=BasicBlock::Create(theContext, "if_body");
 			TmpB.CreateCondBr(condval, block, alternatives[i+1]);
@@ -2027,6 +2057,7 @@ namespace intro {
 		Expression::cgvalue cond=condition->codeGen(TmpB,env);	
 		intro::Type TBoolean(intro::Type::Boolean);
 		cond.first=createUnboxValue(TmpB,env,cond.first,&TBoolean);
+		env->decrementIntermediates(TmpB);
 		TmpB.CreateCondBr(cond.first,loopbody ,after); // go to returning NULL if the element is NULL
 		// The loop body comes next in it's block
 		TmpB.SetInsertPoint(loopbody );
@@ -2069,6 +2100,7 @@ namespace intro {
 			input.first
 		};
 		llvm::Value *variant_tag=TmpB.CreateCall(getTagVariantF, args, "theTag");
+		env->decrementIntermediates(TmpB);
 		llvm::BasicBlock *postcase = nullptr;
 		llvm::SwitchInst *jumptable;
 		if (isRetLike) // Return oike statement, default to exit block
@@ -2140,6 +2172,8 @@ namespace intro {
 			Expression::cgvalue result=expr->codeGen(TmpB,env);
 			TmpB.CreateStore(result.first,v->second.address);
 			TmpB.CreateStore(result.second,v->second.rtt);
+			// The value we just stored is not intermediate anymore!
+			env->removeIntermediateOrIncrement(TmpB, expr->getType(), v->second.address, v->second.rtt);
 		}
 		// Create cleanup from cgenv, jump to next cgenv.
 		// Needs pointer to it's function, which can then keep track of next cleanup block needed
@@ -2166,6 +2200,7 @@ namespace intro {
 		{
 			Expression::cgvalue result=expr->codeGen(TmpB,env);
 			std::vector<llvm::Value*> argsRet{ generator, result.first, result.second };
+			// Meditate about reference counting here
 			TmpB.CreateCall(setResultF, argsRet);
 			llvm::ConstantInt *nextStateVal=llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), nextStateId,false);
 			std::vector<llvm::Value*> argsNextState{ generator, nextStateVal };
@@ -2281,48 +2316,11 @@ namespace intro {
 		rawcontval=container->codeGen(TmpB,env);
 		//llvm::BasicBlock *rawcontblock=TmpB.GetInsertBlock();
 		// All our possible input types
-		static Application::cgcb_elem toGenerator[] =
-		{
-			{
-				rtt::List,
-				[](llvm::IRBuilder<> &builder,std::vector<llvm::Value*> &args){
-					llvm::Function *subF = TheModule->getFunction("allocListGenerator");
-					llvm::Value *retval=builder.CreateCall(subF, args,"listgen");
-					return retval;
-				}
-			},
-			{
-				rtt::String,
-				[](llvm::IRBuilder<> &builder,std::vector<llvm::Value*> &args){
-					llvm::Function *subF = TheModule->getFunction("allocStringGenerator");
-					llvm::Value *retval=builder.CreateCall(subF, args,"strgen");
-					return retval;
-				}
-			},
-			{
-				rtt::Dictionary,
-				[](llvm::IRBuilder<> &builder,std::vector<llvm::Value*> &args){
-					llvm::Function *subF = TheModule->getFunction("allocDictGenerator");
-					llvm::Value *retval=builder.CreateCall(subF, args,"dictgen");
-					return retval;
-				}
-			},
-			{
-				rtt::Generator,
-				[](llvm::IRBuilder<> &builder,std::vector<llvm::Value*> &args){
-					// reset generator by setting state to 0
-					// Also, prevent being deleted, as it is not allocated...
-					// pass env internally to other callbacks?
-					// needs changing cg_callback typedef to std::Function based... no big deal?!
-					//return builder.CreateBitCast(args.front(),builtin_t,"noopforphi");
-					return args.front();
-				}
-			}
-		};
-		// put generator in variable
 		std::wstring genvar_name(getVariableName());
-		genvar_name+=L"_variable";
-		generator=genTypeChoiceOps(TmpB,env,rawcontval,source_type,toGenerator,4);
+		genvar_name += L"_variable";
+		llvm::Function *ensureGenF = TheModule->getFunction("ensureGenerator");
+		llvm::Value *genargs[] = { rawcontval.first,rawcontval.second };
+		generator = makeRTValue(TmpB.CreateCall(ensureGenF, genargs, "thegen"), intro::rtt::Generator);
 		CodeGenEnvironment::iterator gen_ptr=env->createVariable(genvar_name);
 		TmpB.CreateStore(generator.first,gen_ptr->second.address);
 		TmpB.CreateStore(generator.second,gen_ptr->second.rtt);
@@ -2364,48 +2362,16 @@ namespace intro {
 		llvm::Function *TheFunction = env->currentFunction();
 		TmpB.SetInsertPoint(exit);
 		TheFunction->getBasicBlockList().push_back(exit);
-		auto callDecrement = [](llvm::IRBuilder<> &builder,std::vector<llvm::Value*> &args){
-			llvm::Function *subF = TheModule->getFunction("decrement");
-			llvm::Value *myArgs[] = {
-				args[0],
-				llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext), rtt::Generator,false)
-			};
-			builder.CreateCall(subF, myArgs);
-			return llvm::Constant::getNullValue(builtin_t);
-		};
-		static Application::cgcb_elem resetGen[] =
-		{
-			{
-				rtt::List,
-				callDecrement
-			},
-			{
-				rtt::String,
-				callDecrement
-			},
-			{
-				rtt::Dictionary,
-				callDecrement
-			},
-			{
-				rtt::Generator,
-				[](llvm::IRBuilder<> &builder,std::vector<llvm::Value*> &args){
-					llvm::Function *subF = TheModule->getFunction("setStateGenerator");
-					llvm::Value *myVals[] = {
-						args[0],
-						llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), 0,false)
-					};
-					builder.CreateCall(subF, myVals);
-					return llvm::Constant::getNullValue(builtin_t);
-				}
-			}
-		};
-		// reset the generator according to the original rtt and type
-		Expression::cgvalue resetval = make_pair(
-			//generator.first,
+		llvm::Function *subF = TheModule->getFunction("decrement");
+		//llvm::Value *myArgs[] = {
+		std::vector<llvm::Value*> myArgs {
 			TmpB.CreateLoad(rawcontval.first, "src"),
-			TmpB.CreateLoad(rawcontval.second, "srcrtt"));
-		genTypeChoiceOps(TmpB,env,resetval,source_type,resetGen,4,nullptr);
+			TmpB.CreateLoad(rawcontval.second, "srcrtt")
+		};
+		TmpB.CreateCall(subF, myArgs);
+		CodeGenEnvironment::iterator elem=env->find(getVariableName());		
+		TmpB.CreateStore(llvm::Constant::getNullValue(builtin_t),elem->second.address);
+		TmpB.CreateStore(llvm::Constant::getNullValue(rttype_t),elem->second.rtt);
 	}
 	
 	bool GeneratorStatement::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
@@ -2481,7 +2447,7 @@ namespace intro {
 				TmpB.CreateBr(iter->generator->loop);
 				skipBranch=false;
 			}
-			iter->generator->codeGenExitBlock(TmpB,env);
+			iter->generator->codeGenExitBlock(TmpB, &local);
 		}
 		return true;
 	}

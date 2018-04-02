@@ -14,6 +14,62 @@ namespace intro
 	extern llvm::Type *rttype_t;
 	extern llvm::StructType *closure_t, *generator_t, *field_t;
 	
+	// If we know a type is not referenced, do not emit increment code.
+	static void incrementKnownReferenced(llvm::IRBuilder<> &builder,Type *type,llvm::Value *address,llvm::Value *rtt)
+	{
+		Type::Types kind=type->getKind();
+		if (kind==Type::Integer ||kind==Type::Real ||kind==Type::Boolean)
+			return;
+		// Not found: already reference. Increment counter
+		llvm::Function *incr_op = TheModule->getFunction("increment");
+		std::vector<llvm::Value*> args{
+			builder.CreateLoad(address,"value"),
+			builder.CreateLoad(rtt,"type")
+		};
+		builder.CreateCall(incr_op, args);
+	}
+	
+	// If we know a type is not referenced, do not emit increment code.
+	/*
+	static void decrementKnownReferenced(llvm::IRBuilder<> &builder,Type *type,llvm::Value *address,llvm::Value *rtt)
+	{
+		Type::Types kind=type->getKind();
+		if (kind==Type::Integer ||kind==Type::Real ||kind==Type::Boolean)
+			return;
+		// Not found: already reference. Increment counter
+		llvm::Function *decr_op = TheModule->getFunction("decrement");
+		std::vector<llvm::Value*> args{address,rtt};
+		builder.CreateCall(decr_op, args);
+	}
+	*/
+
+	void CodeGenEnvironment::decrementIntermediates(llvm::IRBuilder<> &builder)
+	{
+		llvm::Function *decr_op = TheModule->getFunction("decrement");
+		llvm::Value* args[]={ nullptr,nullptr };
+		for (auto item : intermediates)
+		{
+			args[0] = item.first;
+			args[1] = item.second;
+			builder.CreateCall(decr_op, args);
+		}
+		// Now that we are done with the intermendiates, we can forget them
+		intermediates.clear();
+	}
+
+	bool CodeGenEnvironment::removeIntermediateOrIncrement(llvm::IRBuilder<> &builder, Type *type, llvm::Value *address, llvm::Value *rtt)
+	{
+		im_iter iter = intermediates.find(address);
+		if (iter != intermediates.end())
+		{
+			// Found: just remove and done
+			intermediates.erase(iter);
+			return true;
+		}
+		incrementKnownReferenced(builder, type, address, rtt);
+		return false;
+	}
+	
 	llvm::AllocaInst *CodeGenEnvironment::createEntryBlockAlloca(const std::wstring &VarName) 
 	{
 		llvm::Function *TheFunction = currentFunction();
