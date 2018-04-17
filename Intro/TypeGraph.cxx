@@ -296,7 +296,7 @@ PartialOrder TypeGraph::findSupertype(Type *ta,Type*tb,std::vector<Type*> &cur,s
 				{
 					// If we substitute non-variables for the variables, the types may be distributed all over
 					// That can lead to multiple deletes, so we remember what must remain - 
-					// since the type is also owned by the typegraph node itÄs contained in,
+					// since the type is also owned by the typegraph node it's contained in,
 					// we need not care abut deletion (Y)
 					mapping.insert(std::make_pair(*npit,*iter));
 					if ((*iter)->getKind()!=Type::Variable)

@@ -10,7 +10,7 @@
 
 // MSVC Needs this in order to have the symbols in the output binary
 // Much like -rdynamic does for GCC toolchain.
-#ifdef _MSC_VER
+#if defined _WIN32 || defined __CYGWIN__
 #define FORCE_EXPORT __declspec(dllexport)
 #else
 #define FORCE_EXPORT

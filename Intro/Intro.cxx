@@ -141,6 +141,7 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
+	// should decrement all gloals to make VLD shut up about them
 	intro::Environment::deleteAllModules();
 	cleanupSourceFiles();
 	intro::Environment::clearTypeVariables();

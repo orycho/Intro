@@ -874,6 +874,8 @@ namespace intro {
 				ArgsV[1]=elemval.first;
 				// if number/integer, need to coerce to int
 				TmpB.CreateCall(appendListF, ArgsV);
+				env->removeIntermediateOrIncrement(TmpB, myType->getFirstParameter()->find(), elemval.first, elemval.second);
+				env->decrementIntermediates(TmpB);
 			}
 		}
 		else 
@@ -887,7 +889,7 @@ namespace intro {
 					builder.CreateCall(setTypeF, stargs);
 				}
 				ArgsV[1]=elemval.first;
-				// if number/integer, need to coerce to int
+				// env->
 				builder.CreateCall(appendListF, ArgsV);
 				return false;
 			});
@@ -926,6 +928,9 @@ namespace intro {
 				Expression::cgvalue value_val = iter->second->codeGen(TmpB,env);
 				ArgsV[2]=value_val.first;
 				TmpB.CreateCall(insertDictF, ArgsV);
+				env->removeIntermediateOrIncrement(TmpB, myType->getParameter(0)->find(), key_val.first, key_val.second);
+				env->removeIntermediateOrIncrement(TmpB, myType->getParameter(1)->find(), value_val.first, value_val.second);
+				env->decrementIntermediates(TmpB);
 			}
 		}
 		else 
@@ -948,8 +953,12 @@ namespace intro {
 					builder.CreateCall(setTypeF, stargs);
 				}
 				ArgsV[2]=value_val.first;
-				// if number/integer, need to coerce to int
 				builder.CreateCall(insertDictF, ArgsV);
+				env->removeIntermediateOrIncrement(TmpB, myType->getParameter(0)->find(), key_val.first, key_val.second);
+				env->removeIntermediateOrIncrement(TmpB, myType->getParameter(1)->find(), value_val.first, value_val.second);
+				env->decrementIntermediates(TmpB);
+				// if number/integer, need to coerce to int
+				
 				return false;
 			});
 			generators->codeGen(TmpB,env);
@@ -1094,6 +1103,8 @@ namespace intro {
 			std::int32_t slot=util::find(iter->first.c_str(),iter->first.size(),offsets,size);
 			args[1]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext),slot,false);
 			Expression::cgvalue fieldval=iter->second->codeGen(TmpB,env);
+			env->removeIntermediateOrIncrement(TmpB, iter->second->getType()->find(), fieldval.first, fieldval.second);
+			env->decrementIntermediates(TmpB);
 			args[2]=fieldval.first;
 			args[3]=fieldval.second;
 			TmpB.CreateCall(setFieldRecordF, args);
@@ -1241,6 +1252,7 @@ namespace intro {
 				closurevar=builder.CreateLoad(iter->second.address,"freevarval");
 				closurertt=builder.CreateLoad(iter->second.rtt,"freevarrtt");
 			}
+			// Increase reference count of closure variables?!
 			builder.CreateStore(closurevar,fieldptr);
 			builder.CreateStore(closurertt,fieldrtt);
 			field_index++;
