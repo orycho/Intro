@@ -312,6 +312,8 @@ public:
 
 	/// Create a new variable in the current scope (global or local)
 	iterator createVariable(const std::wstring &name);
+
+	iterator createVariable(void);
 	/// Import a variable that resides in an module
 	iterator importElement(const std::wstring &name, const element &elem)
 	{

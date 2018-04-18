@@ -4,11 +4,12 @@
 namespace intro
 {
 
+size_t CodeGenModule::currentModule=0;
 CodeGenModule *CodeGenModule::root=nullptr;
 
 CodeGenModule::CodeGenModule(CodeGenModule *parent_)
 	: CodeGenEnvironment(parent_, CodeGenEnvironment::GlobalScope)
-	, lastModule(nullptr)
+	, lastModule(0)
 {
 }
 

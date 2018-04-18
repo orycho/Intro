@@ -147,7 +147,6 @@ namespace intro {
 		TheJIT->addModule(std::move(TheModule));
 		initModule();
 		env->addExternalsForGlobals();
-		//global.addExternalsForGlobals();
 		// Search the JIT for the "fun_name" symbol.
 		auto ExprSymbol = TheJIT->findSymbol(fun_name);
 		assert(ExprSymbol && "Function not found");
@@ -382,6 +381,7 @@ namespace intro {
 		TheModule = llvm::make_unique<llvm::Module>("Intro jit", theContext);
 		TheModule->setDataLayout(TheJIT->getTargetMachine().createDataLayout());
 		declareRuntimeFunctions();
+		CodeGenModule::nextLLVMModule();
 	}
 
 	void initRuntime(void)
@@ -990,7 +990,7 @@ namespace intro {
 			CodeGenModule *base = relative ?
 				env->getCurrentModule() : CodeGenModule::getRoot();
 			CodeGenModule *myself = base->getRelativePath(path);
-			myself->declareInterfaceIfNeeded(TheModule.get());
+			myself->declareInterfaceIfNeeded();
 			elem = myself->find(name);
 		}
 		if (elem->second.isParameter)
@@ -1596,7 +1596,7 @@ namespace intro {
 		};
 		Expression::cgvalue length=genTypeChoiceOps(TmpB,env,source,pt,getlen,2,integer_t);
 		Type tI(Type::Integer);
-		llvm::Value *lastval=TmpB.CreateSub(length.first,llvm::ConstantInt::get(integer_t, -1,true),"lastitem");
+		llvm::Value *lastval=TmpB.CreateSub(length.first,llvm::ConstantInt::get(integer_t, 1,true),"lastitem");
 		lastval = createBoxValue(TmpB, env, lastval, &tI);
 		// Add last (which is size-1) to fresh env for parameters
 		CodeGenEnvironment local(env);
@@ -2114,6 +2114,14 @@ namespace intro {
 		llvm::Function *getSlotVariantF = TheModule->getFunction("getSlotVariant");
 		llvm::Function *getFieldVariantF = TheModule->getFunction("getFieldVariant");
 		llvm::Function *getFieldRTTVariantF = TheModule->getFunction("getFieldRTTVariant");
+		// Need to store long lived value in variable,
+		// relevant in generators that may yield inside the case statement
+		// Same for bound variant lables below
+		env->removeIntermediateOrIncrement(TmpB, caseof->getType(), input.first, input.second);
+		CodeGenEnvironment local(env);
+		CodeGenEnvironment::iterator tmpvar= local.createVariable();
+		TmpB.CreateStore(input.first, tmpvar->second.address);
+		TmpB.CreateStore(input.second, tmpvar->second.rtt);
 		std::vector<llvm::Value*> args{
 			input.first
 		};
@@ -2139,7 +2147,7 @@ namespace intro {
 			TheFunction->getBasicBlockList().push_back(current);
 			TmpB.SetInsertPoint(current);
 			// add bound fields from variants to local env
-			CodeGenEnvironment local(env);
+			CodeGenEnvironment innerlocal(&local);
 			intro::RecordType *record = (*iter)->myRecord;
 			intro::RecordType::iterator fit;
 			for (fit=record->begin();fit!=record->end();++fit) // Must load from slot
@@ -2159,27 +2167,27 @@ namespace intro {
 				llvm::Value *fieldrtt=TmpB.CreateCall(getFieldRTTVariantF, argsGet,"fieldvalue");
 				fieldrtt=TmpB.CreateLoad(fieldrtt,"varfieldrtt");
 				// Put into environment
-				CodeGenEnvironment::iterator iter=local.createVariable(fit->first);
+				CodeGenEnvironment::iterator iter= innerlocal.createVariable(fit->first);
 				TmpB.CreateStore(fieldaddr,iter->second.address);
 				TmpB.CreateStore(fieldrtt,iter->second.rtt);
 				//iter->second.address=fieldaddr;
 				//iter->second.rtt=fieldrtt;
 			}
 			// The environment is set up, generate the body
-			(*iter)->body->codeGen(TmpB,&local);
+			(*iter)->body->codeGen(TmpB,&innerlocal);
 			// done, jump to end of case if we did not have a return statement in here
-			local.decrementIntermediates(TmpB);
-			local.closeScope(TmpB);
+			innerlocal.decrementIntermediates(TmpB);
+			innerlocal.closeScope(TmpB);
 			//env->decrementIntermediates(TmpB);
 			if (!isRetLike) TmpB.CreateBr(postcase);
-			else env->decrementIntermediates(TmpB,false);
+			else local.decrementIntermediates(TmpB,false);
 		}
-		// Create block after csae statement if needed
+		// Create block after case statement if needed
 		if (!isRetLike) 
 		{
 			TheFunction->getBasicBlockList().push_back(postcase);
 			TmpB.SetInsertPoint(postcase);
-			env->decrementIntermediates(TmpB);
+			local.decrementIntermediates(TmpB);
 		}
 		return true;
 	}
@@ -2221,8 +2229,10 @@ namespace intro {
 		if (expr!=nullptr) // return value from expression
 		{
 			Expression::cgvalue result=expr->codeGen(TmpB,env);
+			// The result from above is considered stored by setResultGenerator
+			// Which should decrement the value replaced.
+			env->removeIntermediateOrIncrement(TmpB, expr->getType(), result.first, result.second);
 			std::vector<llvm::Value*> argsRet{ generator, result.first, result.second };
-			// Meditate about reference counting here
 			TmpB.CreateCall(setResultF, argsRet);
 			llvm::ConstantInt *nextStateVal=llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), nextStateId,false);
 			std::vector<llvm::Value*> argsNextState{ generator, nextStateVal };
@@ -2480,7 +2490,7 @@ namespace intro {
 			env->getCurrentModule() : CodeGenModule::getRoot();
 		// Type inference should verify that the module imported from already exists.
 		CodeGenModule *myself = base->getRelativePath(path);
-		myself->declareInterfaceIfNeeded(TheModule.get());
+		myself->declareInterfaceIfNeeded();
 		// Iterate over interface and copy imports to the current environment
 		CodeGenEnvironment::iterator eit;
 		for (eit = myself->begin();eit != myself->end();eit++)

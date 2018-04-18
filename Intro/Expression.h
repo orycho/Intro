@@ -591,8 +591,11 @@ public:
 	virtual void print(std::wostream &s);
 	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
 	{
+		VariableSet bound2(bound.begin(), bound.end());
+		// The variable "last" is defined in here, it is not free
+		bound2.insert(L"last");
 		for (iterator iter=params.begin();iter!=params.end();++iter)
-			(*iter)->getFreeVariables(free,bound);
+			(*iter)->getFreeVariables(free,bound2);
 	};
 
 	virtual bool isWritable(void)

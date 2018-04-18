@@ -542,6 +542,7 @@ bool Type::internalUnify(Type *other, bool specialize)
 	//SubtypeTraversal traverse(theGraph,this,other);
 	std::vector<Type*>::iterator iter;
 	std::vector<Type*>::iterator oit;
+	currentMapping.clear(); // TODO: Possible leak
 	// First, check the type graph if a legal path actually exists
 	PartialOrder order = theGraph.findSupertype(find(), other->find(), currentMapping, excludeMapping);
 

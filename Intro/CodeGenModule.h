@@ -25,9 +25,13 @@ class CodeGenModule : public CodeGenEnvironment
 	/// Iterator for child modules
 	typedef std::unordered_map<std::wstring, CodeGenModule*>::iterator child_iter;
 	/// Store the last seen Module
-	llvm::Module *lastModule;
+	//llvm::Module *lastModule;
+	size_t lastModule;
+	static size_t currentModule;
 public:
 	
+	static void nextLLVMModule(void) { currentModule++;  }
+
 	virtual ~CodeGenModule();
 
 	/// Returns the interpreters root module (creates if needed)
@@ -66,11 +70,12 @@ public:
 		return this;
 	}
 
-	void declareInterfaceIfNeeded(llvm::Module *current)
+	//void declareInterfaceIfNeeded(llvm::Module *current)
+	void declareInterfaceIfNeeded(void)
 	{
-		if (lastModule == current) return;
+		if (lastModule == currentModule) return;
 		addExternalsForGlobals();
-		lastModule = current;
+		lastModule = currentModule;
 	}
 };
 

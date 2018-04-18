@@ -1233,6 +1233,39 @@ bool FlowControlCodeGen(void)
 	parser.deleteStatements();
 	return isOK;
 }
+
+bool splitFuncCodeGen(void)
+{
+	cout << "\n--- Global VariablesCode Generation:\n";
+	const char *test = "var split(str, chars)->\n"
+"	var start <-0;\n"
+"	var stop <--1;\n"
+"	var filter<-{x => true | x in chars};\n"
+"		for c in str do\n"
+"			case filter[c] of # see if we care about the current character\n"
+"				Some then\n"
+"				yield str[start:stop];\n"
+"				start <-stop + 1;\n"
+"				stop <-stop + 1;\n"
+"			| None then stop <-stop + 1;\n"
+"		end;\n"
+"	done;\n"
+"	yield done;\n"
+"	end;"
+		;
+	//parse::Parser parser=getParser(test);
+	cout << test << endl << endl;
+	parse::Scanner scanner((const unsigned char *)test, strlen(test));
+	parse::Parser parser(&scanner);
+	parser.isInteractive = false;
+	parser.Parse();
+	intro::Environment global;
+	bool isOK = parser.inferTypes(&global);
+	if (isOK) dumpGeneratedStatements(parser);
+	parser.deleteStatements();
+	return isOK;
+}
+
 // Execute all type tests
 bool typeTests(void)
 {
@@ -1304,7 +1337,8 @@ bool codeGenTests(void)
 	recursiveFunctionCodeGen();
 	FlowControlCodeGen();
 	moduleCodeGen();
-	
+	splitFuncCodeGen();
+
 	return true;
 }
 

@@ -164,8 +164,8 @@ namespace intro
 	
 	void CodeGenEnvironment::addExternalsForGlobals(void)
 	{
-		assert(scope_type==GlobalScope);
-		
+		assert(scope_type == GlobalScope);
+
 		for (auto &&elem : elements)
 		{
 			std::string name;
@@ -173,22 +173,32 @@ namespace intro
 			else name = elem.second.altname;
 
 			std::string rttname = name;
-			if (elem.second.altname.empty()) rttname+="!rtt";
+			if (elem.second.altname.empty()) rttname += "!rtt";
 			else rttname += "_rtt"; // Done so that RTL function defined in C can have their rtt defined.
 
 			TheModule->getOrInsertGlobal(name, builtin_t);
 			GlobalVariable *gVar = TheModule->getNamedGlobal(name);
 			gVar->setLinkage(GlobalValue::ExternalLinkage);
-			elem.second.address=gVar;
-			
+			elem.second.address = gVar;
+
 			TheModule->getOrInsertGlobal(rttname, rttype_t);
 			GlobalVariable *gRtt = TheModule->getNamedGlobal(rttname);
 			gRtt->setLinkage(GlobalValue::ExternalLinkage);
-			elem.second.rtt=gRtt;
+			elem.second.rtt = gRtt;
 		}
 	}
 	
-	
+	static size_t tmpVarCounter = 1;
+
+	CodeGenEnvironment::iterator CodeGenEnvironment::createVariable(void)
+	{
+		std::wstringstream ws;
+		ws << "$tmp" << tmpVarCounter;
+		++tmpVarCounter;
+		return createVariable(ws.str());
+	}
+
+
 	CodeGenEnvironment::iterator CodeGenEnvironment::createVariable(const std::wstring &name)
 	{
 		llvm::Value *address=nullptr;
