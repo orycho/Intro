@@ -5,6 +5,12 @@
 #include <string.h>
 #include "Scanner.h"
 
+#if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
+
+#include <unistd.h>
+
+#endif
+
 namespace parse {
 
 
@@ -363,10 +369,10 @@ size_t Buffer::ReadNextStreamChunk() {
 
 bool Buffer::CanSeek() 
 {
-#ifdef _MSC_VER
-	return (stream != NULL) && !_isatty(_fileno(stream)) && (ftell(stream) != -1);
+#ifdef _POSIX_VERSION
+	return (stream != NULL) && !isatty(fileno(stream)) && (ftell(stream) != -1);
 #else
-	return (stream != NULL) && (ftell(stream) != -1);
+	return (stream != NULL) && !_isatty(_fileno(stream)) && (ftell(stream) != -1);
 #endif
 }
 

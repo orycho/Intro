@@ -1325,6 +1325,8 @@ void setStateGenerator(rtgenerator *gen,std::uint64_t newstate)
 
 void setResultGenerator(rtgenerator *gen,rtdata value,rtt_t rtt)
 {
+	if (gen->retvalrtt != intro::rtt::Undefined)
+		decrement(gen->retval, gen->retvalrtt);
 	gen->retval.ptr=value.ptr;
 	gen->retvalrtt=rtt;
 }

@@ -109,7 +109,7 @@ d:Dictionary(String,Integer)
 > d["x"]&lt;-20;
  = 20
 > "d is ${d}";
- = d is {d=>4, x=>20, c=>3, a=>1, b=>2}
+ = d is {d=>4, x=>20, a=>1, b=>2}
 </pre>
 
 Moving to something more advanced, here is a generator which takes two sequences, and returns
