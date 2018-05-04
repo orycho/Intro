@@ -1236,22 +1236,24 @@ bool FlowControlCodeGen(void)
 
 bool splitFuncCodeGen(void)
 {
-	cout << "\n--- Global VariablesCode Generation:\n";
+	cout << "\n--- Split function Code Generation:\n";
 	const char *test = "var split(str, chars)->\n"
 "	var start <-0;\n"
-"	var stop <--1;\n"
-"	var filter<-{x => true | x in chars};\n"
-"		for c in str do\n"
-"			case filter[c] of # see if we care about the current character\n"
-"				Some then\n"
+"	var stop <- -1;\n"
+"	var filter <- {x => true | x in chars};\n"
+"	for c in str do\n"
+"		case filter[c] of # see if we care about the current character\n"
+"			Some then\n"
 "				yield str[start:stop];\n"
-"				start <-stop + 1;\n"
-"				stop <-stop + 1;\n"
-"			| None then stop <-stop + 1;\n"
+"				start <- stop + 1;\n"
+"				stop <- stop + 1;\n"
+"			| None then\n"
+"				stop <- stop + 1;\n"
 "		end;\n"
 "	done;\n"
+"	yield str[start:last];\n"
 "	yield done;\n"
-"	end;"
+"end;"
 		;
 	//parse::Parser parser=getParser(test);
 	cout << test << endl << endl;
@@ -1271,9 +1273,9 @@ bool BreakStmtGen(void)
 	cout << "\n---\n Flow Control Code Generation:\n";
 	const char *test = 
 "var countPrefix(text, char)->\n"
-"	var result<-0;\n"
+"	var result <- 0;\n"
 "	for c in text do\n"
-"		if c == char then result<-result + 1;\n"
+"		if c == char then result <- result + 1;\n"
 "		else break;\n"
 "		end;\n"
 "	done;\n"

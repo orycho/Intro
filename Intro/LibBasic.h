@@ -21,6 +21,15 @@ extern "C"
 	EXPORT_CLOSURE(seqSize)
 	FORCE_EXPORT rtdata seqAppendTo_(rtclosure *closure, rtt_t *retvalrtt, rtdata destseq, rtt_t destseqrtt, rtdata data, rtt_t datartt);
 	EXPORT_CLOSURE(seqAppendTo)
+	FORCE_EXPORT rtdata seqFirst_(rtclosure *closure, rtt_t *retvalrtt, rtdata data, rtt_t datartt);
+	EXPORT_CLOSURE(seqFirst)
+
+	FORCE_EXPORT rtdata stringTrimLeft_(rtclosure *closure, rtt_t *retvalrtt, rtdata str1, rtt_t str1rtt, rtdata str2, rtt_t str2rtt);
+	EXPORT_CLOSURE(stringTrimLeft)
+	FORCE_EXPORT rtdata stringTrimRight_(rtclosure *closure, rtt_t *retvalrtt, rtdata str1, rtt_t str1rtt, rtdata str2, rtt_t str2rtt);
+	EXPORT_CLOSURE(stringTrimRight)
+	FORCE_EXPORT rtdata stringTrim_(rtclosure *closure, rtt_t *retvalrtt, rtdata str1, rtt_t str1rtt, rtdata str2, rtt_t str2rtt);
+	EXPORT_CLOSURE(stringTrim)
 
 #ifdef __cplusplus
 }

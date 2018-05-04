@@ -971,10 +971,23 @@ namespace intro {
 	/// (Use after type inference) Generate the address that can be written to, if this expression is writable;
 	Expression::cgvalue Variable::getWriteAddress(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
+		CodeGenEnvironment::iterator elem;
 		// Find address for relative and absolute paths, too
-		CodeGenEnvironment::iterator iter=env->find(name);
+		llvm::Value *value = nullptr, *rtt = nullptr;
+		if (relative && path.empty())
+		{
+			elem = env->find(name);
+		}
+		else
+		{
+			CodeGenModule *base = relative ?
+				env->getCurrentModule() : CodeGenModule::getRoot();
+			CodeGenModule *myself = base->getRelativePath(path);
+			myself->declareInterfaceIfNeeded();
+			elem = myself->find(name);
+		}
 		// Variables are by defition not intermediate
-		return std::make_pair(iter->second.address,iter->second.rtt);
+		return std::make_pair(elem->second.address, elem->second.rtt);
 	}
 	
 	Expression::cgvalue Variable::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
@@ -1417,6 +1430,8 @@ namespace intro {
 		else 
 		{
 			body->codeGen(builder,&local);
+			if (!body->isReturnLike())
+				builder.CreateBr(local.getExitBlock());
 		}
 		// Put the exit block at the end of the functions block list.
 		F->getBasicBlockList().push_back(local.getExitBlock());
@@ -1485,6 +1500,7 @@ namespace intro {
 			retval = TmpB.CreateCall(fun, ArgsV, "application");
 			returntype = TmpB.CreateLoad(returntypeptr, "retvalrtt");
 			// Function return values are intermediate
+			env->decrementIntermediates(TmpB);
 			if (isReferenced(getType()->getRTKind()))
 				env->addIntermediate(retval, returntype);
 		}
@@ -1492,6 +1508,7 @@ namespace intro {
 		{
 			TmpB.CreateCall(fun, ArgsV);
 			returntype = env->getRTT(intro::rtt::Undefined);
+			env->decrementIntermediates(TmpB);
 		}
 		return std::make_pair(retval,returntype);
 	}
@@ -1640,12 +1657,17 @@ namespace intro {
 	Expression::cgvalue Assignment::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
 		// check subexpression type
-		Expression::cgvalue ret=value->codeGen(TmpB,env);
+		Expression::cgvalue sourceval=value->codeGen(TmpB,env);
+		Expression::cgvalue destval = destination->getWriteAddress(TmpB, env);
 		// may need coercion... also increment old and decrement new
-		Expression::cgvalue destval = destination->getWriteAddress(TmpB,env);
-		TmpB.CreateStore(ret.first,destval.first);
+		llvm::Value *argsDecr[] = { TmpB.CreateLoad(destval.first,"decr_tmp"), destval.second };
+		// Then get rid of the allocated buffer again...
+		llvm::Function *subF = TheModule->getFunction("decrement");
+		//TmpB.CreateCall(subF, argsDecr);
+		env->removeIntermediateOrIncrement(TmpB, value->getType(), sourceval.first, sourceval.second);
+		TmpB.CreateStore(sourceval.first,destval.first);
 		//TmpB.CreateStore(ret.first,destval.first);
-		return ret;
+		return sourceval;
 	}
 	
 	Expression::cgvalue UnaryOperation::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
@@ -1904,7 +1926,7 @@ namespace intro {
 	{
 		Expression::cgvalue val=expr->codeGen(TmpB,env);
 		// In interactive mode, we print the result
-		if (isInteractive && env->isGlobal() && expr->getType()->getKind() != Type::Unit)
+		if (isInteractive && env->isGlobal() && !env->isLocal() && expr->getType()->getKind() != Type::Unit)
 		{
 			// Allocate a string
 			llvm::Function *allocStringF = TheModule->getFunction("allocString");
@@ -2107,7 +2129,6 @@ namespace intro {
 	bool CaseStatement::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
 		// get variant tag
-		bool isRetLike = isReturnLike();
 		llvm::Function *TheFunction = env->currentFunction();
 		Expression::cgvalue input=caseof->codeGen(TmpB,env);
 		llvm::Function *getTagVariantF = TheModule->getFunction("getTagVariant");
@@ -2128,7 +2149,7 @@ namespace intro {
 		llvm::Value *variant_tag=TmpB.CreateCall(getTagVariantF, args, "theTag");
 		llvm::BasicBlock *postcase = nullptr;
 		llvm::SwitchInst *jumptable;
-		if (isRetLike) // Return like statement, default to exit block
+		if (isReturnLike()) // Return like statement, default to exit block
 		{
 			jumptable=TmpB.CreateSwitch(variant_tag,env->getExitBlock()); 
 		}
@@ -2137,7 +2158,6 @@ namespace intro {
 			postcase = llvm::BasicBlock::Create(theContext, "postcase");
 			jumptable=TmpB.CreateSwitch(variant_tag,postcase); // add to current block
 		}
-//TheFunction->dump();
 		for (iterator iter=cases.begin();iter!=cases.end();++iter)
 		{
 			// create case for iter, then bind variables it extracts from variaat
@@ -2179,11 +2199,11 @@ namespace intro {
 			innerlocal.decrementIntermediates(TmpB);
 			innerlocal.closeScope(TmpB);
 			//env->decrementIntermediates(TmpB);
-			if (!isRetLike) TmpB.CreateBr(postcase);
-			else local.decrementIntermediates(TmpB,false);
+			if (!(*iter)->body->isTerminatorLike()) TmpB.CreateBr(postcase);
+			//else local.decrementIntermediates(TmpB,false);
 		}
 		// Create block after case statement if needed
-		if (!isRetLike) 
+		if (!isReturnLike()) 
 		{
 			TheFunction->getBasicBlockList().push_back(postcase);
 			TmpB.SetInsertPoint(postcase);
