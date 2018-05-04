@@ -53,14 +53,19 @@ Let's jump right in and see the language in action. It is started with e.g.
 <pre>
 $ build/intro
 </pre>
-Where "$" is the shell prompt. The interpreter uses ">".
-Starting with some arithmetic shows that for expressions, the result of the evaluation is printed out:
+Where "$" is the shell prompt. The interpreter uses ">" when in interactive mode, and when interactive
+it also prints out the results of the root expression.
+This can be shown with some simple arithmetic, using the interpreter as a calculator:
 <pre>
 >  1+2*3;
  = 7
 </pre>
 
-It's always useful to concatenate strings:
+When a script is passed to the interpreter it is not in interactive mode, and then will
+not print out the results. In such cases the program is expected to use library functions
+to produce output. And even in interactive mode expressions inside functions are never pritned out.
+
+Next up: strings! It's always useful to concatenate strings, using string interpolation:
 <pre>
 >  var cat(a,b)->return "${a}${b}"; end;
 cat:(?T2&lt;:Top,?T3&lt;:Top) -> String
@@ -69,6 +74,8 @@ cat:(?T2&lt;:Top,?T3&lt;:Top) -> String
 > cat(12*4,true xor false);
  = 48true
 </pre>
+
+It turns out that "cat" does not care about the inputs' types, it just converts everthing to strings first!
 
 
 Let's compute a list of right angled triangles, using two helper functions 
