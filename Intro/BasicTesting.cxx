@@ -1266,6 +1266,33 @@ bool splitFuncCodeGen(void)
 	return isOK;
 }
 
+bool BreakStmtGen(void)
+{
+	cout << "\n---\n Flow Control Code Generation:\n";
+	const char *test = 
+"var countPrefix(text, char)->\n"
+"	var result<-0;\n"
+"	for c in text do\n"
+"		if c == char then result<-result + 1;\n"
+"		else break;\n"
+"		end;\n"
+"	done;\n"
+"	return result;\n"
+"end;\n"
+		;
+	//parse::Parser parser=getParser(test);
+	cout << test << endl << endl;
+	parse::Scanner scanner((const unsigned char *)test, strlen(test));
+	parse::Parser parser(&scanner);
+	parser.isInteractive = false;
+	parser.Parse();
+	intro::Environment global;
+	bool isOK = parser.inferTypes(&global);
+	if (isOK) dumpGeneratedStatements(parser);
+	parser.deleteStatements();
+	return isOK;
+}
+
 // Execute all type tests
 bool typeTests(void)
 {
@@ -1338,7 +1365,7 @@ bool codeGenTests(void)
 	FlowControlCodeGen();
 	moduleCodeGen();
 	splitFuncCodeGen();
-
+	BreakStmtGen();
 	return true;
 }
 

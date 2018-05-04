@@ -2016,7 +2016,7 @@ namespace intro {
 			TmpB.SetInsertPoint(alternatives.back());
 			//iter->second->codeGen(TmpB,&local);
 			otherwise->codeGen(TmpB, &local);
-			if (otherwise->isTerminatorLike() && post_ite != env->getExitBlock())
+			if (!otherwise->isTerminatorLike() && post_ite != env->getExitBlock())
 				TmpB.CreateBr(post_ite);
 		}
 		if (post_ite!=env->getExitBlock())
