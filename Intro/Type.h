@@ -184,7 +184,8 @@ protected:
 	void setParent(Type *p) { parent=p; };
 
 	// TypeGraph traversal mappings for parameters... memory management!
-	std::vector<Type*> currentMapping;
+	//std::vector<Type*> currentMapping;
+	std::vector<Type*> needDeletion;
 	std::set<Type*> excludeMapping;
 
 
@@ -528,6 +529,7 @@ public:
 class RecordType : public Type
 {
 	std::map<std::wstring,Type*> members;
+	RecordType *merged;
 protected:
 	/// Compute the unification of two types, always called via public driver
 	virtual bool internalUnify(Type *other,bool specialize);
@@ -539,15 +541,27 @@ public:
 
 	typedef std::map<std::wstring,Type*> membermap;
 
-	RecordType(const std::map<std::wstring,Type*> &m) : Type(Type::Record)
+	RecordType(const std::map<std::wstring,Type*> &m) : Type(Type::Record), merged(nullptr)
 	{
 		members=m;
 	};
 
-	RecordType() : Type(Type::Record)
+	RecordType() : Type(Type::Record), merged(nullptr)
 	{
 	};
 
+	~RecordType()
+	{
+		if (merged != nullptr) delete merged;
+	}
+	inline bool setMerged(RecordType *rt)
+	{
+		if (merged != nullptr) 
+			return false; 
+		else merged = rt; 
+		return true;
+	};
+	
 	virtual void setAccessFlags(int f) 
 	{ 
 		Type::setAccessFlags(f); 

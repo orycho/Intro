@@ -23,7 +23,6 @@ void sioPrint_(rtclosure *closure, rtdata data, rtt_t rtt)
 		fputws(str->data, stdout);
 	}
 }
-
 MKCLOSURE(sioPrint, sioPrint_)
 
 rtstring *sioRead_(rtclosure *closure, rtt_t *retvalrtt)
@@ -45,7 +44,6 @@ rtstring *sioRead_(rtclosure *closure, rtt_t *retvalrtt)
 	*retvalrtt = intro::rtt::String;
 	return str;
 }
-
 MKCLOSURE(sioRead, sioRead_)
 
 rtvariant *sioLoadFile_(rtclosure *closure, rtt_t *retvalrtt, rtdata path, rtt_t rtt)
@@ -60,13 +58,14 @@ rtvariant *sioLoadFile_(rtclosure *closure, rtt_t *retvalrtt, rtdata path, rtt_t
 	// If the file could not be opened, return None variant
 	if (file == nullptr)
 		return getNoneVariant();
-	// Get file length
+	// Get file length, this may overestimate (observed on Win10)
+	// but it's ok for our temporary buffer to be too big - the data still fits.
 	fseek(file, 0, SEEK_END);
 	long fileLen = ftell(file);
 	fseek(file, 0, SEEK_SET);
-	// Allocate buffer and read file contents
+	// Allocate buffer and read file contents. fread returns actual length offile
 	char *buffer = new char[fileLen];
-	fread(buffer, sizeof(char), fileLen, file);
+	fileLen=fread(buffer, sizeof(char), fileLen, file);
 	fclose(file);
 	// allocate result string and convert from multibyte into it
 	strbuf = allocString((uint64_t)fileLen+1);
@@ -80,7 +79,7 @@ rtvariant *sioLoadFile_(rtclosure *closure, rtt_t *retvalrtt, rtdata path, rtt_t
 		p_in += rc;
 		++p_out;
 	}
-	// Strings never count the terminating 0 char, but always alocate space for it!
+	// Strings never count the terminating 0 char, but always allocate space for it!
 	strbuf->used = p_out - strbuf->data;
 	strbuf->data[strbuf->used+1] = L'\0';
 	// cleanup and return

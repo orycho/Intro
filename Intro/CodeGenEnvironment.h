@@ -112,7 +112,7 @@ private:
 	}
 	/// Closure vars are special, as the address of value and it's rtt come from function parameters.
 	/// The are dereferenced when the closure itself is released.
-	void setClosure(llvm::IRBuilder<> &builder,llvm::Value *closure, llvm::StructType *myclosure_t,const std::vector<std::wstring> &freeVars);
+	void setClosure(llvm::IRBuilder<> &builder,llvm::Value *closure, llvm::StructType *myclosure_t,const VariableSet &freeVars);
 	
 	/// Set of intermediates, mapping the address of the value to the rtt of the value
 	/**
@@ -170,6 +170,7 @@ public:
 	
 	bool removeIntermediateOrIncrement(llvm::IRBuilder<> &builder,Type *type,llvm::Value *address,llvm::Value *rtt);
 	void decrementIntermediates(llvm::IRBuilder<> &builder, bool clear=true);
+	void decrementValue(llvm::IRBuilder<> &builder, llvm::Value *value, llvm::Value *rtt);
 
 	/// Used by interpreter to add elements of the global scope to mdoules for each line.
 	void addExternalsForGlobals(void);
@@ -205,8 +206,10 @@ public:
 		CodeGenEnvironment *env = getLoopEnv();
 		return env->onBreak;
 	}
-
+	/// Checks if this is not in a function
 	inline bool isGlobal(void) { return getScopeType()==GlobalScope; }
+	/// Returns true is this specific scope is local
+	inline bool isLocal(void) { return scope_type == LocalScope; }
 	
 	inline CodeGenEnvironment *getParent(void) { return parent; }
 
@@ -265,7 +268,7 @@ public:
 	///@name Generator codegen helpers
 	///@{
 	void setGenerator(llvm::IRBuilder<> &builder,llvm::Function *TheGenerator,
-		const std::vector<std::wstring> &free);
+		const VariableSet &free);
 	
 	inline llvm::SwitchInst *getStateDispatch(void) 
 	{ 
@@ -324,7 +327,7 @@ public:
 	llvm::AllocaInst *createRetValRttDest(void);
 	
 	void setFunction(llvm::IRBuilder<> &builder,llvm::Function *TheFunction,
-		Function::ParameterList &params,bool returnsValue, const std::vector<std::wstring> &free);
+		Function::ParameterList &params,bool returnsValue, const VariableSet &free);
 	
 	/// Adds a special variable that will be returned as the function value, 
 	// with special rtt holding the address passed (can be written unlike usual rtts)

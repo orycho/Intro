@@ -723,7 +723,7 @@ bool freeVariableDetection(void)
 			wcout << L"Free variables: ";
 			for (vit=free.begin();vit!=free.end();vit++)
 			{
-				wcout << *vit << L" ";
+				wcout << vit->first << L" ";
 			}
 			wcout << endl;
 		}
@@ -1253,7 +1253,8 @@ bool splitFuncCodeGen(void)
 "	done;\n"
 "	yield str[start:last];\n"
 "	yield done;\n"
-"end;"
+"end;\n"
+"{x | x in split(\"a\\nb\\nc\\nd\\ne\\nf\",\"\\n\")};"
 		;
 	//parse::Parser parser=getParser(test);
 	cout << test << endl << endl;
@@ -1281,6 +1282,29 @@ bool BreakStmtGen(void)
 "	done;\n"
 "	return result;\n"
 "end;\n"
+		;
+	//parse::Parser parser=getParser(test);
+	cout << test << endl << endl;
+	parse::Scanner scanner((const unsigned char *)test, strlen(test));
+	parse::Parser parser(&scanner);
+	parser.isInteractive = false;
+	parser.Parse();
+	intro::Environment global;
+	bool isOK = parser.inferTypes(&global);
+	if (isOK) dumpGeneratedStatements(parser);
+	parser.deleteStatements();
+	return isOK;
+}
+
+bool CaseMemoryStmtGen(void)
+{
+	cout << "\n---\n Case Memory Code Generation:\n";
+	const char *test =
+		"var test<-\"\";\n"
+		"case ::sio::loadFile(\"README.md\") of\n"
+		"	None then\n"
+		"	| Some value then test<-value;\n"
+		"end;\n"
 		;
 	//parse::Parser parser=getParser(test);
 	cout << test << endl << endl;
@@ -1368,6 +1392,7 @@ bool codeGenTests(void)
 	moduleCodeGen();
 	splitFuncCodeGen();
 	BreakStmtGen();
+	CaseMemoryStmtGen();
 	return true;
 }
 

@@ -158,7 +158,7 @@ protected:
 	/** We pass in the free vars as an array in order to guarantee identical ordering with
 		closure initialization.
 	*/
-	llvm::Function *buildFunction( CodeGenEnvironment *parent,const std::vector<std::wstring> &variables);
+	llvm::Function *buildFunction(CodeGenEnvironment * parent, const VariableSet & free);
 public:
 	Function(int l,int p): Expression(l,p), myType(NULL)
 	{ parentvar=NULL; };
@@ -208,7 +208,7 @@ public:
 		ParameterList::iterator iter;
 		VariableSet bound2(bound.begin(),bound.end());
 		for (iter=parameters.begin();iter!=parameters.end();iter++)
-			bound2.insert(iter->name);
+			bound2.insert(std::make_pair(iter->name,iter->type));
 		body->getFreeVariables(free,bound2);
 	};
 
@@ -322,7 +322,7 @@ public:
 
 	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
 	{
-		bound.insert(name);
+		bound.insert(std::make_pair(name,value->getType()));
 		value->getFreeVariables(free,bound);
 	};
 
@@ -563,7 +563,7 @@ public:
 			VariableSet bound2(bound.begin(),bound.end());
 			for (iter=params.begin();iter!=params.end();iter++)
 			{
-				bound2.insert(*iter);
+				bound2.insert(std::make_pair(*iter,this->myRecord->findMember(*iter)->second));
 			}
 			body->getFreeVariables(free,bound2);
 		};

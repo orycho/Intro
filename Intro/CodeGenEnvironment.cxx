@@ -40,6 +40,13 @@ namespace intro
 	}
 	*/
 
+	void CodeGenEnvironment::decrementValue(llvm::IRBuilder<> &builder, llvm::Value *value, llvm::Value *rtt)
+	{
+		llvm::Function *decr_op = TheModule->getFunction("decrement");
+		llvm::Value* args[] = { value,rtt };
+		builder.CreateCall(decr_op, args);
+	}
+
 	void CodeGenEnvironment::decrementIntermediates(llvm::IRBuilder<> &builder,bool clear)
 	{
 		llvm::Function *decr_op = TheModule->getFunction("decrement");
@@ -51,7 +58,7 @@ namespace intro
 			builder.CreateCall(decr_op, args);
 		}
 		// Now that we are done with the intermendiates, we can forget them
-		if (clear)
+		//if (clear)
 		intermediates.clear();
 	}
 
@@ -179,11 +186,23 @@ namespace intro
 			TheModule->getOrInsertGlobal(name, builtin_t);
 			GlobalVariable *gVar = TheModule->getNamedGlobal(name);
 			gVar->setLinkage(GlobalValue::ExternalLinkage);
+			/*GlobalVariable *gVar = new GlobalVariable(*TheModule.get(),builtin_t,
+				true,
+				GlobalValue::ExternalLinkage,
+				nullptr,
+				name);
+			*/
 			elem.second.address = gVar;
 
 			TheModule->getOrInsertGlobal(rttname, rttype_t);
 			GlobalVariable *gRtt = TheModule->getNamedGlobal(rttname);
 			gRtt->setLinkage(GlobalValue::ExternalLinkage);
+			/*GlobalVariable *gRtt= new GlobalVariable(*TheModule.get(),rttype_t,
+				true,
+				GlobalValue::ExternalLinkage,
+				nullptr,
+				rttname);
+			*/
 			elem.second.rtt = gRtt;
 		}
 	}
@@ -240,7 +259,7 @@ namespace intro
 	}
 
 	void CodeGenEnvironment::setGenerator(llvm::IRBuilder<> &builder,llvm::Function *TheGenerator,
-		const std::vector<std::wstring> &free) 
+		const VariableSet &free)
 	{ 
 		assert(scope_type == Generator);
 		function=TheGenerator;
@@ -264,7 +283,7 @@ namespace intro
 	}
 	
 	void CodeGenEnvironment::setFunction(llvm::IRBuilder<> &builder,llvm::Function *TheFunction,
-		Function::ParameterList &params,bool returnsValue, const std::vector<std::wstring> &free)
+		Function::ParameterList &params,bool returnsValue, const VariableSet &free)
 	{
 		//assert(scope_type==LocalScope || scope_type==Generator);
 		assert(scope_type == Closure);
@@ -315,7 +334,7 @@ namespace intro
 		leave = llvm::BasicBlock::Create(theContext, "leave");
 	}
 	
-	void CodeGenEnvironment::setClosure(llvm::IRBuilder<> &builder,llvm::Value *closure, llvm::StructType *myclosure_t,const std::vector<std::wstring> &freeVars)
+	void CodeGenEnvironment::setClosure(llvm::IRBuilder<> &builder,llvm::Value *closure, llvm::StructType *myclosure_t,const VariableSet &freeVars)
 	{
 		closuresize=freeVars.size();
 		if (freeVars.empty()) return;
@@ -327,7 +346,7 @@ namespace intro
 			nullptr, // index of field in array
 			nullptr	// element of field
 		};
-		for (const std::wstring vars : freeVars)
+		for (auto vars : freeVars)
 		{
 			idxs[2]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), field_index);
 			idxs[3]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 0);
@@ -335,7 +354,7 @@ namespace intro
 			idxs[3]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 1);	// Type of  field
 			llvm::Value *fieldrtt=builder.CreateGEP(myclosure_t,closure,idxs,"closure_field_rtt");
 			// Probably need to load the actual rtt value here...
-			elements.insert(std::make_pair(vars,element(fieldptr,fieldrtt)));
+			elements.insert(std::make_pair(vars.first,element(fieldptr,fieldrtt)));
 			field_index++;
 			// copy value into fieldptr, apply indexing
 		}

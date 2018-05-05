@@ -57,17 +57,28 @@ llvm::cl::opt<std::string> Script(llvm::cl::Positional, llvm::cl::desc("<input s
 llvm::cl::list<std::string>  Argv(llvm::cl::ConsumeAfter, llvm::cl::desc("<program arguments>..."));
 llvm::cl::opt<bool> runTests("test", llvm::cl::desc("Run hard-coded basic tests"));
 
-//int _tmain(int argc, _TCHAR* argv[])
-#ifdef WIN32
+//#include <dlfcn.h>
+
 int main(int argc,const char *argv[])
-//int wmain(int argc, const wchar_t *argv[])
-#else
-int main(int argc, char *argv[])
-#endif
 {
 	llvm::cl::ParseCommandLineOptions(argc, argv);
 	
 	intro::initRuntime();
+	
+	//std::string error;
+	//bool ok=llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr,&error);
+	//std::cout << "Loaded OK: " << ok << " with msg "<<error<<std::endl;
+	/*
+	void* handle = ::dlopen(nullptr, RTLD_LAZY|RTLD_GLOBAL);
+	std::cout << "Handle is " << (uint64_t)handle << " vs default " << (uint64_t)RTLD_DEFAULT  <<std::endl;
+	
+	uint64_t sym1 = (uint64_t) ::dlsym(handle, "allocString");
+	uint64_t sym2 = (uint64_t) ::dlsym(RTLD_DEFAULT, "allocString");
+	std::cout << "Sym from handle is "<< sym1 << " vs RTLD_DEFAULT " << sym2  <<std::endl;
+	
+	uint64_t ptr=(uint64_t)llvm::sys::DynamicLibrary::SearchForAddressOfSymbol("allocString");
+	std::cout << "Pointer is "<<ptr<<std::endl;
+	*/
 	if (runTests)
 	{
 		intro::initModule();

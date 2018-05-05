@@ -147,7 +147,7 @@ public:
 	{
 		for (iterator i=parts.begin();i!=parts.end();i++)
 			if (i->t!=NULL)
-				if (bound.find(i->s)==bound.end()) free.insert(i->s);
+				if (bound.find(i->s)==bound.end()) free.insert(std::make_pair(i->s,i->t));
 	};
 	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
 	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
@@ -372,7 +372,7 @@ public:
 		// If it's in some module or the global scope, then we take it from there.
 		if (relative&&path.empty())
 		{
-			if (bound.find(name) == bound.end()) free.insert(name);
+			if (bound.find(name) == bound.end()) free.insert(std::make_pair(name,getType()));
 		}
 	};
 
@@ -593,7 +593,7 @@ public:
 	{
 		VariableSet bound2(bound.begin(), bound.end());
 		// The variable "last" is defined in here, it is not free
-		bound2.insert(L"last");
+		bound2.insert(std::make_pair(L"last",&counter));
 		for (iterator iter=params.begin();iter!=params.end();++iter)
 			(*iter)->getFreeVariables(free,bound2);
 	};

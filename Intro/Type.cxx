@@ -52,7 +52,7 @@ Type::~Type()
 {
 	//if (super != this && super != nullptr) deleteCopy(super);
 	if (getKind()!=Variable) 
-		TypeGraph::clearMapping(currentMapping, excludeMapping);
+		TypeGraph::clearMapping(needDeletion, excludeMapping);
 	params.clear();
 }
 
@@ -484,10 +484,18 @@ bool Type::unify(Type *b,bool specialize)
 			// in other cases, we must stick to the type graph.
 			if (oroot_sup->getKind() == Type::Record && mroot_sup->getKind() == Type::Record)
 			{
-				Type *merged = mergeRecordTypes(dynamic_cast<RecordType*>(oroot_sup), dynamic_cast<RecordType*>(mroot_sup));
+				RecordType *orec = dynamic_cast<RecordType*>(oroot_sup), *mrec = dynamic_cast<RecordType*>(mroot_sup);
+				Type *merged = mergeRecordTypes(orec, mrec);
 				if (merged->getKind() != Type::Error) merged = Environment::fresh(merged);
 				oroot->parent = merged;
 				mroot->parent = merged;
+				if (merged->getKind() != Type::Error)
+				{
+					RecordType *m = dynamic_cast<RecordType*>(merged->getSupertype());
+					if (!orec->setMerged(m))
+						if (!mrec->setMerged(m))
+							printf("Internal error: could not store merged record!\n");
+				}
 				return merged->getKind() != Type::Error;
 			}
 			if (oroot_sup->getKind() == Type::Variant && mroot_sup->getKind() == Type::Variant)
@@ -542,9 +550,11 @@ bool Type::internalUnify(Type *other, bool specialize)
 	//SubtypeTraversal traverse(theGraph,this,other);
 	std::vector<Type*>::iterator iter;
 	std::vector<Type*>::iterator oit;
-	currentMapping.clear(); // TODO: Possible leak
+	//currentMapping.clear(); // TODO: Possible leak
+	std::vector<Type*> currentMapping;
 	// First, check the type graph if a legal path actually exists
 	PartialOrder order = theGraph.findSupertype(find(), other->find(), currentMapping, excludeMapping);
+	needDeletion.insert(needDeletion.end(), currentMapping.begin(), currentMapping.end());
 
 	if (order == ERROR) return false;
 	Type *goal = find();

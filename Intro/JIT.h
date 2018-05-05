@@ -50,7 +50,8 @@ public:
 	JIT()
 		: TM(llvm::EngineBuilder().selectTarget())
 		, DL(TM->createDataLayout())
-		, ObjectLayer([]() { return std::make_shared<llvm::SectionMemoryManager>(); 
+		, ObjectLayer([]() { 
+			return std::make_shared<llvm::SectionMemoryManager>(); 
 		})
 		, CompileLayer(ObjectLayer, llvm::orc::SimpleCompiler(*TM))
 		, OptimizeLayer(CompileLayer,[this](std::shared_ptr<llvm::Module> M) {
@@ -67,16 +68,17 @@ public:
 	{
 		auto Resolver = llvm::orc::createLambdaResolver(
 			[&](const std::string &Name) {
-			if (auto Sym = OptimizeLayer.findSymbol(Name, false))
+			auto Sym = OptimizeLayer.findSymbol(Name, false);
+			if (Sym)
 				return Sym;
 			return llvm::JITSymbol(nullptr);
 		},
 			[](const std::string &Name) {
-			if (auto SymAddr =
-				llvm::RTDyldMemoryManager::getSymbolAddressInProcess(Name))
+			auto SymAddr = llvm::RTDyldMemoryManager::getSymbolAddressInProcess(Name);
+			if (SymAddr)
 				return llvm::JITSymbol(SymAddr, llvm::JITSymbolFlags::Exported);
 			return llvm::JITSymbol(nullptr);
-		});
+			});
 
 		// Add the set to the JIT with the resolver we created above and a newly
 		// created SectionMemoryManager.

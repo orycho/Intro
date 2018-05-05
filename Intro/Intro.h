@@ -33,7 +33,7 @@ class CodeGenEnvironment;
 class Function;
 /// A Variable set contains, by name, all references to a variable, 
 /// hence a multiset (does that even make sense!?).
-typedef std::set<std::wstring> VariableSet;
+typedef std::map<std::wstring,Type*> VariableSet;
 
 /// The base class for all statements of the Intro language
 class Statement

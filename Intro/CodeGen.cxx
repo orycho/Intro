@@ -1245,7 +1245,7 @@ namespace intro {
 		{
 			// Find the free variable in the outer environment
 			//CodeGenEnvironment::iterator iter=env->find(variables[i]);
-			CodeGenEnvironment::iterator iter=env->find(vars);
+			CodeGenEnvironment::iterator iter=env->find(vars.first);
 			// Copy the value to the closure
 			idxs[2]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), field_index); // index of field in array
 			
@@ -1265,7 +1265,7 @@ namespace intro {
 				closurevar=builder.CreateLoad(iter->second.address,"freevarval");
 				closurertt=builder.CreateLoad(iter->second.rtt,"freevarrtt");
 			}
-			// Increase reference count of closure variables?!
+			env->removeIntermediateOrIncrement(builder, vars.second, closurevar, closurertt);
 			builder.CreateStore(closurevar,fieldptr);
 			builder.CreateStore(closurertt,fieldrtt);
 			field_index++;
@@ -1304,9 +1304,9 @@ namespace intro {
 		// Totall need the free variables, and maybe also the bound ones.
 		VariableSet free,bound;
 		if (!env->getOuterValueName().empty())
-			bound.insert(env->getOuterValueName());
+			bound.insert(make_pair(env->getOuterValueName(),getType()));
 		getFreeVariables(free,bound);
-		std::vector<std::wstring> variables(free.begin(),free.end());
+		//std::vector<std::wstring> variables(free.begin(),free.end());
 		// Allocate closure with space for all free variables
 		Value *ArgsAlloc[]={
 			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext),free.size(),false)
@@ -1314,7 +1314,7 @@ namespace intro {
 		llvm::Value *closure=TmpB.CreateCall(TheModule->getFunction("allocClosure"), ArgsAlloc, "closureAlloc" );
 		llvm::Value *cast_closure=TmpB.CreateBitCast(closure,closure_t->getPointerTo(),"closure");
 		// Create actual function
-		llvm::Function *fun=buildFunction(env,variables);
+		llvm::Function *fun=buildFunction(env, free);
 
 		// Write function pointer into closure
 		llvm::Value *castfun=TmpB.CreateBitCast(fun,builtin_t,"funptr");
@@ -1359,12 +1359,12 @@ namespace intro {
 	}
 	
 	// Pass the actual environment - we will add the function and then the number of variables to allocate will be known after.
-	llvm::Value *buildGeneratorStub(llvm::IRBuilder<> &closure_builder,CodeGenEnvironment *closure_env,const std::vector<std::wstring> &free_
+	llvm::Value *buildGeneratorStub(llvm::IRBuilder<> &closure_builder,CodeGenEnvironment *closure_env,const VariableSet &free_
 		,BlockStatement *body)
 	{
 		VariableSet freeset,bound;
 		body->getFreeVariables(freeset,bound);
-		std::vector<std::wstring> free(freeset.begin(),freeset.end());
+		//std::vector<std::wstring> free(freeset.begin(),freeset.end());
 		// Set up a function for the generator body
 		llvm::Function *GF = llvm::Function::Create(genfunc_t, llvm::Function::ExternalLinkage, "function", TheModule.get());
 		makeReturnTypeZExt(GF);
@@ -1374,7 +1374,7 @@ namespace intro {
 		llvm::IRBuilder<> builder(theContext);
 		builder.SetInsertPoint(entry);
 		CodeGenEnvironment local(closure_env,CodeGenEnvironment::Generator);
-		local.setGenerator(builder,GF,free);
+		local.setGenerator(builder,GF,freeset);
 		body->codeGen(builder,&local);
 		// Generators' yield statements always create a ret instruction, so we don't need it here.
 		GF->getBasicBlockList().push_back(local.getExitBlock());
@@ -1382,7 +1382,7 @@ namespace intro {
 		// Always return false if we know not what to to with an iteration function.
 		builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt1Ty(theContext), 0,false));
 		llvm::verifyFunction(*GF);
-		std::uint32_t closurecount = free.size(); // Number of variables captured in closure
+		std::uint32_t closurecount = freeset.size(); // Number of variables captured in closure
 		std::uint32_t varcount = local.getClosureSize()-closurecount; // number of generator variables captured after closure values.
 		std::vector<llvm::Value*> ArgsAlloc {
 			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), closurecount,false),
@@ -1398,7 +1398,7 @@ namespace intro {
 	// Helper function building a function or generator body
 	// In case of generators, this returns the actual iteration function.
 	// The iteration function should be wrapped in a constructor...
-	llvm::Function *Function::buildFunction(CodeGenEnvironment *parent,const std::vector<std::wstring> &free)
+	llvm::Function *Function::buildFunction(CodeGenEnvironment *parent,const VariableSet &free)
 	{
 		bool returnsValue = myType->getReturnType()->find()->getKind()!=Type::Unit;
 		bool returnsGenerator = false;
@@ -1660,13 +1660,12 @@ namespace intro {
 		Expression::cgvalue sourceval=value->codeGen(TmpB,env);
 		Expression::cgvalue destval = destination->getWriteAddress(TmpB, env);
 		// may need coercion... also increment old and decrement new
+		env->removeIntermediateOrIncrement(TmpB, value->getType(), sourceval.first, sourceval.second);
 		llvm::Value *argsDecr[] = { TmpB.CreateLoad(destval.first,"decr_tmp"), destval.second };
 		// Then get rid of the allocated buffer again...
 		llvm::Function *subF = TheModule->getFunction("decrement");
 		//TmpB.CreateCall(subF, argsDecr);
-		env->removeIntermediateOrIncrement(TmpB, value->getType(), sourceval.first, sourceval.second);
 		TmpB.CreateStore(sourceval.first,destval.first);
-		//TmpB.CreateStore(ret.first,destval.first);
 		return sourceval;
 	}
 	
@@ -2183,7 +2182,7 @@ namespace intro {
 					slot
 				};
 				llvm::Value *fieldaddr=TmpB.CreateCall(getFieldVariantF, argsGet,"fieldptr");
-				fieldaddr=TmpB.CreateLoad(fieldaddr,"varfieldrtt");
+				fieldaddr=TmpB.CreateLoad(fieldaddr,"varfield");
 				llvm::Value *fieldrtt=TmpB.CreateCall(getFieldRTTVariantF, argsGet,"fieldvalue");
 				fieldrtt=TmpB.CreateLoad(fieldrtt,"varfieldrtt");
 				// Put into environment
@@ -2208,6 +2207,9 @@ namespace intro {
 			TheFunction->getBasicBlockList().push_back(postcase);
 			TmpB.SetInsertPoint(postcase);
 			local.decrementIntermediates(TmpB);
+			//env->decrementValue(TmpB,
+			//	TmpB.CreateLoad(tmpvar->second.address,"tmpval"),
+			//	TmpB.CreateLoad(tmpvar->second.rtt,"tmprtt"));
 		}
 		return true;
 	}

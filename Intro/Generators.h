@@ -154,7 +154,7 @@ public:
 		{			
 			by->getFreeVariables(free,bound);
 		}
-		bound.insert(getVariableName());
+		bound.insert(std::make_pair(getVariableName(),getVariableType()));
 		// TODO: Capture this variable?!
 	};
 
@@ -242,7 +242,7 @@ public:
 	/// Collect the free variables in this expression into the given set.
 	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
 	{
-		bound.insert(getVariableName());
+		bound.insert(std::make_pair(getVariableName(),getVariableType()));
 		container->getFreeVariables(free,bound);
 	};
 
