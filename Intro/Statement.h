@@ -118,6 +118,8 @@ private:
 	FunctionType *myType;
 	ValueStatement *parentvar; ///< If not, this points to the var statement holding the function expressnion.
 
+	Type unit_type;
+
 protected:
 	virtual Type *makeType(Environment *env, ErrorLocation *errors)
 	{
@@ -126,7 +128,10 @@ protected:
 		//Type *rettype=localenv.put(L"!return");
 		// TODO@ENV: Handle return type
 		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), L"function definition");
-		localenv.put(L"!return");
+		if (body->isReturnLike())
+			localenv.put(L"!return");
+		else
+			localenv.put(L"!return", &unit_type);
 		ParameterList::iterator iter;
 		for (iter=parameters.begin();iter!=parameters.end();iter++)
 		{
@@ -160,7 +165,7 @@ protected:
 	*/
 	llvm::Function *buildFunction(CodeGenEnvironment * parent, const VariableSet & free);
 public:
-	Function(int l,int p): Expression(l,p), myType(NULL)
+	Function(int l,int p): Expression(l,p), myType(NULL), unit_type(Type::Unit)
 	{ parentvar=NULL; };
 
 	~Function()
@@ -633,6 +638,7 @@ public:
 			exprtype->find()->print(strs);
 			strs << "instead\n";
 			errors->addError(new ErrorDescription(getLine(), getColumn(), strs.str()));
+			return false;
 		}
 		return true;
 	};
@@ -966,6 +972,7 @@ public:
 		expr->collectFunctions(funcs);
 	};
 
+	virtual bool isTerminatorLike(void) { return true; };
 	virtual bool isReturnLike(void) { return true; };
 
 	virtual size_t countVariableStmts(void)
@@ -1052,6 +1059,8 @@ public:
 	{
 		if (expr!=nullptr) expr->collectFunctions(funcs);
 	};
+
+	virtual bool isTerminatorLike(void) { return expr == NULL; };
 
 	virtual bool isReturnLike(void) 
 	{ 

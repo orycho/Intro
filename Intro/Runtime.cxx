@@ -932,7 +932,9 @@ void setInnerRecord(innerrecord *ir,std::int32_t *offsets,const wchar_t **labels
 	}
 	ir->offsets=offsets;
 	ir->fieldrtt=(rtt_t*)malloc(sizeof(rtt_t)*fieldcount);
+	memset(ir->fieldrtt, 0, sizeof(rtt_t)*fieldcount);
 	ir->fields=(rtdata*)malloc(sizeof(rtdata)*fieldcount);
+	memset(ir->fields, 0, sizeof(rtdata)*fieldcount);
 	ir->labels=labels;
 }
 
@@ -974,6 +976,9 @@ void freeRecord(rtrecord *record)
 
 void setFieldRecord(rtrecord *record,std::uint32_t slot,rtdata value,rtt_t rtt)
 {
+	if (record->r.fieldrtt[slot] != intro::rtt::Undefined)
+		decrement(record->r.fields[slot], record->r.fieldrtt[slot]);
+	increment(value, rtt);
 	record->r.fields[slot]=value;
 	record->r.fieldrtt[slot]=rtt;
 }
@@ -1025,6 +1030,10 @@ void freeVariant(rtvariant *variant)
 
 void setFieldVariant(rtvariant *variant,std::uint32_t slot,rtdata value,rtt_t rtt)
 {
+	// increase refcount??
+	if (variant->r.fieldrtt[slot] != intro::rtt::Undefined)
+		decrement(variant->r.fields[slot], variant->r.fieldrtt[slot]);
+	increment(value, rtt);
 	variant->r.fields[slot]=value;
 	variant->r.fieldrtt[slot]=rtt;
 }

@@ -68,12 +68,6 @@ namespace intro {
 	llvm::Type *rttype_t;
 	llvm::FunctionType *genfunc_t;
 	
-/*
-	/// Regular Expression used to tokenize string literals for 'string interpolation'.
-	//const std::tr1::wregex tokens(L"(\\\\(?:u[[:xdigit:]]{4}|x[[:xdigit:]]+|[[:graph:]])|\\$\\{[[:graph:]]+\\}|[[:space:]]+|[^\\\\$ ]+|\\$(?!\\{))");
-*/
-
-
 	/////////////////////////////////////////////////////////////////////
 	// Code Generation Utilities
 	//
@@ -907,7 +901,7 @@ namespace intro {
 		// Generate call to string allocation intrisic, guesstimate length by taking source string length
 		// For each part, it's a constant string, or a variable interpolation
 		std::vector<llvm::Value*> ArgsV;
-		rtt::tag_t rttbuf=myType->getFirstParameter()->find()->getRTKind();
+		rtt::tag_t rttbuf=myType->getParameter(0)->find()->getRTKind();
 		Value *key_rtt = llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext),rttbuf,false);
 		rttbuf=myType->getParameter(1)->find()->getRTKind();
 		Value *value_rtt = llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext),rttbuf,false);
@@ -1153,9 +1147,9 @@ namespace intro {
 		else
 		{
 			// ... nope, pass a nullptr
-			llvm::ArrayType *ty=llvm::ArrayType::get(llvm::Type::getInt16Ty(theContext)->getPointerTo(),size);
+			//llvm::ArrayType *ty=llvm::ArrayType::get(llvm::Type::getInt16Ty(theContext)->getPointerTo(),size);
 			args.push_back(llvm::Constant::getNullValue(llvm::Type::getInt32Ty(theContext)->getPointerTo()));
-			args.push_back(llvm::Constant::getNullValue(ty->getPointerTo()));
+			args.push_back(llvm::Constant::getNullValue(charptr_t->getPointerTo()));
 		}
 		// tag param for allocator
 		args.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext),getTag(tag),false));
@@ -2195,11 +2189,14 @@ namespace intro {
 			// The environment is set up, generate the body
 			(*iter)->body->codeGen(TmpB,&innerlocal);
 			// done, jump to end of case if we did not have a return statement in here
-			innerlocal.decrementIntermediates(TmpB);
-			innerlocal.closeScope(TmpB);
+			if (!(*iter)->body->isTerminatorLike())
+			{
+				innerlocal.decrementIntermediates(TmpB);
+				innerlocal.closeScope(TmpB);
+				TmpB.CreateBr(postcase);
+			}
 			//env->decrementIntermediates(TmpB);
-			if (!(*iter)->body->isTerminatorLike()) TmpB.CreateBr(postcase);
-			//else local.decrementIntermediates(TmpB,false);
+			
 		}
 		// Create block after case statement if needed
 		if (!isReturnLike()) 
@@ -2207,6 +2204,7 @@ namespace intro {
 			TheFunction->getBasicBlockList().push_back(postcase);
 			TmpB.SetInsertPoint(postcase);
 			local.decrementIntermediates(TmpB);
+			env->decrementIntermediates(TmpB);
 			//env->decrementValue(TmpB,
 			//	TmpB.CreateLoad(tmpvar->second.address,"tmpval"),
 			//	TmpB.CreateLoad(tmpvar->second.rtt,"tmprtt"));

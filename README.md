@@ -21,34 +21,32 @@ as higher order functions with closures can be placed in records
 and records are structurally sub-typed.
 
 This is version 0.2 and a few things are still missing:
+
 * generated code leaks memory
 * standard library currently very limited, and likely buggy.
 * the repl is flaky, it likes to exit on syntax errors and arrow keys and the like... no getline.
 
 ## Building the source
-
 tested with 
+
 * MSVC 2015: use solution file to build.
 * cygwin gcc: use makefile. Just type "make" in the shell, from the project root directory.
 
 ### Requirements
-
 #### Core Requirements
 * [LLVM 5](http://llvm.org/) 
 * Building tests requires [google-test](https://github.com/google/googletest).
 
 #### MS Visual Studio Requirements
-
 * The [Visual Leak Detector](https://vld.codeplex.com/) is used in debug mode.
 
 Check the project directories configured under VC++ to make sure the libraries and headers are found.
-#### Syntax Change Requirements
 
+#### Syntax Change Requirements
 * To modify the grammar, you will need [COCO/R](http://www.ssw.uni-linz.ac.at/Coco/) installed - use namespace "parser" and the frame files in subdirectory coco, or check makefile/solution
 
 
 # Example Session
-
 Let's jump right in and see the language in action. It is started with e.g.
 <pre>
 $ build/intro
@@ -228,7 +226,6 @@ P(X >= 3) = 0.429237
 </pre>
 
 # Super short quick start guide
-
 (This is so short that even the cheatsheet.pdf in docs is more in depth.)
 
 * All statements are terminated by a semicolon (except modules, but those are not really statements).
@@ -239,7 +236,6 @@ P(X >= 3) = 0.429237
 All values in Intro are just written out, each built in type has distinct syntax.
 
 ## Simple types (are expressions represented by a single literal):
-
 * Booleans can be: <pre>true, false</pre>
 * Strings are in quotes: <pre>"some string", "abc"</pre>
 * The backspace \ character in strings has special meaning to insert special characters (e.g. "\\n" new line, 
@@ -247,19 +243,21 @@ All values in Intro are just written out, each built in type has distinct syntax
 * String interpolation: any occurence of ${id}, for some variable identifier id, inside the string is 
 replaced with a string representing the value of 'id'. For instance an integer variabela with value 123
 would turn 
+
 >"the value is ${a}!!!"
 
 into the output
+
 >the value is 123!!!
 
 All types can be turned to strings, but for functions and generators the output is simply "function" and "generator" respectively.
 Note that only variables are allowed, while allowing expressions may be a tad more comfortable, it would quickly make
 complex string definitions unreadable. Just define intermediate variables &emdash; maybe write a helper function.
+
 * Integers consist of only digits: <pre>0, 123, 400246</pre>
 * Reals have at exactly one dot amongst the digits: <pre>.0, 1.23, 2360897.</pre>
 
 ## Compound types (expressions with arbitrary many literals):
-
 * Functions begin with the keyword "fun" followed by a list of comma separated identifiers in parentheses (parameters)
 followed by -> (read "maps to") and the body. They must end on a return or return  like statement, and are terminated with the keyword end:
 <pre>fun(a,b,x)->return a*x+b; end</pre>
@@ -297,7 +295,6 @@ end;
 </pre>
 That may look verbose, but it just forces the programmer to handle lookup failures.
 
-
 ## Other expressions (mostly binary and unary operators)
 * Arithmetic (integer and real): <pre>+,*,-,/,%</pre>
 * boolean: <pre>and, or, xor, not</pre>
@@ -323,7 +320,8 @@ if x==1 then # do someting
 elsif x==2 then # do something else
 else #give up
 end;
-
+</pre>
+<pre>
 if error then # panic
 end;
 </pre>
@@ -335,10 +333,11 @@ Each branch begins with a tag and is followed by labels that must exist in the v
 (otherwise there will be a type error). Those labels are bound to the corresponding fields in the variant. 
 After the tag and labels comes the word "then", followed by the branch's statements. 
 The branches are separated by pipe symbols "|":
-<pre>case variantExpr of 
-A x then return x; 
-| B a b then return a+b; 
-end;</pre>
+
+> case variantExpr of 
+> A x then return x; 
+> | B a b then return a+b; 
+> end;
 
 The <tt>source</tt> statement tries to load a file and interpret it as a intro source file.
 <pre>
@@ -354,7 +353,6 @@ which is more relevant in projects with multiple files.
 
 Note the string passed to the source statement is static, string interpolation will not work.
 It is not possible to select source files to load at runtime.
-
 
 ## Generator Statements
 Generators can only be used in these statements, which are actually always part of another construct: 
@@ -373,32 +371,32 @@ Special syntax sugar is provided for generating integer values:
 identifier "from" startvalue "to" endvalue "by" stepvalue.
 Where the values generated starts at start value, goes up to at most endvalue and is incremented by stepvalue. 
 Stepvalue is optional and defaults to one, e.g. to generate all values from 1 to 10 in variable x:
-<pre>x from 1 to 10</pre>
+
+>x from 1 to 10
 
 Multiple values can be generated in one statement, each additional value begins with the operator "&&", and generator
 applications (maybe better instantiation) can use the variables introduced to their left:
 
-<pre>i from 1 to 10 && y from x to 10 && z from y to 10</pre>
+>i from 1 to 10 && y from x to 10 && z from y to 10
 
 A generator value is moved to the next every time the generator to the left (if there) has completed a full cycle.
 So the above example generates x=1, y=1, z=1, then z=2 and so on. Once z is 10, y is increased then z is reset to the new y.
 It is probably easiest to type it into the REPL as a list to see the result:
 
-<pre>{ [a&lt;-x; b&lt;-y; c&lt;-z;] | x from 1 to 10 && y from x to 10 && z from y to 10};</pre>
+>{ [a&lt;-x; b&lt;-y; c&lt;-z;] | x from 1 to 10 && y from x to 10 && z from y to 10};
 
 Finally, anywhere after the first generator binding,  conditions can be introduced by the operator "??". Each condition
 can use all generated values defined to its left. Any value combination for which the condition is false will be skipped, which
 includes any generators to the right. So here is a list of right triangles, without isomorphism and with the hypotenuse
 always in c (in the records in the resulting list):
 
-<pre>{ [a&lt;-x; b&lt;-y; c&lt;-z;] | x from 1 to 10 && y from x to 10 && z from y to 10 ?? x * x + y * y == z * z};</pre>
+>{ [a&lt;-x; b&lt;-y; c&lt;-z;] | x from 1 to 10 && y from x to 10 && z from y to 10 ?? x * x + y * y == z * z};
 
 The for statement consists of the word "for" followed by a generator statement followed by "do", then a list of statements
 that will be executed for each group of values generated, and then the keyword "done":
 <pre>for x in somelist do process(x); done;</pre>
 
 # Modules
-
 (Preliminary documentation, may change with bug fixes and some details...)
 
 Modules aim to support large scale programming, in Intro they serve two purposes:
@@ -406,13 +404,14 @@ Modules aim to support large scale programming, in Intro they serve two purposes
 * the second is providing information hiding. This is done by a) defining an interface the module can be accessed through and b) providing a wa to define opaque types.
 A script may contain multiple module definitions. If a module in another file is to be used, that file must first be loaded (that is TBD).
 
-Modules have a path, much like files in file systems, but double colons "::" are used as separators (spaces between identifiers and
-separators are ignored).
+Modules have a path, much like files in file systems, but double colons "::" are used as separators (spaces between identifiers and separators are ignored).
 
 Example relative paths:
+
 > Pair, foo::bar
 
 Example absolute paths:
+
 > ::sio, ::gui::controls::buttons, 
 
 The module at the root module is also called the global scope, and is written simply as a double colon without a prefix. 
@@ -430,9 +429,9 @@ or local variables. The interface only names the value and it's type.
 The syntax for modules is:
 <pre>
 "module" path "exports"
-interface
+    interface
 "from"
-body
+    body
 "end."
 </pre>
 * Note the fact that Modules end with a period "." after the closing "end", NOT a semicolon ";"! This
@@ -506,12 +505,14 @@ from
 	end; 
 end.
 </pre>
+
 In this example, the Pair type is implemented as a record type [first:?a&lt;:Top; second:?b&lt;:Top;].
 The module is also implemented in ./examples/pair.intro.
 
 ## Importing from Modules
 While any interface member can always be named with an absolute path, this can become cumbersome. 
 The import statement is provided to copy a modules interface (all of it) into the current scope, e.g.
+
 > import ::sio;
 
 The import statement can be used anywhere, and only the current scope is extended. That means modules' interfaces can be imported
@@ -534,6 +535,7 @@ It also servers as a very simple example for implementing RTL modules, even thou
 
 ## print
 The function 
+
 > ::sio::print(data) : (?a<:Top)->Unit
 
 takes any value as input, turns it into a string and displays the result.
@@ -549,6 +551,7 @@ Note there is no equal sign in the output, as this was not printed by the REPL.
 
 ## read
 The function 
+
 > ::sio::read() : ()->String
 
 reads one line of text from the terminal, and returns it as a string. It has no parameters,
@@ -566,6 +569,7 @@ The line with an equal sign in front was the return value of read, printed by th
 
 ## saveFile
 The function 
+
 > ::sio::saveFile(path,data) : (String,?a<:Top)->Boolean
 
 converts data to a string and stores the result (UTF-8 encoded) in the file at path (which wil be created or cleared).
@@ -579,6 +583,7 @@ It returns true on success, and false if any error occurred. Usage is dead simpl
 
 ## loadFile
 The function 
+
 > ::sio::loadFile(path) : (String)->{[:None] + [:Some value:String]}
 
 opens the file named in path which is expected to be an existing UTF-8 txt file.
@@ -600,6 +605,7 @@ In most cases, the None variant if returned if the file was not found.
 # THE END...
 
 Questions for Ory:
+
 * Does case allow mutating a variant? could be useful - currently not, the bound variant eements are merked as constants!
 * If modules can access anything already defined in lower modules, how does that interacting with sourcing scripts inside the module?
 . E.g. it may be possible to have the same code use different modules as it's base implementation, if the mdules interface matches...

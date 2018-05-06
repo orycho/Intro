@@ -68,6 +68,7 @@ bool intro::SourceStatement::makeType(Environment *env, ErrorLocation *errors)
 			//std::wcout << L"Error: Could not load file '"
 			//	<< path << "'!\n";
 			errors->addError(new ErrorDescription(getLine(), getColumn(), std::wstring(L"Failed to load file")));
+			files.erase(iter->first);
 			return false;
 		}
 
@@ -84,6 +85,7 @@ bool intro::SourceStatement::makeType(Environment *env, ErrorLocation *errors)
 			std::wcout << L"Found " << parser.errors->count << L" errors while parsing file "
 				<< path << "!\n";
 			delete file;
+			files.erase(iter->first);
 			return false;
 		}
 		file->statements.insert(file->statements.end(), parser.parseResult.begin(), parser.parseResult.end());
@@ -92,24 +94,29 @@ bool intro::SourceStatement::makeType(Environment *env, ErrorLocation *errors)
 		ErrorLocation *logger = new ErrorLocation(0, 0, std::wstring(L"source file ") + path);
 		for (auto iter = file->statements.begin();isOK && iter != file->statements.end();iter++)
 		{
-			isOK = (*iter)->makeType(&(file->env),logger);
+			isOK &= (*iter)->makeType(&(file->env),logger);
 		}
-		if (!isOK)
+		if (logger->hasErrors())
 		{
 			//std::wcout << L"Type errors encountered while parsing file "
 			//	<< path << "!\n";
 			errors->addError(logger);
+			files.erase(iter->first);
 			delete file;
 			return false;
 		}
+		else
+		{
+			file->state = SourceFile::Done;
+		}
 		delete logger;
-		file->state = SourceFile::Done;
 	}
 	else if (iter->second->state != SourceFile::Done)
 	{
-		//std::wcout << L"Circular dependency for file '"
-		//	<< path << "'(it tries to source itself, possibly indirectly)! \n";
-		errors->addError(new ErrorDescription(getLine(), getColumn(), L""));
+		std::wstringstream out;
+		out << L"Circular dependency for file '"
+			<< path << "'(it tries to source itself, possibly indirectly)! \n";
+		errors->addError(new ErrorDescription(getLine(), getColumn(), out.str()));
 		return false;
 
 	}
@@ -136,6 +143,7 @@ bool intro::SourceStatement::codeGen(llvm::IRBuilder<>& TmpB, intro::CodeGenEnvi
 			;isOK && inner != iter->second->statements.end()
 			;inner++)
 			isOK &= (*inner)->codeGen(TmpB, cgenv);
+		//TheModule->dump();
 	}
 	CodeGenEnvironment::iterator eit;
 	if (iter->second->current != TheModule.get())

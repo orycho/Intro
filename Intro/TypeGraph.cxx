@@ -205,8 +205,10 @@ struct state
 PartialOrder TypeGraph::findSupertype(Type *ta,Type*tb,std::vector<Type*> &cur,std::set<Type*> &exclude)
 {
 	std::vector<state> stack;
-	TypeGraph::node *start=getNode(ta->find());
-	TypeGraph::node *dest=getNode(tb->find());
+	ta = ta->find();
+	tb = tb->find();
+	TypeGraph::node *start=getNode(ta);
+	TypeGraph::node *dest=getNode(tb);
 	Type *param_source;
 
 	PartialOrder retval=EQUAL;

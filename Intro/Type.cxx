@@ -188,11 +188,17 @@ PartialOrder FunctionType::internalCheckSubtype(Type *other)
 	{
 		combinePartialOrders(val,(*bi)->checkSubtype(*ai));
 	}
-	if (val==ERROR) return ERROR;
+	if (val==ERROR)
+		return ERROR;
 	// Note the source functions for the return types are 
 	// switched (compared to loop), the call to checkSubtype 
 	// is thus contravariant. Same for the return statement
-	combinePartialOrders(val,fb->getReturnType()->checkSubtype(getReturnType()));
+	PartialOrder po = fb->getReturnType()->checkSubtype(getReturnType());
+	if (po!= ERROR)// && po != val)
+		return val;
+	else
+		return ERROR;
+	//combinePartialOrders(val,fb->getReturnType()->checkSubtype(getReturnType()));
 	return val;
 }
 
@@ -619,9 +625,11 @@ bool RecordType::internalUnify(Type *other,bool specialize)
 	// result type must be the lesser type, i.e the subtype with more labels.
 	// The larger record must contain all labels that occur in the smaller one,
 	// and these labels' types must be unified.
-	PartialOrder po = ra->checkSubtype(rb);
-	if (po == ERROR) return false;
-	else if (po == GREATER) std::swap(ra, rb);
+	//PartialOrder po = ra->checkSubtype(rb);
+	//if (po == ERROR) return false;
+	//else if (po == GREATER) std::swap(ra, rb);
+	if (rb->members.size()>ra->members.size())
+		std::swap(ra, rb);
 	// rb should now have less or equal many labels
 	for (bi = rb->begin();bi != rb->end();++bi)
 	{
@@ -639,7 +647,7 @@ bool VariantType::internalUnify(Type *other, bool specialize)
 	VariantType *vb = dynamic_cast<VariantType*>(other);
 	if (vb == NULL) return false;
 	VariantType::iterator ai, bi;
-	if (specialize) // excpect [:A ...] with ?a<:{[:A ...] + ...}
+	if (!specialize) // excpect [:A ...] with ?a<:{[:A ...] + ...}
 	{
 		// Tags present in both : 
 		for (ai = beginTag();ai != endTag();ai++)
@@ -647,7 +655,8 @@ bool VariantType::internalUnify(Type *other, bool specialize)
 			bi = vb->findTag(ai->first);
 			if (bi != vb->endTag())
 			{
-				if (!ai->second->unify(bi->second, specialize))
+				//if (!ai->second->unify(bi->second, specialize))
+				if (!ai->second->unify(bi->second))
 					return false;
 			}
 		}
@@ -661,6 +670,7 @@ bool VariantType::internalUnify(Type *other, bool specialize)
 	}
 	else
 	{
+		/*
 		if (tags.size() == 1)
 		{
 			ai = tags.begin();
@@ -672,7 +682,21 @@ bool VariantType::internalUnify(Type *other, bool specialize)
 			bi = tags.find(ai->first);
 		}
 		else return false;
-		ai->second->unify(bi->second);
+		*/
+		VariantType *va = this;
+		if (tags.size() > vb->tags.size())
+		{
+			va = vb;
+			vb = this;
+		}
+		for (ai = va->tags.begin();ai != va->tags.end();++ai)
+		{
+			bi = vb->findTag(ai->first);
+			if (bi == vb->endTag())
+				return false;
+			if (!ai->second->unify(bi->second,specialize))
+				return false;
+		}
 		vb->setParent(this);
 	}
 	return true;

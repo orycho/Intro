@@ -1319,6 +1319,66 @@ bool CaseMemoryStmtGen(void)
 	return isOK;
 }
 
+bool DictOfFunsStmtGen(void)
+{
+	cout << "\n---\n Dictionary of functions Code Generation:\n";
+	const char *test =
+		"var prefixes <-{\n"
+		"	\"#\" => fun(line, lines)->\n"
+		"		::sio::print(line);\n"
+		"	end,\n"
+		"	\"*\" => fun(line, lines)->\n"
+		"		::sio::print(\"List line: ${line}\\n\");\n"
+		"	end,\n"
+		"	\">\" => fun(line, lines)->\n"
+		"		::sio::print(\"Preformatted text: ${line}\\n\");\n"
+		"	end\n"
+		"};\n"
+		"case prefixes[\"#\"] of None then | Some value then value(\"##Hello\",\"s\"); end;\n"
+		;
+	//parse::Parser parser=getParser(test);
+	cout << test << endl << endl;
+	parse::Scanner scanner((const unsigned char *)test, strlen(test));
+	parse::Parser parser(&scanner);
+	parser.isInteractive = false;
+	parser.Parse();
+	intro::Environment global;
+	bool isOK = parser.inferTypes(&global);
+	if (isOK) dumpGeneratedStatements(parser);
+	parser.deleteStatements();
+	return isOK;
+}
+
+bool DictOfVariantFunsStmtGen(void)
+{
+	cout << "\n---\n Dictionary of functions Code Generation:\n";
+	const char *test =
+		"var prefixes <-{\n"
+		"	\"#\" => fun(line, lines)->\n"
+		"		return [:A];\n"
+		"	end,\n"
+		"	\"*\" => fun(line, lines)->\n"
+		"		return [:B];\n"
+		"	end,\n"
+		"	\">\" => fun(line, lines)->\n"
+		"		return [:C];\n"
+		"	end\n"
+		"};\n"
+		"case prefixes[\"#\"] of None then | Some value then value(\"##Hello\",\"s\"); end;\n"
+		;
+	//parse::Parser parser=getParser(test);
+	cout << test << endl << endl;
+	parse::Scanner scanner((const unsigned char *)test, strlen(test));
+	parse::Parser parser(&scanner);
+	parser.isInteractive = false;
+	parser.Parse();
+	intro::Environment global;
+	bool isOK = parser.inferTypes(&global);
+	if (isOK) dumpGeneratedStatements(parser);
+	parser.deleteStatements();
+	return isOK;
+}
+
 // Execute all type tests
 bool typeTests(void)
 {
@@ -1393,6 +1453,8 @@ bool codeGenTests(void)
 	splitFuncCodeGen();
 	BreakStmtGen();
 	CaseMemoryStmtGen();
+	DictOfFunsStmtGen();
+	DictOfVariantFunsStmtGen();
 	return true;
 }
 

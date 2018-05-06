@@ -70,7 +70,7 @@ rtdata seqAppendTo_(rtclosure *closure, rtt_t *retvalrtt, rtdata destseq, rtt_t 
 	else
 	{
 		rtlist *list=(rtlist*)destseq.ptr;
-		// In case of empty list make sure element type is set
+		// In case of empty list make sure element> type is set
 		if (getElemTypeList(list)==intro::rtt::Undefined)
 			setElemTypeList(list,datartt);
 		appendList(list, data);
@@ -224,10 +224,11 @@ namespace {
 		EXPORT(L"get", "genGet", &genGetType)
 	CLOSE_MODULE
 
+	intro::Type unit_type(intro::Type::Unit);
 	intro::TypeVariable elemvar(L"?element");
 	intro::Type sequence_type(intro::Type::Sequence, &elemvar);
 	intro::FunctionType seqSizeType(&sequence_type, &integer_type);
-	intro::FunctionType seqAppendToType(&sequence_type, &elemvar);
+	intro::FunctionType seqAppendToType(&sequence_type, &elemvar, &sequence_type);
 	intro::VariantType maybe_elem_type(&elemvar);
 	intro::FunctionType seqFirstType(&sequence_type, &maybe_elem_type);
 

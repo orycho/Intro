@@ -11,7 +11,7 @@ namespace intro {
 		L"("
 		L"\\\\(?:u[[:xdigit:]]{4}|x[[:xdigit:]]+|[[:graph:]])"
 		L"|[[:space:]]+"
-		L"|\\$\\{[a-zA-Z][a-zA-Z0-9]*\\}"
+		L"|\\$\\{[a-zA-Z_][a-zA-Z0-9_]*\\}"
 		L"|\\\\\\$"
 		L"|[^\\\\\\$\\\"]+"
 		L")");
@@ -141,8 +141,9 @@ namespace intro {
 						errors->addError(logger);
 						return getError(L"error in list element.");
 					}
-					PartialOrder po=param->checkSubtype(ct);
-					if (po!=LESS && po!=EQUAL ) 
+					//PartialOrder po=param->checkSubtype(ct);
+					//if (po!=LESS && po!=EQUAL ) 
+					if (!param->unify(ct))
 					{
 						errors->addError(new ErrorDescription(getLine(), getColumn(), L"Subtyping mismatch in list elements: all items must be subtypes or of the first item."));
 						return getError(L"type mismatch in list constants");
@@ -227,8 +228,9 @@ namespace intro {
 					return getError(L"error in dictionary element key.");
 				}
 				else delete logger;
-				PartialOrder po=tkey->checkSubtype(ct);
-				if (po!=LESS && po!=EQUAL )
+				//PartialOrder po=tkey->checkSubtype(ct);
+				//if (po!=LESS && po!=EQUAL )
+				if (!tkey->unify(ct))
 				{
 					errors->addError(new ErrorDescription(getLine(), getColumn(), L"Subtyping mismatch in dictionary key: all keys must be subtypes or of the first element's key."));
 					return getError(L"Subtyping mismatch in dictionary key: all keys must be subtypes or of the first item.");
@@ -242,11 +244,12 @@ namespace intro {
 					return getError(L"error in dictionary element key.");
 				}
 				else delete logger;
-				po=tval->checkSubtype(ct);
-				if (po!=LESS && po!=EQUAL ) 
+				//po=tval->checkSubtype(ct);
+				//if (po!=LESS && po!=EQUAL ) 
+				if (!tval->unify(ct))
 				{
 					errors->addError(new ErrorDescription(getLine(), getColumn(), L"Subtyping mismatch in dictionary value: all vauesmust be subtypes or of the first element's value."));
-					return getError(L"Subtyping mismatch in dictionaly value: all values must be subtypes or of the first item.");
+					return getError(L"Subtyping mismatch in dictionary value: all values must be subtypes or of the first item.");
 				}
 			}
 		}
