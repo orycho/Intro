@@ -51,8 +51,8 @@ void combinePartialOrders(PartialOrder &accu, PartialOrder additional)
 Type::~Type()
 {
 	//if (super != this && super != nullptr) deleteCopy(super);
-	if (getKind()!=Variable) 
-		TypeGraph::clearMapping(needDeletion, excludeMapping);
+	//if (getKind()!=Variable) 
+	//	TypeGraph::clearMapping(needDeletion, excludeMapping);
 	params.clear();
 }
 

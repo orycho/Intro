@@ -32,6 +32,7 @@ public:
 		: TypeExpression(l, p)
 		, name(varname)
 		, super(nullptr)
+		, mytype(nullptr)
 		, mytop(Type::Top)
 	{
 	}
@@ -40,6 +41,7 @@ public:
 		: TypeExpression(l, p)
 		, name(varname)
 		, super(nullptr)
+		, mytype(nullptr)
 		, mytop(Type::Top)
 	{
 	}
@@ -72,8 +74,11 @@ protected:
 	};
 
 public:
-	TypeSimpleExpression(int l,int p,Type::Types mytype) : TypeExpression(l,p), type(mytype)
-	{ };
+	TypeSimpleExpression(int l,int p,Type::Types type_) 
+		: TypeExpression(l,p)
+		, type(type_)
+		, mytype(nullptr)
+	{ }
 
 	~TypeSimpleExpression(void)
 	{
@@ -110,8 +115,12 @@ protected:
 	};
 
 public:
-	TypeListExpression(int l,int p,TypeExpression *elems) : TypeExpression(l,p), elemtype(elems)
-	{ myexptype=NULL; };
+	TypeListExpression(int l,int p,TypeExpression *elems) 
+		: TypeExpression(l,p)
+		, elemtype(elems)
+		, myexptype(nullptr)
+		, mytype(nullptr)
+	{ };
 
 	~TypeListExpression(void)
 	{
@@ -160,8 +169,14 @@ protected:
 	};
 
 public:
-	TypeDictionaryExpression(int l,int p,TypeExpression *key,TypeExpression *val) : TypeExpression(l,p), keytype(key), valtype(val)
-	{ myval=NULL; mykey=NULL; };
+	TypeDictionaryExpression(int l,int p,TypeExpression *key,TypeExpression *val) 
+		: TypeExpression(l,p)
+		, keytype(key)
+		, valtype(val)
+		, myval(nullptr)
+		, mykey(nullptr)
+		, myexptype(nullptr)
+	{ };
 
 	~TypeDictionaryExpression(void)
 	{
@@ -354,7 +369,11 @@ protected:
 	};
 
 public:
-	TypeFunctionExpression(int l,int p) : TypeExpression(l,p), mytype(NULL), myexptype(NULL)
+	TypeFunctionExpression(int l,int p) 
+		: TypeExpression(l,p)
+		, returned(nullptr)
+		, mytype(NULL)
+		, myexptype(NULL)
 	{ };
 
 	~TypeFunctionExpression(void)
@@ -497,8 +516,12 @@ protected:
 	};
 
 public:
-	TypeGeneratorExpression(int l,int p,TypeExpression *val) : TypeExpression(l,p), valtype(val)
-	{ myexptype=NULL; };
+	TypeGeneratorExpression(int l,int p,TypeExpression *val) 
+		: TypeExpression(l,p)
+		, valtype(val)
+		, mytype(nullptr)
+		, myexptype(NULL)
+	{ };
 
 	~TypeGeneratorExpression(void)
 	{

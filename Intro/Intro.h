@@ -334,7 +334,8 @@ public:
 		for (iter=params.begin();iter!=params.end();iter++)
 			delete *iter;
 		if (func!=NULL) delete func;
-		if (deleteCalledType) deleteCopy(calledType);
+		if (deleteCalledType)
+			deleteCopy(calledType);
 		if (myFuncType!=NULL) delete myFuncType;
 		if (funvar!=NULL) delete funvar;
 		/*for (size_t i =0;i<sourceTypes.size();++i)

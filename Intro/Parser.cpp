@@ -921,8 +921,11 @@ void Parser::TypeVariable() {
 		if (la->kind == 68 /* "<:" */) {
 			Get();
 			NonVariableType();
+			if (!types.empty())
+			{
 			var->setSuper(types.top());
 			types.pop();
+			}
 			
 		}
 		types.push(var);
@@ -996,9 +999,12 @@ void Parser::TypeList() {
 		Expect(20 /* "(" */);
 		Type();
 		Expect(21 /* ")" */);
+		if (!types.empty())
+		{
 		buf=types.top();
 		types.pop();
 		types.push(new intro::TypeListExpression(t->line,t->col,buf));
+		}
 		
 }
 
@@ -1016,9 +1022,12 @@ void Parser::TypeGenerator() {
 		Expect(20 /* "(" */);
 		Type();
 		Expect(21 /* ")" */);
+		if (!types.empty())
+		{
 		buf=types.top();
 		types.pop();
 		types.push(new intro::TypeGeneratorExpression(t->line,t->col,buf));
+		}
 		
 }
 
@@ -1027,15 +1036,21 @@ void Parser::TypeDictionary() {
 		Expect(71 /* "Dictionary" */);
 		Expect(20 /* "(" */);
 		Type();
+		if (!types.empty())
+		{
 		buf=types.top();
 		types.pop();
+		}
 		
 		Expect(17 /* "," */);
 		Type();
 		Expect(21 /* ")" */);
+		if (!types.empty())
+		{
 		intro::TypeExpression *buf2=types.top();
 		types.pop();
 		types.push(new intro::TypeDictionaryExpression(t->line,t->col,buf,buf2));
+		}
 		
 }
 
@@ -1048,9 +1063,12 @@ void Parser::TypeRecord() {
 			Expect(25 /* ":" */);
 			Type();
 			Expect(26 /* ";" */);
+			if (!types.empty())
+			{
 			buf=types.top();
 			types.pop();
 			rec->addMember(str,buf);
+			}
 			
 		}
 		Expect(27 /* "]" */);
@@ -1063,8 +1081,11 @@ void Parser::TypeVariantTag(intro::TypeVariantExpression *variant) {
 		Expect(25 /* ":" */);
 		Identifier(tag);
 		TypeRecord();
+		if (!types.empty())
+		{
 		variant->addTag(tag,(intro::TypeRecordExpression*)types.top());
 		types.pop();
+		}
 		
 }
 
@@ -1091,7 +1112,11 @@ void Parser::TypeOpaque() {
 		if (la->kind == 20 /* "(" */) {
 			Get();
 			Type();
+			if (!types.empty())
+			{
 			opaque->addParameter(types.top()); types.pop(); 
+			}
+			
 			while (la->kind == 17 /* "," */) {
 				Get();
 				Type();
@@ -1110,19 +1135,33 @@ void Parser::TypeFunction() {
 		Expect(20 /* "(" */);
 		if (StartOf(7)) {
 			Type();
-			fun->addParameter(types.top()); types.pop(); 
+			if (!types.empty())
+			{
+			fun->addParameter(types.top()); 
+			types.pop(); 
+			}
+			
 			while (la->kind == 17 /* "," */) {
 				Get();
 				Type();
-				fun->addParameter(types.top()); types.pop(); 
+				if (!types.empty())
+				{
+				fun->addParameter(types.top());
+				types.pop(); 
+				}
+				
 			}
 		}
 		Expect(21 /* ")" */);
 		Expect(22 /* "->" */);
 		Type();
+		if (!types.empty())
+		{
 		fun->setReturnType(types.top()); 
 		types.pop(); 
 		types.push(fun); 
+		}
+		
 }
 
 void Parser::ExportedName() {
@@ -1132,9 +1171,12 @@ void Parser::ExportedName() {
 		int line=t->line,pos=t->col; 
 		Expect(25 /* ":" */);
 		Type();
+		if (!types.empty())
+		{
 		intro::TypeExpression *buf=types.top();
 		types.pop();
 		modules.top()->addExport(line,pos,str,buf);
+		}
 		
 }
 
@@ -1149,14 +1191,20 @@ void Parser::AbstractType() {
 		if (la->kind == 20 /* "(" */) {
 			Get();
 			TypeVariable();
+			if (!types.empty())
+			{
 			parameters.push_back(types.top());
 			types.pop();
+			}
 			
 			while (la->kind == 17 /* "," */) {
 				Get();
 				TypeVariable();
+				if (!types.empty())
+				{
 				parameters.push_back(types.top());
 				types.pop();
+				}
 				
 			}
 			Expect(21 /* ")" */);

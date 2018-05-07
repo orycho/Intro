@@ -125,6 +125,7 @@ COMPILER Intro
 		if (errors->count>0)
 		{
 			std::cout << "Found " << errors->count << " errors while parsing!\n";
+			errors->count=0;
 			return false;
 		}
 		intro::ErrorLocation *logger = new intro::ErrorLocation(0, 0, std::wstring(L"test"));
@@ -160,8 +161,8 @@ COMPILER Intro
 			return;
 		}
 		intro::ErrorLocation *logger = new intro::ErrorLocation(0, 0, std::wstring(L"interactive session"));
-		bool isOk=stmt->makeType(getEnv(),logger);
-		if (isOk) 
+		
+		if (stmt->makeType(getEnv(),logger)) 
 		{
 			intro::executeStatement(stmt);
 			// remember statements for the types they own
@@ -1054,8 +1055,11 @@ TypeVariable=
 		"<:"
 		NonVariableType
 		(.
-			var->setSuper(types.top());
-			types.pop();
+			if (!types.empty())
+			{
+				var->setSuper(types.top());
+				types.pop();
+			}
 		.)
 	]
 	(.
@@ -1067,9 +1071,12 @@ TypeList=
 	(. std::wstring str; intro::TypeExpression *buf; .)
 	"List" '(' Type ')'
 	(.
-		buf=types.top();
-		types.pop();
-		types.push(new intro::TypeListExpression(t->line,t->col,buf));
+		if (!types.empty())
+		{
+			buf=types.top();
+			types.pop();
+			types.push(new intro::TypeListExpression(t->line,t->col,buf));
+		}
 	.)
 .
 
@@ -1077,9 +1084,12 @@ TypeGenerator=
 	(. std::wstring str; intro::TypeExpression *buf; .)
 	"Generator" '(' Type ')'
 	(.
-		buf=types.top();
-		types.pop();
-		types.push(new intro::TypeGeneratorExpression(t->line,t->col,buf));
+		if (!types.empty())
+		{
+			buf=types.top();
+			types.pop();
+			types.push(new intro::TypeGeneratorExpression(t->line,t->col,buf));
+		}
 	.)
 .
 
@@ -1088,15 +1098,21 @@ TypeDictionary=
 	"Dictionary" 
 	'(' Type 
 	(.
-		buf=types.top();
-		types.pop();
+		if (!types.empty())
+		{
+			buf=types.top();
+			types.pop();
+		}
 	.)
 	',' Type 
 	')'
 	(.
-		intro::TypeExpression *buf2=types.top();
-		types.pop();
-		types.push(new intro::TypeDictionaryExpression(t->line,t->col,buf,buf2));
+		if (!types.empty())
+		{
+			intro::TypeExpression *buf2=types.top();
+			types.pop();
+			types.push(new intro::TypeDictionaryExpression(t->line,t->col,buf,buf2));
+		}
 	.)
 .
 
@@ -1108,9 +1124,12 @@ TypeRecord=
 	{
 		Identifier<str> ':' Type ';'
 		(.
-			buf=types.top();
-			types.pop();
-			rec->addMember(str,buf);
+			if (!types.empty())
+			{
+				buf=types.top();
+				types.pop();
+				rec->addMember(str,buf);
+			}
 		.)
 	}
 	']'
@@ -1123,8 +1142,11 @@ TypeVariantTag<intro::TypeVariantExpression *variant>=
 	':' Identifier<tag> // tag
 	TypeRecord
 	(.
-		variant->addTag(tag,(intro::TypeRecordExpression*)types.top());
-		types.pop();
+		if (!types.empty())
+		{
+			variant->addTag(tag,(intro::TypeRecordExpression*)types.top());
+			types.pop();
+		}
 	.)
 .
 
@@ -1153,7 +1175,13 @@ TypeOpaque=
 
 	[
 		'('
-		Type (. opaque->addParameter(types.top()); types.pop(); .)
+		Type 
+		(. 
+			if (!types.empty())
+			{
+				opaque->addParameter(types.top()); types.pop(); 
+			}
+		.)
 		{
 			',' Type (. opaque->addParameter(types.top()); types.pop(); .)
 		}
@@ -1171,17 +1199,35 @@ TypeFunction=
 	.)
 	'('
 	[
-		Type (. fun->addParameter(types.top()); types.pop(); .)
+		Type 
+		(. 
+			if (!types.empty())
+			{
+				fun->addParameter(types.top()); 
+				types.pop(); 
+			}
+		.)
 		{ 
-			',' Type (. fun->addParameter(types.top()); types.pop(); .)
+			',' Type 
+			(. 
+			if (!types.empty())
+			{
+				fun->addParameter(types.top());
+				types.pop(); 
+			}
+			.)
 		}
 	]
 	')' 
 	"->" Type 
 	(. 
-		fun->setReturnType(types.top()); 
-		types.pop(); 
-		types.push(fun); .)
+		if (!types.empty())
+		{
+			fun->setReturnType(types.top()); 
+			types.pop(); 
+			types.push(fun); 
+		}
+	.)
 .
 
 
@@ -1216,9 +1262,12 @@ ExportedName=
 	':'	
 	Type
 	(.
-		intro::TypeExpression *buf=types.top();
-		types.pop();
-		modules.top()->addExport(line,pos,str,buf);
+		if (!types.empty())
+		{
+			intro::TypeExpression *buf=types.top();
+			types.pop();
+			modules.top()->addExport(line,pos,str,buf);
+		}
 	.)	
 .
 
@@ -1236,14 +1285,20 @@ AbstractType=
 		'('
 		TypeVariable
 		(.
-			parameters.push_back(types.top());
-			types.pop();
+			if (!types.empty())
+			{
+				parameters.push_back(types.top());
+				types.pop();
+			}
 		.)
 		{
 			',' TypeVariable
 			(.
-				parameters.push_back(types.top());
-				types.pop();
+				if (!types.empty())
+				{
+					parameters.push_back(types.top());
+					types.pop();
+				}
 			.)
 		}
 		')'

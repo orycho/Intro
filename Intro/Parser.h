@@ -177,6 +177,7 @@ std::vector<intro::Expression*> exprstack;
 		if (errors->count>0)
 		{
 			std::cout << "Found " << errors->count << " errors while parsing!\n";
+			errors->count=0;
 			return false;
 		}
 		intro::ErrorLocation *logger = new intro::ErrorLocation(0, 0, std::wstring(L"test"));
@@ -212,8 +213,8 @@ std::vector<intro::Expression*> exprstack;
 			return;
 		}
 		intro::ErrorLocation *logger = new intro::ErrorLocation(0, 0, std::wstring(L"interactive session"));
-		bool isOk=stmt->makeType(getEnv(),logger);
-		if (isOk) 
+		
+		if (stmt->makeType(getEnv(),logger)) 
 		{
 			intro::executeStatement(stmt);
 			// remember statements for the types they own

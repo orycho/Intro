@@ -117,13 +117,20 @@ rtdata seqFirst_(rtclosure *closure, rtt_t *retvalrtt, rtdata data, rtt_t datart
 }
 MKCLOSURE(seqFirst, seqFirst_)
 
+////////////////////////////////
+//
+// WARNING: Before continuing, read the section on goto in "Code Complete"!!!!
+// You're been warned, rage is pointless :)
+//
+////////////////////////////////
+
+
 rtdata stringTrimLeft_(rtclosure *closure, rtt_t *retvalrtt, rtdata str1, rtt_t str1rtt, rtdata str2, rtt_t str2rtt)
 {
 	rtstring *s1 = (rtstring *)str1.ptr, *s2 = (rtstring *)str2.ptr;
 	size_t first = 0;
 	while (first < s1->used)
 	{
-		bool match = false;
 		for (size_t i = 0;i < s2->used;++i)
 			if (s1->data[first] == s2->data[i]) goto first_iter;
 		break;
@@ -146,7 +153,6 @@ rtdata stringTrimRight_(rtclosure *closure, rtt_t *retvalrtt, rtdata str1, rtt_t
 	size_t last = s1->used - 1;
 	while (last < s1->used)
 	{
-		bool match = false;
 		for (size_t i = 0;i < s2->used;++i)
 			if (s1->data[last] == s2->data[i]) goto last_iter;
 		++last;
@@ -170,7 +176,6 @@ rtdata stringTrim_(rtclosure *closure, rtt_t *retvalrtt, rtdata str1, rtt_t str1
 	size_t first = 0;
 	while (first < s1->used)
 	{
-		bool match = false;
 		for (size_t i = 0;i < s2->used;++i)
 			if (s1->data[first] == s2->data[i]) goto first_iter;
 		break;
