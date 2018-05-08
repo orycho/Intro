@@ -486,6 +486,12 @@ void appendList(rtlist *list,rtdata elem)
 	list->used++;
 }
 
+void clearList(rtlist *list)
+{
+	if (isReferenced(list->elem_type)) for (std::uint64_t i = 0;i<list->used;++i)
+		decrement(list->data[i], list->elem_type);
+	memset(list->data, 0, sizeof(rtdata)*list->size);
+}
 rtlist *subList(rtlist *list,std::uint64_t from,std::uint64_t to)
 {
 	std::uint64_t begin=from;
@@ -538,6 +544,12 @@ rtstring *copyString(rtstring *string)
 	result->used = string->used;
 	result->data[result->used] = '\0'; // Allocated one more for this
 	return result;
+}
+
+void clearString(rtstring *str)
+{
+	str->used = 0;
+	str->data[0] = 0;
 }
 
 void freeString(rtstring *str)
@@ -764,6 +776,21 @@ void setValueTypeDict(rtdict *dict,rtt_t type)
 {
 	dict->value_type=type;
 }
+
+// Clears the dictionary, but leaves allocated arrays in place
+void clearDict(rtdict *dict)
+{
+	std::uint64_t capacity = getDictCapacity(dict->size_pow);
+	for (std::uint64_t i = 0;i < capacity;++i)
+	{
+		if (!dict->usedflag[i]) continue;
+		decrement(dict->keys[i], dict->key_type);
+		decrement(dict->values[i], dict->value_type);
+		dict->usedflag = false;
+	}
+	dict->usedcount = 0;
+}
+
 void freeDict(rtdict *dict)
 {
 	std::uint64_t capacity=getDictCapacity(dict->size_pow);
@@ -893,7 +920,7 @@ void eraseDict(rtdict *dict,rtdata key)
 	}
 	dict->usedcount--;
 }
-
+/*
 /// Turn the dictionary into an empty one
 void clearDict(rtdict *dict)
 {
@@ -917,7 +944,7 @@ void clearDict(rtdict *dict)
 	memset(dict->values,0,sizeof(rtdata)*capacity);
 	memset(dict->keys,0,sizeof(rtdata)*capacity);
 	memset(dict->usedflag,0,sizeof(bool)*capacity);
-}
+}*/
 
 void setInnerRecord(innerrecord *ir,std::int32_t *offsets,const wchar_t **labels,std::uint32_t fieldcount)
 {
@@ -1148,12 +1175,14 @@ bool stringGenerator(rtgenerator *gen)
 			if (gen->retvalrtt==Undefined)
 			{
 				gen->retvalrtt=intro::rtt::String;
+				gen->retval.ptr = (gcdata*)allocString(1);
 			}
-			else
+			else if (gen->retval.ptr->count>1) // special case makes a lot of code much faster ...
 			{
 				decrement(gen->retval,gen->retvalrtt);
+				gen->retval.ptr = (gcdata*)allocString(1);
 			}
-			gen->retval.ptr=(gcdata*)allocString(1);
+			else clearString((rtstring*)gen->retval.ptr); // ... because of this shortcut
 			appendString((rtstring *)gen->retval.ptr,&(str->data[gen->fields[1].field.integer]),1);
 			++gen->fields[1].field.integer;
 			return true;

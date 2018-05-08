@@ -133,6 +133,7 @@ FORCE_EXPORT void freeList(rtlist *list);
 FORCE_EXPORT std::uint64_t sizeList(rtlist *list);
 FORCE_EXPORT void resizeList(rtlist *list,std::uint64_t newsize);
 FORCE_EXPORT void appendList(rtlist *list,rtdata elem);
+FORCE_EXPORT void clearList(rtlist *list);
 FORCE_EXPORT rtlist *subList(rtlist *list,std::uint64_t from,std::uint64_t to);
 FORCE_EXPORT rtdata itemList(rtlist *list,std::uint64_t at);
 ///@}
@@ -156,6 +157,7 @@ struct rtstring
 };
 
 FORCE_EXPORT rtstring *allocString(std::uint64_t size);
+FORCE_EXPORT void clearString(rtstring *str);
 FORCE_EXPORT void freeString(rtstring *str);
 FORCE_EXPORT std::uint64_t sizeString(rtstring *str);
 FORCE_EXPORT void resizeString(rtstring *str,std::uint64_t newsize);
@@ -191,6 +193,7 @@ FORCE_EXPORT rtt_t getKeyTypeDict(rtdict *dict);
 FORCE_EXPORT void setKeyTypeDict(rtdict *dict,rtt_t type);
 FORCE_EXPORT rtt_t getValueTypeDict(rtdict *dict);
 FORCE_EXPORT void setValueTypeDict(rtdict *dict,rtt_t type);
+FORCE_EXPORT void clearDict(rtdict *dict);
 FORCE_EXPORT void freeDict(rtdict *dict);
 FORCE_EXPORT std::uint64_t sizeDict(rtdict *dict);
 FORCE_EXPORT void resizeDict(rtdict *dict,rtt_t type,std::uint64_t newsize);
