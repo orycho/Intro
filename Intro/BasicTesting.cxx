@@ -524,7 +524,7 @@ bool VariantTyping(void)
 bool VariantParameterTyping(void)
 {
 	cout << "\n---\nVariant Paramter Typing:\n";
-	const char *test="var f(v)->case v of Vector2 x y then return x+y; | Vector3 x y z then return x+y+z;end; end;\nvar g(v)->case v of Vector2 x y then return x+y; | Scalar value then return value; end; end;\nvar gh(v)->f(v); g(v); return; end; f([:Vector2 x<-1; y<-3;]); ";
+	const char *test = "var f(v)->case v of Vector2 x y then return x+y; | Vector3 x y z then return x+y+z;end; end;\nvar g(v)->case v of Vector2 x y then return x+y; | Scalar value then return value; end; end;\nvar gh(v)->f(v); g(v); return; end; f([:Vector2 x<-1; y<-3;]); gh([:Vector3 x<-1; y<-3; z<-5;]);";
 	//parse::Parser parser=getParser(test);
 	cout << test << endl << endl;
 	parse::Scanner scanner((const unsigned char *)test, strlen(test));
@@ -533,6 +533,33 @@ bool VariantParameterTyping(void)
 	parser.Parse();
 	intro::Environment global;
 	bool isOK=parser.inferTypes(&global);
+	parser.deleteStatements();
+	return isOK;
+}
+
+
+bool missingCaseTags(void)
+{
+	cout << "\n---\nCase with Missing Tags inference :\n";
+	const char *test =
+		"var map<-{ \"A\"=>fun()->return [:A]; end,\"B\"=>fun()->return [:B]; end,\"C\"=>fun()->return [:C]; end};\n"
+		"case map[\"C\"] of\n"
+		"None then\n"
+		"| Some value then\n"
+		"case value() of\n"
+		"A then::sio::print(\"A\");\n"
+		"| C then::sio::print(\"C\");\n"
+		"end;\n"
+		"end;\n"
+		;
+	//parse::Parser parser=getParser(test);
+	cout << test << endl << endl;
+	parse::Scanner scanner((const unsigned char *)test, strlen(test));
+	parse::Parser parser(&scanner);
+	parser.isInteractive = false;
+	parser.Parse();
+	intro::Environment global;
+	bool isOK = parser.inferTypes(&global);
 	parser.deleteStatements();
 	return isOK;
 }
@@ -699,6 +726,7 @@ bool basicModule(void)
 	parser.deleteStatements();
 	return isOK;
 }
+
 /* Tests free variable collection method of class Type.
 */
 bool freeVariableDetection(void)
@@ -1409,6 +1437,7 @@ bool typeTests(void)
 	InferRecordParameter();
 	VariantTyping();
 	VariantParameterTyping();
+	missingCaseTags();
 	GeneratorDefinition();
 	basicDictonary();	
 	supertypeRecordMerging();
@@ -1418,7 +1447,7 @@ bool typeTests(void)
 	complexDictGenFor();
 	alternateInvertTest();
 	basicModule();
-	//freeVariableDetection();
+	freeVariableDetection();
 	return true;
 }
 

@@ -1,0 +1,222 @@
+# md2html - simple intro program to convert basic markdown to html.
+
+#source "examples/md2html.intro";
+#var html<-::md::transformFile("README.md");
+#::sio::saveFile("README.html",html);
+#::sio::saveFile("README.html",::md::transformFile("README.md"));
+
+## Split a string by characters given
+
+module ::md exports
+	## Transforms a string containing an MD formatted text 
+	## into a string containing HTML formatted text
+	transform:(String)->String;
+	
+	## Loads a string containing an MD formatted text from the file with the given path,
+	## then transforms into a string containing HTML formatted text
+	transformFile:(String)->String;
+from
+	var split(str,chars)->
+		# variables with bounds of substring found
+		var start <- 0;
+		var stop <- -1;
+		# dictionary with splitting chars for fast lookup 
+		# (mapped to true since we nonly care about the key) 
+		var filter <- {x => true | x in chars};
+		# iterate over characters, looking for matches
+		for c in str do
+			case filter[c] of # see if we care about the current character
+			Some then # yes, yield substring collected so far
+				yield str[start:stop];
+				# then go on after the splitting char
+				start <- stop+2;
+				stop <- stop+1;
+			| None then # no, just advance stopping position
+				stop <- stop +1;
+			end;
+		done;
+		## There is always one left, the empty string between \n and EOF.
+		yield str[start:last];
+		yield done;
+	end;
+
+	## Count how many copies of the given character are at the beginning of a string
+	var countPrefix(text,char)->
+		var result<-0;
+		## count characters until not a prefix char prefix
+		for c in text do
+			if c==char then result<-result+1;
+			else break;
+			end;
+		done;
+		return result;
+	end;
+
+	# Dicionary mapping prefix characters relevant in MD language
+	# to functions that consume a paragraph o that type.
+	# Each function returns a variant with a different tag,
+	# and has two parameters: the line used for classification,
+	# and the generator producing the rest of the lines.
+	# Note how case statements force consideration for failure cases,
+	# due to having to deal with Maybe variants all the time.
+	var prefixes <- {
+		"#" => fun(line,lines)-> # header
+			return [:Header level<-countPrefix(line,"#"); text<-::string::trimLeft(line," #");];
+		end,
+		"*" => fun(line,lines)-> # list (must collect seperate items into one list)
+			var item_buffer <- ::string::trimLeft(line, "*");
+			var list_buffer <-{};
+			while ::gen::next(lines) do
+				case ::gen::get(lines) of
+					Some value then 
+						var nextline <- value; 
+						case ::seq::first(value) of
+							Some value then
+								if value == "*" then 
+									::seq::appendTo(list_buffer, item_buffer);
+									item_buffer <- ::string::trimLeft(nextline, "*");
+								elsif value=="\n" then
+									##::seq::appendTo(list_buffer, item_buffer);
+									break;
+								else 
+									::seq::appendTo(item_buffer, "\n");
+									::seq::appendTo(item_buffer, nextline);
+								end;
+							| None then # empty line, indicates end of list
+								#::seq::appendTo(list_buffer, item_buffer);
+								break;
+						end;
+					| None then # out of input
+						#::seq::appendTo(list_buffer, item_buffer);
+						break;
+				end;
+			done;
+			::seq::appendTo(list_buffer, item_buffer);
+			return [:UList items<-list_buffer;];
+		end,
+		">" => fun(line,lines)-> # preformatted text
+			var preform <- line[1:last];
+			while ::gen::next(lines) do
+				case ::gen::get(lines) of
+					Some value then 
+						var nextline <- value; 
+						case ::seq::first(value) of
+							Some value then
+								if value=="\n" then
+									break;
+								elsif value==">" then
+									## preformatted block continues, trim prefix presumed to be one ">" long
+									::seq::appendTo(preform, "\n");
+									::seq::appendTo(preform, nextline[1:last]);
+								else # we pretend consecutive lines in the block belong to the preformatted block
+									::seq::appendTo(preform, "\n");
+									::seq::appendTo(preform, nextline);
+									end;
+							| None then break; # empty line, indicates end of list
+						end;
+					| None then break;
+				end;
+			done;
+			return [:Preform text<-preform;];
+		end
+	};
+	
+	# Any block of text that does not have a prefix from the above dictionary
+	# also returns a variant, with the :Paragraph tag.
+	var onParagraph(line,lines)->
+		var paragraph <- line;
+		while ::gen::next(lines) do
+			case ::gen::get(lines) of
+				Some value then 
+					# need to make value accessible inside another "Some value" arm.
+					# maybe allow renaming labels inside body for such cases
+					var nextline <- value; 
+					case ::seq::first(value) of
+						Some value then
+							if value!="\n" then
+								::seq::appendTo(paragraph, "\n");
+								::seq::appendTo(paragraph, nextline);
+							else 
+								break;
+							end;
+						| None then break; # empty line, indicates end of list
+					end;
+				| None then break;
+			end;
+		done;
+		return [:Paragraph text<-paragraph;];
+	end;
+	
+	## classify line, processes the input in lines, using the prefixes dict
+	## and onParagraph
+	var classifyMD(text)->
+		var lines<-split(text,"\n");
+		while ::gen::next(lines) do 
+			var line<-""; 
+			case ::gen::get(lines) of 
+				Some value then line<-value; 
+				| None then break;	
+			end; 
+			case ::seq::first(line) of
+				Some value then 
+					if value=="\n" then 
+						continue;
+					end;
+					case prefixes[value] of
+					Some value then # new binding called value
+						yield value(line,lines);
+					| None then
+						yield onParagraph(line,lines);
+					end;
+				| None then
+					break;
+			end;
+		done;
+		yield done;
+	end;
+
+	var formatHTML<-[
+		prologue(outstring)->
+			::seq::appendTo(outstring,"<html><body>\n");
+		end;
+		item(outstring,mditem)->
+			case mditem of
+			Paragraph text then ::seq::appendTo(outstring,"<p>${text}</p>\n");
+			| Preform text then ::seq::appendTo(outstring,"<pre>${text}</pre>\n");
+			| UList items then 
+				::seq::appendTo(outstring,"<ul>\n");
+				for item in items do 
+					::seq::appendTo(outstring,"<li>${item}</li>\n");
+				done;
+				::seq::appendTo(outstring,"</ul>\n");
+			| Header level text then
+				var l<-level;
+				if l>10 then l<-10; end;
+				::seq::appendTo(outstring,"<h${l}>${text}</h${l}>\n");
+			end;
+		end;
+		epilogue(outstring)->
+			::seq::appendTo(outstring,"</body></html>\n");
+		end;
+	];
+
+	var transform(src)->
+		var result<-"";
+		formatHTML.prologue(result);
+		for item in classifyMD(src) do
+			formatHTML.item(result,item);
+		done;
+		formatHTML.epilogue(result);
+		return result;
+	end;
+	
+	var transformFile(path)->
+		case ::sio::loadFile(path) of 
+		None then
+			return "";
+		| Some value then 
+			return transform(value);
+		end;
+	end;
+
+end.

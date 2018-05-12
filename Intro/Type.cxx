@@ -515,36 +515,36 @@ bool Type::unify(Type *b,bool specialize)
 			// if all of the above failed, the types may still be unifiable
 			if (!oroot_sup->unify(mroot_sup, specialize))
 				return false;
-			oroot->parent = mroot;
+			oroot->parent = mroot->find();
 			return true;
 			//return false;
 		case LESS:
 			if (!oroot_sup->unify(mroot_sup, specialize))
 				return false;
-			mroot->parent = oroot;
+			mroot->parent = oroot->find();
 			return true;
 		case EQUAL:
 		case GREATER:
 			if (!oroot_sup->unify(mroot_sup, specialize))
 				return false;
-			oroot->parent = mroot;
+			oroot->parent = mroot->find();
 			return true;
 		}
 	}
 	else if (mroot->type==Variable && oroot->type!=Variable)
 	{
 		Type *mroot_sup = mroot->getSupertype()->find();
-		if (!mroot_sup->unify(oroot, specialize))
+		if (!mroot_sup->unify(oroot, false /*specialize*/))
 			return false;
-		mroot->parent = oroot;
+		mroot->parent = oroot->find();
 		return true;
 	}
 	else if (oroot->type==Variable && mroot->type!=Variable)
 	{
 		Type *oroot_sup = oroot->getSupertype()->find();
-		if (!oroot_sup->unify(mroot, specialize))
+		if (!oroot_sup->unify(mroot, false /*specialize*/))
 			return false;
-		oroot->parent = mroot;
+		oroot->parent = mroot->find();
 		return true;
 	}
 	return oroot->internalUnify(mroot,specialize);
@@ -559,6 +559,7 @@ bool Type::internalUnify(Type *other, bool specialize)
 	//currentMapping.clear(); // TODO: Possible leak
 	std::vector<Type*> currentMapping;
 	// First, check the type graph if a legal path actually exists
+	
 	PartialOrder order = theGraph.findSupertype(find(), other->find(), currentMapping, excludeMapping);
 	needDeletion.insert(needDeletion.end(), currentMapping.begin(), currentMapping.end());
 
@@ -566,9 +567,10 @@ bool Type::internalUnify(Type *other, bool specialize)
 	Type *goal = find();
 	Type *source = other->find();
 	if (order == LESS) std::swap(goal, source); // order indepenent code hereafter ;)
-
+	goal->parent = source;
 	// Perform the actual unification by making one type the others parent,
 	// depending on wether we're specializing or not
+	/*
 	if (specialize)
 	{
 		goal->parent = source;
@@ -577,6 +579,7 @@ bool Type::internalUnify(Type *other, bool specialize)
 	{
 		source->parent = goal;
 	}
+	*/
 	// Graph traversal may have mutated the parameters, here we check they match up with source type
 	// by unifing the result with the supertype's type
 	// The goal is to manage the relations between the types parameters, a good example is
@@ -588,7 +591,7 @@ bool Type::internalUnify(Type *other, bool specialize)
 	{
 		for (iter = currentMapping.begin(), oit = goal->begin();iter != currentMapping.end() && retval;iter++, oit++)
 		{
-			retval &= (*iter)->unify(*oit);
+			retval &= (*iter)->unify(*oit,specialize);
 		}
 	}
 	else
@@ -596,7 +599,7 @@ bool Type::internalUnify(Type *other, bool specialize)
 		// If the types are the same, then there was no traversal - we get the identity mapping.
 		for (iter = source->begin(), oit = goal->begin();iter != source->end() && retval;iter++, oit++)
 		{
-			retval &= (*iter)->unify(*oit);
+			retval &= (*iter)->unify(*oit,specialize);
 		}
 	}
 	return retval;
@@ -647,42 +650,34 @@ bool VariantType::internalUnify(Type *other, bool specialize)
 	VariantType *vb = dynamic_cast<VariantType*>(other);
 	if (vb == NULL) return false;
 	VariantType::iterator ai, bi;
-	if (!specialize) // excpect [:A ...] with ?a<:{[:A ...] + ...}
+	if (specialize) // excpect [:A ...] with ?a<:{[:A ...] + ...}
+	//if (!specialize)
 	{
 		// Tags present in both : 
-		for (ai = beginTag();ai != endTag();ai++)
+		VariantType *va = this;
+		if (vb->size() > va->size())
+			std::swap(va, vb);
+		for (ai = va->beginTag();ai != va->endTag();ai++)
 		{
 			bi = vb->findTag(ai->first);
 			if (bi != vb->endTag())
 			{
-				//if (!ai->second->unify(bi->second, specialize))
-				if (!ai->second->unify(bi->second))
+				if (!ai->second->unify(bi->second, specialize))
+				//if (!ai->second->unify(bi->second))
 					return false;
 			}
 		}
+		
 		for (bi = vb->beginTag();bi != vb->endTag();bi++)
 		{
 			ai = findTag(bi->first);
 			if (ai == endTag())
 				addTag(bi);
 		}
-		vb->setParent(this);
+		vb->setParent(va);
 	}
 	else
 	{
-		/*
-		if (tags.size() == 1)
-		{
-			ai = tags.begin();
-			bi = vb->findTag(ai->first);
-		}
-		else if (vb->tags.size() == 1)
-		{
-			ai = vb->beginTag();
-			bi = tags.find(ai->first);
-		}
-		else return false;
-		*/
 		VariantType *va = this;
 		if (tags.size() > vb->tags.size())
 		{
@@ -697,7 +692,8 @@ bool VariantType::internalUnify(Type *other, bool specialize)
 			if (!ai->second->unify(bi->second,specialize))
 				return false;
 		}
-		vb->setParent(this);
+		vb->setParent(va);
+		//va->setParent(vb);
 	}
 	return true;
 }

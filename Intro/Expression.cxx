@@ -232,7 +232,7 @@ namespace intro {
 				//if (po!=LESS && po!=EQUAL )
 				if (!tkey->unify(ct))
 				{
-					errors->addError(new ErrorDescription(getLine(), getColumn(), L"Subtyping mismatch in dictionary key: all keys must be subtypes or of the first element's key."));
+					errors->addError(new ErrorDescription(getLine(), getColumn(), L"Subtyping mismatch in dictionary key: all keys must be subtypes of the first element's key."));
 					return getError(L"Subtyping mismatch in dictionary key: all keys must be subtypes or of the first item.");
 				}
 
@@ -245,8 +245,10 @@ namespace intro {
 				}
 				else delete logger;
 				//po=tval->checkSubtype(ct);
-				//if (po!=LESS && po!=EQUAL ) 
-				if (!tval->unify(ct))
+				//if (po!=LESS && po!=EQUAL)
+				// We will generalize the dictionary values, so that they
+				// can be different and we accept the topmost supertype only.
+				if (!tval->unify(ct,true))
 				{
 					errors->addError(new ErrorDescription(getLine(), getColumn(), L"Subtyping mismatch in dictionary value: all vauesmust be subtypes or of the first element's value."));
 					return getError(L"Subtyping mismatch in dictionary value: all values must be subtypes or of the first item.");

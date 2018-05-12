@@ -415,6 +415,14 @@ rtrecord *allocKeyValueRec(rtdata key,rtt_t key_rtt,rtdata value,rtt_t value_rtt
 	return record;
 }
 
+void setKeyValueRec(rtrecord *record,rtdata key,rtt_t key_rtt,rtdata value,rtt_t value_rtt)
+{
+	std::int32_t keyslot=util::find(L"key",3,record->r.offsets,record->r.size);
+	clearRecord(record); // ensure existing fields are decremented
+	setFieldRecord(record,keyslot,key,key_rtt);
+	setFieldRecord(record,1-keyslot,value,value_rtt);
+}
+
 // List ///////////////
 rtlist *allocList(std::uint64_t size,rtt_t type)
 {
@@ -786,7 +794,7 @@ void clearDict(rtdict *dict)
 		if (!dict->usedflag[i]) continue;
 		decrement(dict->keys[i], dict->key_type);
 		decrement(dict->values[i], dict->value_type);
-		dict->usedflag = false;
+		dict->usedflag[i] = false;
 	}
 	dict->usedcount = 0;
 }
@@ -965,6 +973,18 @@ void setInnerRecord(innerrecord *ir,std::int32_t *offsets,const wchar_t **labels
 	ir->labels=labels;
 }
 
+void clearInnerRecord(innerrecord *ir)
+{
+	for (size_t i=0;i<ir->size;++i)
+	{
+		if (ir->fieldrtt[i]==intro::rtt::Undefined)
+			continue;
+		decrement(ir->fields[i], ir->fieldrtt[i]);
+		ir->fields[i].ptr=nullptr;
+		ir->fieldrtt[i]=intro::rtt::Undefined;
+	}
+}
+
 void freeInnerrecord(innerrecord *ir)
 {
 	// TODO: decrement label values!
@@ -993,6 +1013,11 @@ rtrecord *copyRecord(rtrecord *record)
 		increment(result->r.fields[i], result->r.fieldrtt[i]);
 	}
 	return result;
+}
+
+void clearRecord(rtrecord *record)
+{
+	clearInnerRecord(&(record->r));
 }
 
 void freeRecord(rtrecord *record)
@@ -1211,7 +1236,8 @@ bool dictGenerator(rtgenerator *gen)
 			gen->state=1;
 		}
 		case 1: 
-		{
+		{	
+			// we know usedcount <= total size. Empty dict has usedcount==0
 			if (gen->fields[2].field.integer>=dict->usedcount)
 			{
 				gen->state=2;
@@ -1219,25 +1245,43 @@ bool dictGenerator(rtgenerator *gen)
 				gen->retvalrtt=Undefined;
 				return false;
 			}
+			rtdata nullbuf;
+			nullbuf.ptr=nullptr;
+			// Here we know there is at least one element left
 			if (gen->retvalrtt==Undefined)
 			{
+				
+				gen->retval.ptr=(gcdata*)allocKeyValueRec(nullbuf,intro::rtt::Undefined,
+					nullbuf,intro::rtt::Undefined);
 				gen->retvalrtt=intro::rtt::Record;
 			}
-			else
+			else if (gen->retval.ptr->count>1)
 			{
 				decrement(gen->retval,gen->retvalrtt);
+				gen->retval.ptr=(gcdata*)allocKeyValueRec(nullbuf,intro::rtt::Undefined,
+					nullbuf,intro::rtt::Undefined);
 			}
+			else clearRecord((rtrecord*)gen->retval.ptr);
 			// find next slot that is in use
 			while (!dict->usedflag[gen->fields[1].field.integer]) ++gen->fields[1].field.integer;
 			std::uint32_t slot=(std::uint32_t)gen->fields[1].field.integer;
-			// build result dictionary
-			gen->retval.ptr=(gcdata*)allocKeyValueRec(dict->keys[slot],dict->key_type,dict->values[slot],dict->value_type);
+			//gen->retval.ptr=(gcdata*)allocKeyValueRec(dict->keys[slot],dict->key_type,dict->values[slot],dict->value_type);
+			// Copy values to result record
+			setKeyValueRec((rtrecord*)gen->retval.ptr,
+				dict->keys[slot], dict->key_type,
+				dict->values[slot], dict->value_type);
 			// advance both the slot and the elements seen count
 			++gen->fields[1].field.integer;
 			++gen->fields[2].field.integer;
 			return true;
 		}
 		case 2:
+			if (gen->retvalrtt != intro::rtt::Undefined)
+			{
+				decrement(gen->retval, gen->retvalrtt);
+				gen->retval.ptr = nullptr;
+				gen->retvalrtt = intro::rtt::Undefined;
+			}
 			return false;
 	}
 	return true;

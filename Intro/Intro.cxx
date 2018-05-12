@@ -30,11 +30,12 @@ namespace intro
 	void deleteRuntime(void);
 	void dumpModule(void);
 	void runStatements(const std::list<intro::Statement*> &statements);
+	void cleanupSourceFiles();
 
-	extern llvm::LLVMContext theContext;
-	extern std::unique_ptr<llvm::Module> TheModule;
-	extern intro::CodeGenEnvironment global;
-	extern llvm::IRBuilder<> Builder;
+	//extern llvm::LLVMContext theContext;
+	//extern std::unique_ptr<llvm::Module> TheModule;
+	//extern intro::CodeGenEnvironment global;
+	//extern llvm::IRBuilder<> Builder;
 }
 
 namespace llvm
@@ -50,8 +51,6 @@ namespace llvm
 	cmdbuffer="llc -O3 -o" + output_path +" "+ output_path + "-linked.buf.bc";
 	std::system(cmdbuffer.c_str());
 */
-
-void cleanupSourceFiles();
 
 llvm::cl::opt<std::string> Script(llvm::cl::Positional, llvm::cl::desc("<input script>"), llvm::cl::init("-"));
 llvm::cl::list<std::string>  Argv(llvm::cl::ConsumeAfter, llvm::cl::desc("<program arguments>..."));
@@ -154,7 +153,7 @@ int main(int argc,const char *argv[])
 	}
 	// should decrement all gloals to make VLD shut up about them
 	intro::Environment::deleteAllModules();
-	cleanupSourceFiles();
+	intro::cleanupSourceFiles();
 	intro::Environment::clearTypeVariables();
 	intro::deleteRuntime();
 	intro::CodeGenModule::deleteRootModule();

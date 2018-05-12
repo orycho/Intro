@@ -239,12 +239,14 @@ struct rtvariant
 };
 
 FORCE_EXPORT rtrecord *allocRecord(std::int32_t *displacement,const wchar_t **labels,std::uint32_t fieldcount);
+FORCE_EXPORT void clearRecord(rtrecord *record);
 FORCE_EXPORT std::uint32_t getSlotRecord(rtrecord *record,const wchar_t *label,size_t label_length);
 FORCE_EXPORT void setFieldRecord(rtrecord *record,std::uint32_t slot,rtdata value,rtt_t rtt);
 FORCE_EXPORT rtdata *getFieldRecord(rtrecord *record,std::uint32_t slot);
 FORCE_EXPORT rtt_t *getFieldRTTRecord(rtrecord *record,std::uint32_t slot);
 /// Allocates a record with fields "key" and "value" wth the passed values and types
 FORCE_EXPORT rtrecord *allocKeyValueRec(rtdata key, rtt_t key_rtt, rtdata value, rtt_t value_rtt);
+FORCE_EXPORT void setKeyValueRec(rtrecord *record,rtdata key,rtt_t key_rtt,rtdata value,rtt_t value_rtt);
 
 FORCE_EXPORT rtvariant *allocVariant(std::int32_t *displacement,const wchar_t **labels, std::uint64_t tag, std::uint32_t fieldcount);
 FORCE_EXPORT std::uint64_t getTagVariant(rtvariant *variant);
