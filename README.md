@@ -225,6 +225,37 @@ P(X >= 3) = 0.429237
 >
 </pre>
 
+Variants become especially flexible and can be used with dictionaries to create
+classification schemes:
+
+>> var map<-{ "A"=>fun()->return [:A]; end,"B"=>fun()->return [:B]; end,"C"=>fun()->return [:C]; end};
+>map:Dictionary(String,() -> { [ :A ] + [ :B ] + [ :C ]})
+>> case map["A"] of None then | Some value then ::sio::print(value()); end;
+>[ :A ]>
+>> case map["C"] of 
+>>	None then 
+>>	| Some value then 
+>>		case value() of 
+>>			A then ::sio::print("A\n");
+>>			| B then ::sio::print("B\");
+>>			| C then ::sio::print("C\n");
+>>		end;
+>>	end;
+>C
+>>
+>> case map["A"] of None then | Some value then ::sio::print(value()); end;
+>[ :A ]>
+>> case map["C"] of 
+	None then 
+	| Some value then 
+		case value() of 
+			A then ::sio::print("A");
+			| C then ::sio::print("C\n");
+		end;
+	end;
+
+
+	
 # Super short quick start guide
 (This is so short that even the cheatsheet.pdf in docs is more in depth.)
 
@@ -275,6 +306,7 @@ symbol | and a generator statement. See below
 * Records contain an arbitrary number of fields, which are labeled by an identifier. Fields may have distinct types.
 The records consists of square brackets with semicolon terminated field assignments identifier &lt;- Expression; e.g.
 <pre>[ x&lt;-1; y&lt;-2; active&lt;-false; name&lt;-"foobar";]</pre>
+* Record fields also support the function definition syntax sugar.
 * Record elements can be accessed by label with the . operator, e.g. "r.x", "player.name".
 * Variants are written like records, but the begin with a colon and an identifier: <pre>[:Vec2 x&lt;-1; y&lt;-2;]</pre>. Note the colon is not part of the tag.
 * The dot operator does not work on variants, instead the case statement must be used.

@@ -195,6 +195,7 @@
     <ClCompile Include="..\Intro\Type.cxx" />
     <ClCompile Include="..\Intro\TypeGraph.cxx" />
     <ClCompile Include="IntroTest.cxx" />
+    <ClCompile Include="RuntimeLibTests.cxx" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="TypeTests.cxx" />
     <ClCompile Include="UtilityTests.cpp" />

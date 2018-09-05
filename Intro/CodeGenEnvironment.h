@@ -56,14 +56,37 @@ public:
 			, rtt(rtt_)
 			, isParameter(isParam)
 		{
-		};
+		}
 
 		element(const element &other)
 			: address(other.address)
 			, rtt(other.rtt)
 			, isParameter(other.isParameter)
 		{
-		};
+		}
+
+		Expression::cgvalue load(llvm::IRBuilder<> &builder)
+		{
+			if (isParameter)
+			{
+				return std::make_pair(address, rtt);
+			}
+			return std::make_pair(
+				builder.CreateLoad(address, "variable"), 
+				builder.CreateLoad(rtt, "variable!rtt"));
+		}
+
+		void store(llvm::IRBuilder<> &builder, const Expression::cgvalue &value)
+		{
+			builder.CreateStore(value.first, address);
+			builder.CreateStore(value.second, rtt);
+		}
+
+		void store(llvm::IRBuilder<> &builder, llvm::Value *value, llvm::Value *value_rtt)
+		{
+			builder.CreateStore(value, address);
+			builder.CreateStore(value_rtt, rtt);
+		}
 	};
 	typedef std::unordered_map<std::wstring,element>::iterator iterator;
 	
@@ -169,6 +192,10 @@ public:
 	}
 	
 	bool removeIntermediateOrIncrement(llvm::IRBuilder<> &builder,Type *type,llvm::Value *address,llvm::Value *rtt);
+	inline bool removeIntermediateOrIncrement(llvm::IRBuilder<> &builder, Type *type, Expression::cgvalue &value)
+	{
+		return removeIntermediateOrIncrement(builder, type, value.first, value.second);
+	}
 	void decrementIntermediates(llvm::IRBuilder<> &builder, bool clear=true);
 	void decrementValue(llvm::IRBuilder<> &builder, llvm::Value *value, llvm::Value *rtt);
 

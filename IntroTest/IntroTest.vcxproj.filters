@@ -72,6 +72,9 @@
     <ClCompile Include="..\Intro\LibBasic.cxx">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="RuntimeLibTests.cxx">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Intro\CodeGen.h">

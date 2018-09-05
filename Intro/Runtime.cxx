@@ -658,12 +658,13 @@ bool greaterEqString(rtstring *lhs,rtstring *rhs)
 // Dictionary ///////////////
 
 /// Given the size_pow, return the actual number of slots.
-/** pow2 must be between 8 and 64. This returns the largest prime smaller than 2^pow2.
+/** pow2 must be between 3 and 64. This returns the largest prime smaller than 2^pow2.
 */
 uint64_t getDictCapacity(std::uint64_t pow2)
 {
 	static const std::uint64_t primeOffset[] =
 	{
+		1, 3, 1, 3, 1, 
 		5,   3,  3,  9,  3,  1,  3, 19, 15,  1,
 		5,   1,  3,  9,  3, 15,  3, 39,  5, 39,
 		57,  3, 35,  1,  5,  9, 41, 31,  5, 25,
@@ -671,8 +672,8 @@ uint64_t getDictCapacity(std::uint64_t pow2)
 		59, 81, 27,129, 47,111, 33, 55,  5, 13,
 		27, 55, 93,  1, 57, 25, 59
 	};
-	assert( pow2>=8 );
-	return (1ll<<pow2)-primeOffset[pow2-8];
+	assert( pow2>=3 );
+	return (1ll<<pow2)-primeOffset[pow2-3];
 }
 
 /// returns the slot where the key would go - slot is either empty or match or collision
@@ -699,6 +700,16 @@ size_t findSlot(rtdict *dict,std::uint64_t hash,rtdata key)
 	return capacity+1;
 }
 
+static void allocateDictionaryContents(rtdict *dict, std::uint64_t size)
+{
+	size_t rowsize = sizeof(std::uint64_t) + sizeof(rtdata) + sizeof(rtdata) + sizeof(bool);
+	dict->hashes = (uint64_t*)malloc(rowsize*size);
+	dict->keys = (rtdata*)&(dict->hashes[size]);
+	dict->values = (rtdata*)&(dict->keys[size]);
+	dict->usedflag = (bool*)&(dict->values[size]);
+	memset(dict->hashes, 0, rowsize*size);
+}
+
 /// increase size of container, each increase roughly doubles the size.
 void grow(rtdict *dict,std::uint64_t increase=1)
 {
@@ -712,26 +723,16 @@ void grow(rtdict *dict,std::uint64_t increase=1)
 	rtdata *values=dict->values;
 	bool *usedflag=dict->usedflag;
 	
-	dict->hashes=(uint64_t*)malloc(sizeof(std::uint64_t)*new_capacity);
-	dict->keys=(rtdata*)malloc(sizeof(rtdata)*new_capacity);
-	dict->values=(rtdata*)malloc(sizeof(rtdata)*new_capacity);
-	dict->usedflag=(bool*)malloc(sizeof(bool)*new_capacity);
-	
-	// Must ensure empty values are recognized!
-	memset(dict->hashes,0,sizeof(std::uint64_t)*new_capacity);
-	memset(dict->values,0,sizeof(rtdata)*new_capacity);
-	memset(dict->keys,0,sizeof(rtdata)*new_capacity);
-	memset(dict->usedflag,0,sizeof(bool)*new_capacity);
-	
+	// Allocate fresh contents for dict, which is effectively  empty.
+	// insertDict will count it up again
+	allocateDictionaryContents(dict, new_capacity);
+	dict->usedcount = 0; 
 	for (std::uint64_t i=0;i<old_capacity;++i)
 	{
 		if (!usedflag[i]) continue;
 		insertDict(dict,keys[i],values[i]);
 	}
 	free(hashes);
-	free(keys);
-	free(values);
-	free(usedflag);
 }
 
 rtdict *allocDictSize(rtt_t key_type, rtt_t value_type, size_t size)
@@ -741,7 +742,7 @@ rtdict *allocDictSize(rtt_t key_type, rtt_t value_type, size_t size)
 	dict->key_type = key_type;
 	dict->value_type = value_type;
 	dict->usedcount = 0;
-	dict->size_pow = 8;
+	dict->size_pow = 3;
 	std::uint64_t capacity = getDictCapacity(dict->size_pow);
 	while (capacity < size)
 	{
@@ -749,20 +750,13 @@ rtdict *allocDictSize(rtt_t key_type, rtt_t value_type, size_t size)
 		capacity = getDictCapacity(dict->size_pow);
 	}
 	//wprintf(L"Allocating %ld slots.\n",capacity);
-	dict->hashes = (std::uint64_t*)malloc(sizeof(std::uint64_t)*capacity);
-	dict->keys = (rtdata*)malloc(sizeof(rtdata)*capacity);
-	dict->values = (rtdata*)malloc(sizeof(rtdata)*capacity);
-	dict->usedflag = (bool*)malloc(sizeof(bool)*capacity);
-	memset(dict->hashes, 0, sizeof(std::uint64_t)*capacity);
-	memset(dict->values, 0, sizeof(rtdata)*capacity);
-	memset(dict->keys, 0, sizeof(rtdata)*capacity);
-	memset(dict->usedflag, 0, sizeof(bool)*capacity);
+	allocateDictionaryContents(dict, capacity);
 	return dict;
 }
 
 rtdict *allocDict(rtt_t key_type, rtt_t value_type)
 {
-	return allocDictSize(key_type, value_type, 8);
+	return allocDictSize(key_type, value_type, 4);
 }
 
 rtt_t getKeyTypeDict(rtdict *dict)
@@ -809,10 +803,7 @@ void freeDict(rtdict *dict)
 		decrement(dict->values[i],dict->value_type);
 	}
 	free(dict->hashes);
-	free(dict->keys);
-	free(dict->values);
-	free(dict->usedflag);
-	memset(dict,0,sizeof(rtdict));
+//	memset(dict,0,sizeof(rtdict));
 	free(dict);
 }
 
@@ -837,6 +828,7 @@ rtdata *getCreateSlotDictHash(rtdict *dict,rtdata key, std::uint64_t hash)
 	{
 		// Only allocate key storage if it's a new key...
 		dict->hashes[slot]=hash;
+		// Key should be copied, as it must be constant! Unless refcnt==1?!
 		dict->keys[slot].ptr=key.ptr;
 		increment(key,dict->key_type);
 		dict->usedflag[slot]=true;

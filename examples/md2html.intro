@@ -21,7 +21,7 @@ from
 		var start <- 0;
 		var stop <- -1;
 		# dictionary with splitting chars for fast lookup 
-		# (mapped to true since we nonly care about the key) 
+		# (mapped to true since we only care about the key) 
 		var filter <- {x => true | x in chars};
 		# iterate over characters, looking for matches
 		for c in str do
@@ -35,7 +35,7 @@ from
 				stop <- stop +1;
 			end;
 		done;
-		## There is always one left, the empty string between \n and EOF.
+		## There is always one left, even if it's just the empty string between last char and EOF.
 		yield str[start:last];
 		yield done;
 	end;

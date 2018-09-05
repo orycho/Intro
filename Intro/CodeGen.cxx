@@ -799,40 +799,22 @@ namespace intro {
 			{
 				// Extract variable name (and the variable)
 				CodeGenEnvironment::iterator vi=env->find(i->s);
-				// convert to string: codegen intrisic call with toString helper, which appends always (even another string)
-				Value *value;
-				Value *rtt;
-				if (vi->second.isParameter)
-				{
-					value = vi->second.address;
-					rtt = vi->second.rtt;
-				}
-				else
-				{
-					value = TmpB.CreateLoad(vi->second.address, "loadvarval");
-					rtt = TmpB.CreateLoad(vi->second.rtt, "loadvarrtt");
-				}
+				// convert to string: codegen call of toString intrinsic, which always appends (even another string)
+				Expression::cgvalue value = vi->second.load(TmpB);
 				ArgsV.clear();
 				ArgsV.push_back(retval);
-				ArgsV.push_back(value);
-				ArgsV.push_back(rtt);
+				ArgsV.push_back(value.first);
+				ArgsV.push_back(value.second);
 				TmpB.CreateCall(toStringF, ArgsV);
 			}
 			else
 			{
 				// Append constant string element
-				//std::wcout << L"String Part: '" << i->s << L"'\n";
-				//llvm::GlobalVariable *GV=createGlobalString(i->s);
 				llvm::Constant *GV=createGlobalString(i->s);
 				strsz=ConstantInt::get(llvm::Type::getInt64Ty(theContext), i->s.size(),false);
 				ArgsV.clear();
 				ArgsV.push_back(retval);
 				ArgsV.push_back(GV);
-				//ArgsV.push_back(conststr);
-				//llvm::Type *string_t=llvm::ArrayType::get(llvm::Type::getInt16Ty(theContext),0);
-				//ArgsV.push_back(ConstantExpr::getGetElementPtr(string_t,GV,doubleo));
-				//ArgsV.push_back(TmpB.CreateGEP(GV,doubleo,"rawstring"));
-				//ArgsV.push_back(TmpB.CreateGEP(GV,zero,"rawstring"));
 				ArgsV.push_back(strsz);
 				TmpB.CreateCall(appendStringF, ArgsV);
 			}
@@ -1000,18 +982,7 @@ namespace intro {
 			myself->declareInterfaceIfNeeded();
 			elem = myself->find(name);
 		}
-		if (elem->second.isParameter)
-		{
-			value=elem->second.address;
-			rtt=elem->second.rtt;
-		}
-		else
-		{
-			std::string rtname(name.begin(),name.end());
-			value=TmpB.CreateLoad(elem->second.address, rtname);
-			rtt=TmpB.CreateLoad(elem->second.rtt, rtname+"!rtt");
-		}
-		return std::make_pair(value,rtt);
+		return elem->second.load(TmpB);
 	}
 
 	template<class T>
@@ -1023,7 +994,6 @@ namespace intro {
 					llvm::GlobalValue::ExternalLinkage,genstr, name);
 		GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
 		GV->setAlignment(sizeof(T));
-		//global_strings.insert(make_pair(s,GV));
 		return GV;
 	}
 	// Make a global constant holding the offsets for a perfect hash for the given set of keys.
@@ -1055,7 +1025,6 @@ namespace intro {
 			std::int32_t slot=util::find(label.c_str(),label.size(),offsets,size);
 			llvm::Constant *gstr=createGlobalString(label);
 			labels[slot]=gstr;
-			//labels[slot]=ConstantExpr::getGetElementPtr(llvm::Type::getInt16Ty(theContext),gstr,zeros);
 		}
 		llvm::ArrayType *ty=llvm::ArrayType::get(llvm::Type::getInt16Ty(theContext)->getPointerTo(),size);
 		llvm::Constant *constants=llvm::ConstantArray::get(ty,labels);
@@ -1064,14 +1033,12 @@ namespace intro {
 					llvm::GlobalValue::ExternalLinkage,constants, "reclabels");
 		GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
 		GV->setAlignment(sizeof(wchar_t*));
-		//return GV;
 		return TmpB.CreateGEP(GV,zeros);
 	}
 	
 	Expression::cgvalue RecordExpression::codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
 		std::int32_t *offsets=nullptr;
-		//rtt_t *fields=nullptr;
 		const size_t size=myType->size();
 		std::vector<llvm::Value*> args;
 		// do we have fields? ...
@@ -1090,8 +1057,7 @@ namespace intro {
 		}
 		else
 		{
-				// ... nope, pass a nullptr
-			//llvm::ArrayType *ty=llvm::ArrayType::get(llvm::Type::getInt16Ty(theContext)->getPointerTo(),size);
+			// ... nope, pass a nullptr
 			args.push_back(llvm::Constant::getNullValue(llvm::Type::getInt32Ty(theContext)->getPointerTo()));
 			args.push_back(llvm::Constant::getNullValue(charptr_t->getPointerTo()));
 		}
@@ -1147,7 +1113,6 @@ namespace intro {
 		else
 		{
 			// ... nope, pass a nullptr
-			//llvm::ArrayType *ty=llvm::ArrayType::get(llvm::Type::getInt16Ty(theContext)->getPointerTo(),size);
 			args.push_back(llvm::Constant::getNullValue(llvm::Type::getInt32Ty(theContext)->getPointerTo()));
 			args.push_back(llvm::Constant::getNullValue(charptr_t->getPointerTo()));
 		}
@@ -1247,21 +1212,10 @@ namespace intro {
 			llvm::Value *fieldptr=builder.CreateGEP(myclosure_t,closure,idxs,"closure_field_ptr");
 			idxs[3]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 1);	// Type of  field
 			llvm::Value *fieldrtt=builder.CreateGEP(myclosure_t,closure,idxs,"closure_field_rtt");
-			
-			llvm::Value *closurevar,*closurertt;
-			if (iter->second.isParameter) 
-			{
-				closurevar=iter->second.address;
-				closurertt=iter->second.rtt;
-			}
-			else 
-			{
-				closurevar=builder.CreateLoad(iter->second.address,"freevarval");
-				closurertt=builder.CreateLoad(iter->second.rtt,"freevarrtt");
-			}
-			env->removeIntermediateOrIncrement(builder, vars.second, closurevar, closurertt);
-			builder.CreateStore(closurevar,fieldptr);
-			builder.CreateStore(closurertt,fieldrtt);
+			Expression::cgvalue value = iter->second.load(builder);
+			env->removeIntermediateOrIncrement(builder, vars.second, value);
+			builder.CreateStore(value.first,fieldptr);
+			builder.CreateStore(value.second,fieldrtt);
 			field_index++;
 			// copy value into fieldptr, apply indexing
 		}
@@ -1300,7 +1254,6 @@ namespace intro {
 		if (!env->getOuterValueName().empty())
 			bound.insert(make_pair(env->getOuterValueName(),getType()));
 		getFreeVariables(free,bound);
-		//std::vector<std::wstring> variables(free.begin(),free.end());
 		// Allocate closure with space for all free variables
 		Value *ArgsAlloc[]={
 			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext),free.size(),false)
@@ -1358,7 +1311,6 @@ namespace intro {
 	{
 		VariableSet freeset,bound;
 		body->getFreeVariables(freeset,bound);
-		//std::vector<std::wstring> free(freeset.begin(),freeset.end());
 		// Set up a function for the generator body
 		llvm::Function *GF = llvm::Function::Create(genfunc_t, llvm::Function::ExternalLinkage, "function", TheModule.get());
 		makeReturnTypeZExt(GF);
@@ -1398,7 +1350,6 @@ namespace intro {
 		bool returnsGenerator = false;
 		if (returnsValue) returnsGenerator = myType->getReturnType()->find()->getKind()==Type::Generator;
 		llvm::FunctionType *FT = buildFunctionType(myType);
-		//llvm::BasicBlock *currentBB=TmpB.GetInsertBlock();
 		llvm::Function *F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, "function", TheModule.get());
 
 		llvm::BasicBlock *entry = llvm::BasicBlock::Create(theContext, "entry", F);
@@ -1417,8 +1368,9 @@ namespace intro {
 		{
 			llvm::Value *retval=buildGeneratorStub(builder,&local,free,body);
 			CodeGenEnvironment::iterator iter=local.getReturnVariable();
-			builder.CreateStore(retval,iter->second.address);
-			builder.CreateStore(local.getRTT(rtt::Generator),iter->second.rtt);
+			//builder.CreateStore(retval,iter->second.address);
+			//builder.CreateStore(local.getRTT(rtt::Generator),iter->second.rtt);
+			iter->second.store(builder, retval, local.getRTT(rtt::Generator));
 			builder.CreateBr(local.getExitBlock());
 		}
 		else 
@@ -1559,14 +1511,6 @@ namespace intro {
 		// Dictionary only
 		Expression::cgvalue dict=params[0]->codeGen(TmpB,env);
 		Expression::cgvalue key=params[1]->codeGen(TmpB,env);;
-		/*
-		if (params[0]->getType()->getKind()==Type::Variable)
-		{
-			llvm::Function *setKeyTypeDictF = TheModule->getFunction("setKeyTypeDict");
-			llvm::Value *args[]={ dict.first, key.second };
-			TmpB.CreateCall(setKeyTypeDictF, args);
-		}
-		*/
 		// If key type in dict is variable, create code to write key rtt to dict.
 		llvm::Function *eraseDictF = TheModule->getFunction("eraseDict");
 		std::vector<llvm::Value*> args{
@@ -1612,8 +1556,9 @@ namespace intro {
 		// Add last (which is size-1) to fresh env for parameters
 		CodeGenEnvironment local(env);
 		CodeGenEnvironment::iterator localvar=local.createVariable(L"last");
-		TmpB.CreateStore(lastval,localvar->second.address);
-		TmpB.CreateStore(env->getRTT(&counter),localvar->second.rtt);
+		//TmpB.CreateStore(lastval,localvar->second.address);
+		//TmpB.CreateStore(env->getRTT(&counter),localvar->second.rtt);
+		localvar->second.store(TmpB, lastval, env->getRTT(&counter));
 		Expression::cgvalue extras[2];
 		extras[0]=params[1]->codeGen(TmpB,&local);
 		extras[0].first = createUnboxValue(TmpB, env, extras[0].first, &tI);
@@ -1658,7 +1603,6 @@ namespace intro {
 		llvm::Value *argsDecr[] = { TmpB.CreateLoad(destval.first,"decr_tmp"), destval.second };
 		// Then get rid of the allocated buffer again...
 		llvm::Function *subF = TheModule->getFunction("decrement");
-		//TmpB.CreateCall(subF, argsDecr);
 		TmpB.CreateStore(sourceval.first,destval.first);
 		return sourceval;
 	}
@@ -1675,7 +1619,6 @@ namespace intro {
 			val = TmpB.CreateNot(p.first, "nottmp");
 			val = createBoxValue(TmpB, env, p.first, &TBoolean);
 			return makeRTValue(val, rtt::Boolean);
-			//return makeRTValue(TmpB.CreateNot(p.first, "nottmp"), rtt::Boolean);
 		}
 		case Negate:
 			{
@@ -1792,7 +1735,6 @@ namespace intro {
 			if (isVariable && !isNumber)
 			{
 				TmpB.CreateBr(mergeblock);
-				//numopblock=TmpB.GetInsertBlock();
 				TheFunction->getBasicBlockList().push_back(numopblock);
 				TmpB.SetInsertPoint(numopblock);
 			}
@@ -1968,11 +1910,9 @@ namespace intro {
 		// Create actual variable
 		CodeGenEnvironment::iterator iter = env->createVariable(name);
 		if (iter == env->end()) return false;
-		TmpB.CreateStore(rhs.first, iter->second.address);
-		TmpB.CreateStore(rhs.second, iter->second.rtt);
+		iter->second.store(TmpB, rhs);
 		// The value we just stored is not intermediate anymore!
-		//env->removeIntermediateOrIncrement(TmpB, t->find(), iter->second.address, iter->second.rtt);
-		env->removeIntermediateOrIncrement(TmpB, t->find(), rhs.first, rhs.second);
+		env->removeIntermediateOrIncrement(TmpB, t->find(), rhs);
 		env->decrementIntermediates(TmpB);
 		return true;
 	}
@@ -2029,7 +1969,6 @@ namespace intro {
 			CodeGenEnvironment local(env);
 			TheFunction->getBasicBlockList().push_back(alternatives.back());
 			TmpB.SetInsertPoint(alternatives.back());
-			//iter->second->codeGen(TmpB,&local);
 			otherwise->codeGen(TmpB, &local);
 			if (!otherwise->isTerminatorLike() && post_ite != env->getExitBlock())
 				TmpB.CreateBr(post_ite);
@@ -2078,11 +2017,9 @@ namespace intro {
 	bool WhileStatement::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
 		// Create blocks for while condition test, loop body and the block after
-		//llvm::Function *TheFunction = TmpB.GetInsertBlock()->getParent();
 		llvm::Function *TheFunction = env->currentFunction();
 		BasicBlock *test = BasicBlock::Create(theContext, "test", TheFunction);
 		BasicBlock *loopbody = BasicBlock::Create(theContext, "body", TheFunction);
-		//BasicBlock *after= BasicBlock::Create(theContext, "after", TheFunction);
 		BasicBlock *after = BasicBlock::Create(theContext, "after");
 		TmpB.CreateBr(test); // Go to next basic block - it has another entry point, hence the branch
 		// Test the condition, if false skip body and done
@@ -2134,8 +2071,9 @@ namespace intro {
 		env->removeIntermediateOrIncrement(TmpB, caseof->getType(), input.first, input.second);
 		CodeGenEnvironment local(env);
 		CodeGenEnvironment::iterator tmpvar= local.createVariable();
-		TmpB.CreateStore(input.first, tmpvar->second.address);
-		TmpB.CreateStore(input.second, tmpvar->second.rtt);
+		//TmpB.CreateStore(input.first, tmpvar->second.address);
+		//TmpB.CreateStore(input.second, tmpvar->second.rtt);
+		tmpvar->second.store(TmpB, input);
 		std::vector<llvm::Value*> args{
 			input.first
 		};
@@ -2181,10 +2119,9 @@ namespace intro {
 				fieldrtt=TmpB.CreateLoad(fieldrtt,"varfieldrtt");
 				// Put into environment
 				CodeGenEnvironment::iterator iter= innerlocal.createVariable(fit->first);
-				TmpB.CreateStore(fieldaddr,iter->second.address);
-				TmpB.CreateStore(fieldrtt,iter->second.rtt);
-				//iter->second.address=fieldaddr;
-				//iter->second.rtt=fieldrtt;
+				//TmpB.CreateStore(fieldaddr,iter->second.address);
+				//TmpB.CreateStore(fieldrtt,iter->second.rtt);
+				iter->second.store(TmpB, fieldaddr, fieldrtt);
 			}
 			// The environment is set up, generate the body
 			(*iter)->body->codeGen(TmpB,&innerlocal);
@@ -2220,8 +2157,9 @@ namespace intro {
 			/// Expect alloc'ed value "retval" from env
 			CodeGenEnvironment::iterator v=env->getReturnVariable();
 			Expression::cgvalue result=expr->codeGen(TmpB,env);
-			TmpB.CreateStore(result.first,v->second.address);
-			TmpB.CreateStore(result.second,v->second.rtt);
+			//TmpB.CreateStore(result.first,v->second.address);
+			//TmpB.CreateStore(result.second,v->second.rtt);
+			v->second.store(TmpB, result);
 			// The value we just stored is not intermediate anymore!
 			env->removeIntermediateOrIncrement(TmpB, expr->getType(), result.first, result.second);
 		}
@@ -2301,13 +2239,11 @@ namespace intro {
 		param_vals_base+=L"_gen_";
 		Expression::cgvalue elem=from->codeGen(TmpB,env);
 		CodeGenEnvironment::iterator from_ptr=env->createVariable(getVariableName());
-		TmpB.CreateStore(elem.first,from_ptr->second.address);
-		TmpB.CreateStore(elem.second,from_ptr->second.rtt);
+		from_ptr->second.store(TmpB, elem);
 				
 		Expression::cgvalue to_val=to->codeGen(TmpB,env);
 		CodeGenEnvironment::iterator to_ptr=env->createVariable(param_vals_base+L"to");
-		TmpB.CreateStore(to_val.first,to_ptr->second.address);
-		TmpB.CreateStore(to_val.second,to_ptr->second.rtt);
+		to_ptr->second.store(TmpB, to_val);
 
 		Type tI(Type::Integer);
 		Expression::cgvalue by_val;
@@ -2315,11 +2251,11 @@ namespace intro {
 		{
 			by_val.first = llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), 1, true);
 			by_val.first = createBoxValue(TmpB, env, by_val.first, &tI);
+			by_val.second = env->getRTT(rtt::Integer);
 		}
 		else by_val=by->codeGen(TmpB,env);
 		CodeGenEnvironment::iterator by_ptr=env->createVariable(param_vals_base+L"by");
-		TmpB.CreateStore(by_val.first,by_ptr->second.address);
-		TmpB.CreateStore(env->getRTT(rtt::Integer),by_ptr->second.rtt);
+		by_ptr->second.store(TmpB, by_val);
 
 		TmpB.CreateBr(test);
 				
@@ -2374,8 +2310,9 @@ namespace intro {
 		llvm::Value *genargs[] = { rawcontval.first,rawcontval.second };
 		generator = makeRTValue(TmpB.CreateCall(ensureGenF, genargs, "thegen"), intro::rtt::Generator);
 		CodeGenEnvironment::iterator gen_ptr=env->createVariable(genvar_name);
-		TmpB.CreateStore(generator.first,gen_ptr->second.address);
-		TmpB.CreateStore(generator.second,gen_ptr->second.rtt);
+		//TmpB.CreateStore(generator.first,gen_ptr->second.address);
+		//TmpB.CreateStore(generator.second,gen_ptr->second.rtt);
+		gen_ptr->second.store(TmpB, generator);
 		// Exit block needs to load from those variables, they may be in a generator closure...
 		// with the block sequence possibly messed up by it's state machine
 		rawcontval.first = gen_ptr->second.address;
@@ -2386,10 +2323,8 @@ namespace intro {
 		TheFunction->getBasicBlockList().push_back(loop);
 		// loop as long as iterator produces values.
 		llvm::Function *callGenF = TheModule->getFunction("callGenerator");
-		//std::vector<llvm::Value*> args { finalgen };
 		llvm::Value *gen_val=TmpB.CreateLoad(gen_ptr->second.address,"load_gen");
 		std::vector<llvm::Value*> args { gen_val };
-		//std::vector<llvm::Value*> args { generator.first };
 		llvm::CallInst *hasmore=TmpB.CreateCall(callGenF, args,"hasmore");
 		hasmore->addAttribute(llvm::AttributeList::ReturnIndex,Attribute::ZExt);
 
@@ -2403,27 +2338,30 @@ namespace intro {
 		llvm::Value *genval=TmpB.CreateCall(getValGenF, args,"genval");
 		llvm::Value *genvalrtt=TmpB.CreateCall(getResultTypeGenF, args,"genvalrtt");
 		CodeGenEnvironment::iterator elem=env->find(getVariableName());		
-		TmpB.CreateStore(genval,elem->second.address);
-		TmpB.CreateStore(genvalrtt,elem->second.rtt);
+		//TmpB.CreateStore(genval,elem->second.address);
+		//TmpB.CreateStore(genvalrtt,elem->second.rtt);
+		elem->second.store(TmpB, genval, genvalrtt);
 		
 		return true;
 	}
 	
-	void ContainerGen::codeGenExitBlock(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env)
+	void ContainerGen::codeGenExitBlock(llvm::IRBuilder<> &TmpB, CodeGenEnvironment *env)
 	{
 		llvm::Function *TheFunction = env->currentFunction();
 		TmpB.SetInsertPoint(exit);
 		TheFunction->getBasicBlockList().push_back(exit);
 		llvm::Function *subF = TheModule->getFunction("decrement");
-		//llvm::Value *myArgs[] = {
-		std::vector<llvm::Value*> myArgs {
+		std::vector<llvm::Value*> myArgs{
 			TmpB.CreateLoad(rawcontval.first, "src"),
 			TmpB.CreateLoad(rawcontval.second, "srcrtt")
 		};
 		TmpB.CreateCall(subF, myArgs);
-		CodeGenEnvironment::iterator elem=env->find(getVariableName());		
-		TmpB.CreateStore(llvm::Constant::getNullValue(builtin_t),elem->second.address);
-		TmpB.CreateStore(llvm::Constant::getNullValue(rttype_t),elem->second.rtt);
+		CodeGenEnvironment::iterator elem = env->find(getVariableName());
+		TmpB.CreateStore(llvm::Constant::getNullValue(builtin_t), elem->second.address);
+		TmpB.CreateStore(llvm::Constant::getNullValue(rttype_t), elem->second.rtt);
+		elem->second.store(TmpB,
+			llvm::Constant::getNullValue(builtin_t),
+			llvm::Constant::getNullValue(rttype_t));
 	}
 	
 	bool GeneratorStatement::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
@@ -2515,7 +2453,6 @@ namespace intro {
 		CodeGenEnvironment::iterator eit;
 		for (eit = myself->begin();eit != myself->end();eit++)
 		{
-			//std::wcout << "Found import: " << eit->first << "!\n";
 			env->importElement(eit->first, eit->second);
 		}
 		return true;
@@ -2550,8 +2487,6 @@ namespace intro {
 			std::wcout << "!\n";
 			return false;
 		}
-		//Environment::pushModule(module);
-
 		// Get/Create target module
 		CodeGenModule *base = relative ?
 			env->getCurrentModule() : CodeGenModule::getRoot();
@@ -2569,7 +2504,6 @@ namespace intro {
 					<< (*eit)->getName() << "!\n";
 				return false;
 			}
-			//std::wcout << "Found export: " << (*eit)->getName() << "!\n";
 			myself->importElement(exportvalue->first, exportvalue->second);
 		}
 		return true;
