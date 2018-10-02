@@ -52,6 +52,28 @@ namespace intro {
 	void dumpModule(void)
 	{
 		//TheModule->dump();
+		{
+			// Create a function pass manager.
+			auto FPM = llvm::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
+
+			// Add some optimizations.
+			FPM->add(llvm::createVerifierPass());
+			FPM->add(llvm::createPromoteMemoryToRegisterPass());
+			FPM->add(llvm::createInstructionCombiningPass());
+			FPM->add(llvm::createReassociatePass());
+			//FPM->add(llvm::createJumpThreadingPass());
+			//FPM->add(llvm::createGVNPass());
+			FPM->add(llvm::createDeadCodeEliminationPass());
+			FPM->add(llvm::createCFGSimplificationPass());
+			FPM->doInitialization();
+
+			// Run the optimizations over all functions in the module being added to
+			// the JIT.
+			for (auto &F : *TheModule)
+			{
+				FPM->run(F);
+			}
+		}
 		TheModule->print(llvm::outs(), nullptr);
 	}
 
@@ -2195,6 +2217,9 @@ namespace intro {
 			llvm::ConstantInt *nextStateVal=llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), nextStateId,false);
 			std::vector<llvm::Value*> argsNextState{ generator, nextStateVal };
 			TmpB.CreateCall(setStateF, argsNextState);
+			// Save away current state
+			env->storeGeneratorValues(TmpB);
+			// Return the current value!
 			TmpB.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt1Ty(theContext), 1,false));
 			// Set up the new state for continuation
 			llvm::BasicBlock *nextState = llvm::BasicBlock::Create(theContext, std::string("gen_state_") + std::to_string(nextStateId));
@@ -2219,7 +2244,8 @@ namespace intro {
 			dispatch->addCase(nextStateVal, nextState);
 			TheFunction->getBasicBlockList().push_back(nextState);
 			TmpB.SetInsertPoint(nextState);
-			TmpB.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt1Ty(theContext), 0,false));
+			//TmpB.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt1Ty(theContext), 0,false));
+			TmpB.CreateBr(env->getExitBlock());
 		}
 		return true;
 	}

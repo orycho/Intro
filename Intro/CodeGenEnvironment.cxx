@@ -7,13 +7,26 @@ using namespace std;
 
 namespace intro 
 {
-
 	extern llvm::LLVMContext theContext;
 	
 	extern llvm::PointerType *builtin_t;
 	extern llvm::Type *rttype_t;
 	extern llvm::StructType *closure_t, *generator_t, *field_t;
 	
+	static Expression::cgvalue getGeneratorMemory(llvm::IRBuilder<> &builder, llvm::Value *generator, size_t field_index, const std::string &name)
+	{
+		llvm::Value *idxs[] = {
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 0), // the struct directly pointed to
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), GeneratorFields), // index of fields array in struct
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), (std::uint32_t)field_index), // index of field in array
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 0)	// Value of field
+		};
+		llvm::Value *fieldptr = builder.CreateGEP(generator_t, generator, idxs, name+"!ptr");
+		idxs[3] = llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 1);	// Type of  field
+		llvm::Value *fieldrtt = builder.CreateGEP(generator_t, generator, idxs, name + "!rtt!ptr");
+		return std::make_pair(fieldptr, fieldrtt);
+	}
+
 	// If we know a type is not referenced, do not emit increment code.
 	static void incrementKnownReferenced(llvm::IRBuilder<> &builder,Type *type,llvm::Value *address,llvm::Value *rtt)
 	{
@@ -139,24 +152,49 @@ namespace intro
 		name+="ingen";
 		llvm::Function *TheFunction = env->function;
 		llvm::Value *generator=env->closure;
-		std::uint32_t field_index=(std::uint32_t)env->closuresize;
+		size_t field_index=env->closuresize;
 		++(env->closuresize);
 		llvm::BasicBlock::iterator instr_iter = TheFunction->getEntryBlock().begin();
 		instr_iter++;
 		llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(), instr_iter);
-		//Builder.SetInsertPoint(I->getNextNode());
-		llvm::Value *idxs[]= {
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 0), // the struct directly pointed to
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), GeneratorFields), // index of fields array in struct
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), field_index), // index of field in array
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 0)	// Value of field
-		};
-		llvm::Value *fieldptr=TmpB.CreateGEP(generator_t,generator,idxs,name);
-		idxs[3]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 1);	// Type of  field
-		llvm::Value *fieldrtt=TmpB.CreateGEP(generator_t,generator,idxs,name+"!rtt");
-		//fieldrtt=TmpB.CreateLoad(fieldrtt,"gen_variable_rttval");
-		
-		return elements.insert(std::make_pair(VarName,element(fieldptr,fieldrtt))).first;
+		llvm::Value *valueptr = TmpB.CreateAlloca(builtin_t, 0, name);
+		llvm::Value *rttptr = TmpB.CreateAlloca(rttype_t, 0, name + "!rtt");
+		// We want to alias closure variables into LLVM allocas,
+		// because it should help LLVM optimize the usage.
+		// we then store on yield intrsuctions...
+		// But have to remember the GEPs, so we can store back!
+		// The GEPs then have to come after the allocas, as llvm wants 
+		// the allocas at the beginning of the first block in the function.
+		instr_iter = TheFunction->getEntryBlock().end();
+		instr_iter--;
+		TmpB.SetInsertPoint(&TheFunction->getEntryBlock(),instr_iter->getIterator());
+		Expression::cgvalue closureptr = getGeneratorMemory(TmpB, generator, field_index, name);
+		generatorVarMap.push_back(std::make_pair(VarName, field_index));
+		llvm::Value *value = TmpB.CreateLoad(closureptr.first);
+		llvm::Value *rtt= TmpB.CreateLoad(closureptr.second);
+		//return elements.insert(std::make_pair(VarName,element(value, rtt))).first;
+		auto elemiter=elements.insert(std::make_pair(VarName, element(valueptr, rttptr))).first;
+		elemiter->second.store(TmpB, value, rtt);
+		return elemiter;
+	}
+
+	void CodeGenEnvironment::storeGeneratorValues(llvm::IRBuilder<> &builder)
+	{
+		CodeGenEnvironment *env = getWrappingEnvironment();
+		llvm::Function *TheFunction = env->function;
+		llvm::Value *generator = env->closure;
+
+		for (auto varmapping : generatorVarMap)
+		{
+			auto elem = elements.find(varmapping.first);
+			std::string name(varmapping.first.begin(), varmapping.first.end());
+			Expression::cgvalue closureptr = getGeneratorMemory(builder, generator, varmapping.second, name);
+			auto value = elem->second.load(builder);
+			builder.CreateStore(value.first, closureptr.first);
+			builder.CreateStore(value.second, closureptr.second);
+		}
+		if (parent != nullptr && scope_type != Closure && scope_type != Generator)
+			parent->storeGeneratorValues(builder);
 	}
 
 	llvm::Value *CodeGenEnvironment::getRTT(rtt::RTType rtt)

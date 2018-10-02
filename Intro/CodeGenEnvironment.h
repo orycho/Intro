@@ -91,6 +91,7 @@ public:
 	typedef std::unordered_map<std::wstring,element>::iterator iterator;
 	
 private:
+
 	CodeGenEnvironment *parent;
 	/// The current function or generator iterator being built.
 	llvm::Function *function;
@@ -102,6 +103,8 @@ private:
 	ScopeType scope_type;
 	/// Variables declared in this scope, also with parameters.
 	std::unordered_map<std::wstring,element> elements;
+	/// Variables in generators are aliased into locals from the 
+	std::vector<std::pair<std::wstring, size_t> > generatorVarMap;
 	/// State based dispatch to entry points for yield statements
 	llvm::SwitchInst *generatorStateDispatch;
 	/// Generators get their variables allocated from the closure
@@ -312,6 +315,8 @@ public:
 	}
 	
 	llvm::Value *getGeneratorClosure(llvm::IRBuilder<> &builder);
+
+	void storeGeneratorValues(llvm::IRBuilder<> &builder);
 
 	///@}
 	
