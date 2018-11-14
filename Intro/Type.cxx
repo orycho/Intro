@@ -677,11 +677,10 @@ bool VariantType::internalUnify(Type *other, bool specialize)
 		{
 			ai = findTag(bi->first);
 			if (ai == endTag())
-				//addTag(bi);
-				addTag(bi,true);
+				addTag(bi);
 		}
 		vb->setParent(va);
-		vb->tags.clear();
+		//vb->tags.clear();
 	}
 	else
 	{
@@ -700,7 +699,7 @@ bool VariantType::internalUnify(Type *other, bool specialize)
 				return false;
 		}
 		vb->setParent(va);
-		vb->tags.clear();
+		//vb->tags.clear();
 		//va->setParent(vb);
 	}
 	return true;
