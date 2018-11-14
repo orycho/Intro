@@ -411,10 +411,10 @@ namespace intro {
 			errors->addError(logger);
 			return ft;
 		}
-		else if (ft->getKind() == Type::Variable) calledType = ft;
+		else if (ft->find()->getKind() == Type::Variable) calledType = ft;
 		else 
 		{
-			calledType=ft->copy();
+			calledType=ft->find()->copy();
 			deleteCalledType=true;
 		}
 		delete logger;
@@ -878,7 +878,7 @@ namespace intro {
 		{
 			s << "\t" << iter->first;
 			if (iter->second->getType()!=NULL && iter->second->getType()->find()->getKind()!=Type::Function) 
-			s << " <- ";
+				s << " <- ";
 			iter->second->print(s);
 			if (iter->second->getType()!=NULL) 
 			{

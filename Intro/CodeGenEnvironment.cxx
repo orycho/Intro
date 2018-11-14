@@ -12,7 +12,8 @@ namespace intro
 	extern llvm::PointerType *builtin_t;
 	extern llvm::Type *rttype_t;
 	extern llvm::StructType *closure_t, *generator_t, *field_t;
-	
+
+	const wchar_t *CodeGenEnvironment::retvarname = L"$retval";
 	static Expression::cgvalue getGeneratorMemory(llvm::IRBuilder<> &builder, llvm::Value *generator, size_t field_index, const std::string &name)
 	{
 		llvm::Value *idxs[] = {
@@ -79,13 +80,34 @@ namespace intro
 	{
 		llvm::Function *decr_op = TheModule->getFunction("decrement");
 		llvm::Value* args[] = { nullptr,nullptr };
+		//element *retvar = getReturnVariable(); // nullptr if none 
+		bool isInGenerator = getScopeType() == Generator;
 		for (auto item : elements)
 		{
-			if (item.second.isParameter) continue;
+			if (item.second.isParameter || item.first== retvarname) continue;
 			args[0] = builder.CreateLoad(item.second.address,"value");
 			args[1] = builder.CreateLoad(item.second.rtt,"type");
 			builder.CreateCall(decr_op, args);
 
+		}
+		// Zero out when in generator?!!
+		if (isInGenerator)
+		{
+			CodeGenEnvironment *env = getWrappingEnvironment();
+			//llvm::Function *TheFunction = env->function;
+			llvm::Value *generator = env->closure;
+			Expression::cgvalue undef;
+			undef.first = llvm::Constant::getNullValue(llvm::Type::getInt8Ty(theContext)->getPointerTo());
+			undef.second = llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext), 0, false);
+			for (auto varmapping : generatorVarMap)
+			{
+				//auto elem = elements.find(varmapping.first);
+				std::string name(varmapping.first.begin(), varmapping.first.end());
+				Expression::cgvalue closureptr = getGeneratorMemory(builder, generator, varmapping.second, name);
+				//auto value = elem->second.load(builder);
+				builder.CreateStore(undef.first, closureptr.first);
+				builder.CreateStore(undef.second, closureptr.second);
+			}
 		}
 		//elements.clear(); // May delete multiple times in function, i.e. multiple return statements
 	}
@@ -120,8 +142,8 @@ namespace intro
 
 	void CodeGenEnvironment::createReturnVariable(llvm::Value *retValType)
 	{
-		llvm::Value *address = createEntryBlockAlloca(L"$retval");
-		elements.insert(std::make_pair(L"$retval", element(address, retValType)));
+		llvm::Value *address = createEntryBlockAlloca(retvarname);
+		elements.insert(std::make_pair(retvarname, element(address, retValType)));
 	}
 
 	llvm::AllocaInst *CodeGenEnvironment::createRetValRttDest() 

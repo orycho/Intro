@@ -128,6 +128,7 @@ public:
 				return false;
 			}
 		}
+		env->put(getVariableName(), &myInt);
 		//return t->find()->getSupertype()->getParameter(0)->find();
 		return true;
 	}
@@ -201,7 +202,8 @@ public:
 	
 	virtual Type *getVariableType(void) 
 	{ 
-		return mytype->find()->getSupertype()->find()->getFirstParameter()->find();
+		//return mytype->find()->getSupertype()->find()->getFirstParameter()->find();
+		return mytype->find();
 	};
 
 	virtual bool makeType(Environment *env, ErrorLocation *errors)
@@ -346,8 +348,9 @@ public:
 					errors->addError(logger);
 					return false;
 				}
+
 				// TODO@ENV: take care of who remembers variable name...
-				env->put(gen->getVariableName(),gen->getVariableType());
+				//env->put(gen->getVariableName(),gen->getVariableType());
 			}
 		}
 		// should not reach

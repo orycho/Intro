@@ -1262,6 +1262,46 @@ bool FlowControlCodeGen(void)
 	return isOK;
 }
 
+bool forLoopCodeGen(void)
+{
+	cout << "\n---\n Flow Control Code Generation:\n";
+	const char *test = "for x in \"abcd\"  do x; done;";
+	//parse::Parser parser=getParser(test);
+	cout << test << endl << endl;
+	parse::Scanner scanner((const unsigned char *)test, strlen(test));
+	parse::Parser parser(&scanner);
+	parser.isInteractive = false;
+	parser.Parse();
+	intro::Environment global;
+	bool isOK = parser.inferTypes(&global);
+	if (isOK) dumpGeneratedStatements(parser);
+	parser.deleteStatements();
+	return isOK;
+}
+
+bool appendGenCodeGen(void)
+{
+	cout << "\n---\n Flow Control Code Generation:\n";
+	const char *test = "var append(s1,s2)->"
+	"	for x in s1 do yield x; done;"
+	"	for x in s2 do yield x; done;"
+	"	yield done;"
+	"end;"
+	"{x | x in append(\"Hello \",\"World\")};";
+
+	//parse::Parser parser=getParser(test);
+	cout << test << endl << endl;
+	parse::Scanner scanner((const unsigned char *)test, strlen(test));
+	parse::Parser parser(&scanner);
+	parser.isInteractive = false;
+	parser.Parse();
+	intro::Environment global;
+	bool isOK = parser.inferTypes(&global);
+	if (isOK) dumpGeneratedStatements(parser);
+	parser.deleteStatements();
+	return isOK;
+}
+
 bool splitFuncCodeGen(void)
 {
 	cout << "\n--- Split function Code Generation:\n";
@@ -1407,6 +1447,7 @@ bool DictOfVariantFunsStmtGen(void)
 	return isOK;
 }
 
+
 // Execute all type tests
 bool typeTests(void)
 {
@@ -1478,6 +1519,8 @@ bool codeGenTests(void)
 	filterCodeGen();
 	recursiveFunctionCodeGen();
 	FlowControlCodeGen();
+	forLoopCodeGen();
+	appendGenCodeGen();
 	moduleCodeGen();
 	splitFuncCodeGen();
 	BreakStmtGen();

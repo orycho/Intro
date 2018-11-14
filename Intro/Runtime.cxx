@@ -1348,7 +1348,7 @@ rtgenerator *allocDictGenerator(rtdict *dict)
 	result->retval.ptr = nullptr;
 	rtdata buf;
 	buf.ptr = (gcdata*)dict;
-	increment(buf, Dictionary);
+	increment(buf, intro::rtt::Dictionary);
 	return result;
 }
 

@@ -139,7 +139,10 @@ private:
 	/// Closure vars are special, as the address of value and it's rtt come from function parameters.
 	/// The are dereferenced when the closure itself is released.
 	void setClosure(llvm::IRBuilder<> &builder,llvm::Value *closure, llvm::StructType *myclosure_t,const VariableSet &freeVars);
-	
+	/// Adds a special variable that will be returned as the function value, 
+	// with special rtt holding the address passed (can be written unlike usual rtts)
+	void createReturnVariable(llvm::Value *retValType);
+
 	/// Set of intermediates, mapping the address of the value to the rtt of the value
 	/**
 		- not intermidates: values beonging to value types
@@ -164,6 +167,8 @@ private:
 	*/
 	std::unordered_map<llvm::Value*,llvm::Value*> intermediates;
 	typedef std::unordered_map<llvm::Value*,llvm::Value*>::iterator im_iter;
+
+	const static wchar_t *retvarname;
 public:
 
 	CodeGenEnvironment(CodeGenEnvironment *parent_,ScopeType st=LocalScope) 
@@ -333,7 +338,15 @@ public:
 		return parent->find(name);
 	}
 	
-	inline iterator getReturnVariable() { return find(L"$retval"); }
+	//inline iterator getReturnVariable() 
+	inline element *getReturnVariable()
+	{ 
+		CodeGenEnvironment *env = getWrappingEnvironment();
+		if (env == nullptr) return nullptr;
+		auto iter=env->find(retvarname);
+		if (iter == env->end()) return nullptr;
+		return &(iter->second);
+	}
 
 	/// Insert named addresses from outside of scope,usually function parameters
 	inline void addParameter(llvm::IRBuilder<> &builder,const std::wstring &name,llvm::Value *value,llvm::Value *rtt)
@@ -360,11 +373,7 @@ public:
 	
 	void setFunction(llvm::IRBuilder<> &builder,llvm::Function *TheFunction,
 		Function::ParameterList &params,bool returnsValue, const VariableSet &free);
-	
-	/// Adds a special variable that will be returned as the function value, 
-	// with special rtt holding the address passed (can be written unlike usual rtts)
-	void createReturnVariable(llvm::Value *retValType);
-	
+		
 	/// This function generates the finalization code of a block scope
 	/** It's main responsibility is to decrement the reference counters of those
 		values that have types that are handled as references.

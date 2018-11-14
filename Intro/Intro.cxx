@@ -28,7 +28,7 @@ namespace intro
 	void initModule(void);
 	void initRuntime(void);
 	void deleteRuntime(void);
-	void dumpModule(void);
+	void dumpModule(bool optimize=false);
 	void runStatements(const std::list<intro::Statement*> &statements);
 	void cleanupSourceFiles();
 
@@ -55,6 +55,7 @@ namespace llvm
 llvm::cl::opt<std::string> Script(llvm::cl::Positional, llvm::cl::desc("<input script>"), llvm::cl::init("-"));
 llvm::cl::list<std::string>  Argv(llvm::cl::ConsumeAfter, llvm::cl::desc("<program arguments>..."));
 llvm::cl::opt<bool> runTests("test", llvm::cl::desc("Run hard-coded basic tests"));
+llvm::cl::opt<bool> runTestsOpt("testopt", llvm::cl::desc("Run hard-coded basic tests with optimization (overrides test)"));
 
 //#include <dlfcn.h>
 
@@ -78,11 +79,11 @@ int main(int argc,const char *argv[])
 	uint64_t ptr=(uint64_t)llvm::sys::DynamicLibrary::SearchForAddressOfSymbol("allocString");
 	std::cout << "Pointer is "<<ptr<<std::endl;
 	*/
-	if (runTests)
+	if (runTests || runTestsOpt)
 	{
 		intro::initModule();
 		runBasicTests();
-		intro::dumpModule();
+		intro::dumpModule(runTestsOpt);
 		printf("Done!\n");
 		//return 0;
 	}

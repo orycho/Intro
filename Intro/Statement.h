@@ -388,7 +388,6 @@ public:
 		~Case()
 		{
 			if (myRecord!=NULL) delete myRecord;
-			std::list<Statement*>::iterator iter;
 			delete body;
 		};
 

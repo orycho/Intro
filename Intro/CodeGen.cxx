@@ -49,9 +49,10 @@ namespace intro {
 	static std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
 	static std::unique_ptr<JIT> TheJIT;
 
-	void dumpModule(void)
+	void dumpModule(bool optimize)
 	{
 		//TheModule->dump();
+		if (optimize)
 		{
 			// Create a function pass manager.
 			auto FPM = llvm::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
@@ -59,10 +60,18 @@ namespace intro {
 			// Add some optimizations.
 			FPM->add(llvm::createVerifierPass());
 			FPM->add(llvm::createPromoteMemoryToRegisterPass());
-			FPM->add(llvm::createInstructionCombiningPass());
+			FPM->add(llvm::createGVNPass());
 			FPM->add(llvm::createReassociatePass());
-			//FPM->add(llvm::createJumpThreadingPass());
-			//FPM->add(llvm::createGVNPass());
+			FPM->add(llvm::createInstructionCombiningPass());
+			FPM->add(llvm::createMergedLoadStoreMotionPass());
+			FPM->add(llvm::createSCCPPass());
+			FPM->add(llvm::createSeparateConstOffsetFromGEPPass());
+			FPM->add(llvm::createLoopSinkPass());
+			FPM->add(llvm::createLoopSimplifyCFGPass());
+			FPM->add(llvm::createLoopInstSimplifyPass());
+			FPM->add(llvm::createLICMPass());
+			FPM->add(llvm::createSinkingPass());
+			FPM->add(llvm::createJumpThreadingPass());
 			FPM->add(llvm::createDeadCodeEliminationPass());
 			FPM->add(llvm::createCFGSimplificationPass());
 			FPM->doInitialization();
@@ -677,10 +686,15 @@ namespace intro {
 				TheFunction->getBasicBlockList().push_back(realopblock);
 				builder.SetInsertPoint(realopblock);
 
-				args[0]=cgCoerceIntIfNeeded(builder,env,TheFunction,args[0], lhsInt);
-				args[1]=cgCoerceIntIfNeeded(builder,env,TheFunction,args[1], rhsInt);
+				//args[0]=cgCoerceIntIfNeeded(builder,env,TheFunction,args[0], lhsInt);
+				//args[1]=cgCoerceIntIfNeeded(builder,env,TheFunction,args[1], rhsInt);
+				//llvm::Value *realresult=real_op(builder,args);
+
+				argsbuf[0] = createUnboxValue(builder, env, args[0], &typeReal);
+				argsbuf[1] = createUnboxValue(builder, env, args[1], &typeReal);
 				
-				llvm::Value *realresult=real_op(builder,args);
+				llvm::Value *realresult = real_op(builder, argsbuf);
+
 				realresult=createBoxValue(builder,env,realresult,real_op_type);
 				builder.CreateBr(mergeblock);
 				
@@ -1389,15 +1403,16 @@ namespace intro {
 		if (returnsGenerator)
 		{
 			llvm::Value *retval=buildGeneratorStub(builder,&local,free,body);
-			CodeGenEnvironment::iterator iter=local.getReturnVariable();
+			CodeGenEnvironment::element *retvar=local.getReturnVariable();
 			//builder.CreateStore(retval,iter->second.address);
 			//builder.CreateStore(local.getRTT(rtt::Generator),iter->second.rtt);
-			iter->second.store(builder, retval, local.getRTT(rtt::Generator));
+			retvar->store(builder, retval, local.getRTT(rtt::Generator));
 			builder.CreateBr(local.getExitBlock());
 		}
 		else 
 		{
 			body->codeGen(builder,&local);
+			// This environment should only hold parameters and cl osure variables?!
 			if (!body->isReturnLike())
 				builder.CreateBr(local.getExitBlock());
 		}
@@ -1407,8 +1422,8 @@ namespace intro {
 		// ... and create the appropriate return function
 		if (returnsValue) 
 		{
-				CodeGenEnvironment::iterator iter=local.getReturnVariable();
-				llvm::Value *retval=builder.CreateLoad(iter->second.address,"return_value");
+				CodeGenEnvironment::element *retvar =local.getReturnVariable();
+				llvm::Value *retval=builder.CreateLoad(retvar->address,"return_value");
 				builder.CreateRet(retval);
 		}
 		else
@@ -2021,6 +2036,7 @@ namespace intro {
 		{
 			// If it is not return like, it must decrement reference counts for all referecned values 
 			// in he current environent
+			local.closeScope(TmpB);
 		}
 		return true;
 	}
@@ -2174,18 +2190,22 @@ namespace intro {
 	bool ReturnStatement::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
 		// If we're returning values...
+		CodeGenEnvironment::element *retvar=nullptr;
 		if (expr!=NULL)
 		{
 			/// Expect alloc'ed value "retval" from env
-			CodeGenEnvironment::iterator v=env->getReturnVariable();
+			retvar=env->getReturnVariable();
 			Expression::cgvalue result=expr->codeGen(TmpB,env);
 			//TmpB.CreateStore(result.first,v->second.address);
 			//TmpB.CreateStore(result.second,v->second.rtt);
-			v->second.store(TmpB, result);
+			retvar->store(TmpB, result);
 			// The value we just stored is not intermediate anymore!
+			// If it was not to begin with, it must not be have at least one reference
+			// because the returned value does not go out of scope.
 			env->removeIntermediateOrIncrement(TmpB, expr->getType(), result.first, result.second);
 		}
 		// Create cleanup from cgenv, jump to next cgenv.
+		env->closeAllScopes(TmpB);
 		// Needs pointer to it's function, which can then keep track of next cleanup block needed
 		// Or maybe have it done by CGEnv - if it knows it's a functions local environment, 
 		// everything above can clean up, accordig to current state.
@@ -2229,6 +2249,7 @@ namespace intro {
 		}
 		else // done, cleanup
 		{
+			// Set state in generator
 			std::vector<llvm::Value*> args{ 
 				generator,
 				llvm::Constant::getNullValue(builtin_t),
@@ -2238,6 +2259,8 @@ namespace intro {
 			llvm::ConstantInt *nextStateVal=llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), nextStateId,false);
 			std::vector<llvm::Value*> argsNextState{ generator, nextStateVal };
 			TmpB.CreateCall(setStateF, argsNextState);
+			// cleanup envirenment
+			env->closeAllScopes(TmpB);
 			TmpB.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt1Ty(theContext), 0,false));
 			// Set up the new state that just returns false
 			llvm::BasicBlock *nextState = llvm::BasicBlock::Create(theContext, std::string("gen_state_done"));
@@ -2328,6 +2351,7 @@ namespace intro {
 		llvm::BasicBlock *body = llvm::BasicBlock::Create(theContext, "container_body");
 		exit = llvm::BasicBlock::Create(theContext, "container_exit"); // Added to function later by genstmt
 		rawcontval=container->codeGen(TmpB,env);
+		env->removeIntermediateOrIncrement(TmpB, container->getType()->find(), rawcontval);
 		//llvm::BasicBlock *rawcontblock=TmpB.GetInsertBlock();
 		// All our possible input types
 		std::wstring genvar_name(getVariableName());

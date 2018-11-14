@@ -53,6 +53,9 @@ Type::~Type()
 	//if (super != this && super != nullptr) deleteCopy(super);
 	//if (getKind()!=Variable) 
 	//	TypeGraph::clearMapping(needDeletion, excludeMapping);
+	for (Type *t : needDeletion)
+		//deleteCopy(t);
+		delete t;
 	params.clear();
 }
 
@@ -561,7 +564,9 @@ bool Type::internalUnify(Type *other, bool specialize)
 	// First, check the type graph if a legal path actually exists
 	
 	PartialOrder order = theGraph.findSupertype(find(), other->find(), currentMapping, excludeMapping);
-	needDeletion.insert(needDeletion.end(), currentMapping.begin(), currentMapping.end());
+	for (Type *t : currentMapping)
+		if (excludeMapping.find(t)==excludeMapping.end())
+			needDeletion.push_back(t);
 
 	if (order == ERROR) return false;
 	Type *goal = find();
@@ -672,9 +677,11 @@ bool VariantType::internalUnify(Type *other, bool specialize)
 		{
 			ai = findTag(bi->first);
 			if (ai == endTag())
-				addTag(bi);
+				//addTag(bi);
+				addTag(bi,true);
 		}
 		vb->setParent(va);
+		vb->tags.clear();
 	}
 	else
 	{
@@ -693,6 +700,7 @@ bool VariantType::internalUnify(Type *other, bool specialize)
 				return false;
 		}
 		vb->setParent(va);
+		vb->tags.clear();
 		//va->setParent(vb);
 	}
 	return true;
@@ -750,7 +758,7 @@ Type *FunctionType::internalCopy(TypeVariableMap &conv)
 {
 	FunctionType *b=new FunctionType(getReturnType()->substitute(conv));
 	b->setAccessFlags(getAccessFlags());
-	for (FunctionType::iterator iter=begin();iter!=end();iter++)
+	for (Type::iterator iter=begin();iter!=end();iter++)
 		b->addParameter((*iter)->substitute(conv));
 	return b;
 }
@@ -768,7 +776,7 @@ Type *VariantType::internalCopy(TypeVariableMap &conv)
 {
 	VariantType *b= new VariantType();
 	for (VariantType::iterator iter=beginTag();iter!=endTag();iter++)
-		b->addTag(iter->first,(RecordType*)iter->second->substitute(conv));
+		b->addTag(iter->first,(RecordType*)iter->second->substitute(conv),true);
 	b->setAccessFlags(getAccessFlags());
 	return b;
 }
@@ -789,13 +797,13 @@ Type *OpaqueType::internalCopy(TypeVariableMap &conv)
 	return cp;
 }
 
-void collectAllTypes(Type *t, std::set<Type*> &items)
+void collectAllTypes(Type *t, std::set<Type*> &items,bool deletables)
 {
 	if (t->getKind() == Type::Variable)
 	{
 		TypeVariable *tv = (TypeVariable *)t;
 		if (!tv->isStaticSuper())
-			collectAllTypes(tv->getSupertype(), items);
+			collectAllTypes(tv->getSupertype(), items, deletables);
 		return;
 	}
 	if (!items.insert(t).second) return; // visit things once
@@ -814,8 +822,8 @@ void collectAllTypes(Type *t, std::set<Type*> &items)
 		FunctionType *f = dynamic_cast<FunctionType*>(t);
 		FunctionType::iterator iter;
 		for (iter = f->begin();iter != f->end();iter++)
-			collectAllTypes(*iter, items);
-		collectAllTypes(f->getReturnType(), items);
+			collectAllTypes(*iter, items, deletables);
+		collectAllTypes(f->getReturnType(), items, deletables);
 		return;
 	};
 	case Type::Generator:
@@ -824,7 +832,7 @@ void collectAllTypes(Type *t, std::set<Type*> &items)
 	case Type::Dictionary:
 	{
 		for (Type::iterator iter = t->begin();iter != t->end();++iter)
-			collectAllTypes(*iter, items);
+			collectAllTypes(*iter, items, deletables);
 		return;
 	}
 	case Type::Record:
@@ -832,18 +840,23 @@ void collectAllTypes(Type *t, std::set<Type*> &items)
 		RecordType *ra = dynamic_cast<RecordType*>(t);
 		RecordType::iterator iter;
 		for (iter = ra->begin();iter != ra->end();iter++)
-			collectAllTypes(iter->second, items);
+			collectAllTypes(iter->second, items, deletables);
 	}
 	return;
 	case Type::Variant:
 		{
 			VariantType *va=dynamic_cast<VariantType *>(t);
-			if (!va->deletesRecords())
+			if (deletables)
 			{
-				VariantType::iterator iter;
-				for (iter = va->beginTag();iter != va->endTag();iter++)
-					collectAllTypes(iter->second, items);
+				if (!va->deletesRecords())
+				{
+					for (VariantType::iterator iter = va->beginTag();iter != va->endTag();iter++)
+						if (va->isOwnedType(iter->second))
+							collectAllTypes(iter->second, items, deletables);
+				}
 			}
+			else for (VariantType::iterator iter = va->beginTag();iter != va->endTag();iter++)
+				collectAllTypes(iter->second, items, deletables);
 		}
 		return;
 	case Type::UserDef:
@@ -851,7 +864,7 @@ void collectAllTypes(Type *t, std::set<Type*> &items)
 		OpaqueType *oa = dynamic_cast<OpaqueType*>(t);
 		OpaqueType::iterator iter;
 		for (iter = oa->begin();iter != oa->end();iter++)
-			collectAllTypes(iter->first, items);
+			collectAllTypes(iter->first, items, deletables);
 	}
 	return;
 	default:
@@ -865,7 +878,7 @@ void deleteCopy(Type *t)
 	if (t == NULL) return;
 	std::set<Type*> nodes;
 	std::set<Type*>::iterator iter;
-	collectAllTypes(t, nodes);
+	collectAllTypes(t, nodes,true);
 	for (iter = nodes.begin();iter != nodes.end();iter++)
 		if ((*iter)->getKind() != Type::Variable) delete *iter;
 }
@@ -875,7 +888,7 @@ void deleteExcept(Type *t, std::set<Type*> exclude)
 	if (t == NULL) return;
 	std::set<Type*> nodes;
 	std::set<Type*>::iterator iter;
-	collectAllTypes(t, nodes);
+	collectAllTypes(t, nodes,true);
 	for (iter = nodes.begin();iter != nodes.end();iter++)
 		if ((*iter)->getKind() != Type::Variable &&
 			exclude.find(*iter) == exclude.end())

@@ -56,10 +56,14 @@ public:
 			inline ~edge(void)
 			{
 				//if (parentTemplate!=NULL) deleteCopy(parentTemplate);
+				for (Type *t : super_params)
+					if (t->getKind()!=Type::Variable)
+						delete t;
 				if (parentTemplate != NULL) delete parentTemplate;
-				std::vector<Type*>::iterator it;
-				for (it=super_params.begin();it!=super_params.end();it++)
-					deleteCopy(*it);
+				//std::vector<Type*>::iterator it;
+				//for (it=super_params.begin();it!=super_params.end();it++)
+				//	deleteCopy(*it);
+				
 			};
 		};
 

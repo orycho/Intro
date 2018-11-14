@@ -5,6 +5,7 @@
 #include <set>
 #include <list>
 #include <stack>
+#include <unordered_set>
 #include <string>
 #include <vector>
 #include <memory>
@@ -21,7 +22,7 @@ class TypeVariable;
 class OpaqueType;
 
 // Collect all types in a type (e.g. type parameters and labels in records have types)
-void collectAllTypes(Type *t, std::set<Type*> &items);
+void collectAllTypes(Type *t, std::set<Type*> &items,bool deletables=false);
 /// safely delete a type
 void deleteCopy(Type *type);
 void deleteExcept(Type *t,std::set<Type*> exclude);
@@ -437,7 +438,6 @@ public:
 /// Function types internally pretend that the parameters are (formally) a tuple.
 class FunctionType : public Type
 {
-	//std::list<Type*> params;
 	Type *rettype;
 protected:
 	/// Compute the unification of two types, always called via public driver. This one handles simple (mono) types.
@@ -624,6 +624,7 @@ class VariantType : public Type
 {
 	std::map<std::wstring,RecordType*> tags;
 	bool deleteRecords;
+	std::unordered_set<RecordType*> ownedCopies;
 protected:
 	/// Compute the unification of two types, always called via public driver
 	virtual bool internalUnify(Type *other,bool specialize);
@@ -686,6 +687,10 @@ public:
 	iterator beginTag(void) { return tags.begin(); };
 	iterator findTag(const std::wstring &tag) { return tags.find(tag); };
 	iterator endTag(void) { return tags.end(); };
+	bool isOwnedType(RecordType *rt) 
+	{
+		return ownedCopies.find(rt) != ownedCopies.end();
+	}
 
 	virtual void setAccessFlags(int f) 
 	{ 
@@ -697,19 +702,22 @@ public:
 
 	}
 
-	void addTag(const std::wstring &tag,RecordType *contents)
+	void addTag(const std::wstring &tag,RecordType *contents,bool owned=false)
 	{
 		tags.insert(make_pair(tag,(RecordType*)contents));
+		if (owned) ownedCopies.insert(contents);
 	}
 
-	void addTag(const wchar_t *tag,RecordType *contents)
+	void addTag(const wchar_t *tag,RecordType *contents, bool owned = false)
 	{
 		addTag(std::wstring(tag,wcslen(tag)),contents);
+		if (owned) ownedCopies.insert(contents);
 	}
 
-	void addTag(iterator &iter)
+	void addTag(iterator &iter, bool owned = false)
 	{
 		addTag(iter->first,iter->second);
+		if (owned) ownedCopies.insert(iter->second);
 	}
 
 	inline size_t size(void) { return tags.size(); };

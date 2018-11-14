@@ -342,13 +342,13 @@ namespace intro
 		//		std::wcout << L"\nGenerator source Type from env: ";
 		//		r->print(std::wcout);
 
-		Type *t;
-		if (expr == NULL) t = env->fresh();
+		Type *yieldType;
+		if (expr == NULL) yieldType = env->fresh();
 		else
 		{
 			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"yielded value expression"));
-			t = expr->getType(env, logger);
-			if (t->getKind() == Type::Error)
+			yieldType = expr->getType(env, logger);
+			if (yieldType->getKind() == Type::Error)
 			{
 				errors->addError(logger);
 				return false;
@@ -360,7 +360,7 @@ namespace intro
 		// An empty generator can be concatenated with any other, so top is ok supertype?!
 		// But that could lead to an empty list with element type top...
 		// that means we cannot do much with those elements... but is it a problem?!
-		myType = new Type(Type::Generator, t);
+		myType = new Type(Type::Generator, yieldType);
 		// What is a fact is that variant types can cause trouble
 		// when checking supertypes, because yield needs to specialize, just like return.
 		// But two unrelated variant types will cause the two generators
@@ -369,7 +369,7 @@ namespace intro
 		// Hence, we pick out the parameter if we can.
 		bool success = false;
 		if (r->getKind() == Type::Generator)
-			success = t->unify(r->getFirstParameter(), true);
+			success = yieldType->unify(r->getFirstParameter(), true);
 		else 
 			success = myType->unify(r,true);
 		if (!success)
