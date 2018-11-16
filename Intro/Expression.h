@@ -20,11 +20,10 @@ namespace intro
 class IntegerConstant : public Expression
 {
 	int64_t value;
-	Type::pointer_t myType;
 protected:
 	virtual Type::pointer_t makeType(Environment *, ErrorLocation *);
 public:
-	IntegerConstant(int l,int p,wchar_t *token,int base=10) : Expression(l,p), myType(new Type(Type::Integer))
+	IntegerConstant(int l,int p,wchar_t *token,int base=10) : Expression(l,p)
 	{
 		
 #ifdef WIN32
@@ -36,14 +35,12 @@ public:
 	};
 	virtual ~IntegerConstant()
 	{
-	//	delete myType;
 	};
 	virtual void print(std::wostream &s);
 	virtual void getFreeVariables(VariableSet &,VariableSet &)
 	{};
 
 	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
 	virtual void collectFunctions(std::vector<intro::Function*> &funcs) { /*NOP*/ };
 };
 
@@ -54,22 +51,19 @@ public:
 class BooleanConstant : public Expression
 {
 	bool value;
-	Type::pointer_t myType;
 protected:
 	virtual Type::pointer_t makeType(Environment *, ErrorLocation *);
 public:
-	BooleanConstant(int l,int p,bool val) : Expression(l,p),value(val), myType(new Type(Type::Boolean))
+	BooleanConstant(int l, int p, bool val) : Expression(l, p), value(val)
 	{};
 	~BooleanConstant()
 	{
-		//delete myType;
 	};
 	virtual void print(std::wostream &s);
-	virtual void getFreeVariables(VariableSet &,VariableSet &)
+	virtual void getFreeVariables(VariableSet &, VariableSet &)
 	{};
-	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	virtual void collectFunctions(std::vector<intro::Function*> &funcs){ /*NOP*/ };
+	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB, CodeGenEnvironment *env);
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs) { /*NOP*/ };
 };
 
 /// A real constant, represented using a double.
@@ -79,25 +73,22 @@ public:
 class RealConstant : public Expression
 {
 	double value;
-	Type::pointer_t myType;
 protected:
 	virtual Type::pointer_t makeType(Environment *, ErrorLocation *);
 public:
-	RealConstant(int l,int p,wchar_t *token) : Expression(l,p), myType(new Type(Type::Real))
+	RealConstant(int l, int p, wchar_t *token) : Expression(l, p)
 	{
-		wchar_t *ptr; 
-		value=wcstod(token,&ptr); 
+		wchar_t *ptr;
+		value = wcstod(token, &ptr);
 	};
 	~RealConstant()
 	{
-		//delete myType;
 	};
 	virtual void print(std::wostream &s);
-	virtual void getFreeVariables(VariableSet &,VariableSet &)
+	virtual void getFreeVariables(VariableSet &, VariableSet &)
 	{};
-	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	virtual void collectFunctions(std::vector<intro::Function*> &funcs){ /*NOP*/ };
+	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB, CodeGenEnvironment *env);
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs) { /*NOP*/ };
 };
 
 /// A string constant, represented using std::wstring (16 bit).
@@ -107,13 +98,14 @@ public:
 class StringConstant : public Expression
 {
 	std::wstring value;
-	Type::pointer_t myType;
 
 	/// A stringpart is either a constant string literal, or a variable interpolation (which may be another string).
 	struct part
 	{
-		part(const std::wstring &s_,intro::Type::pointer_t t_)
-		{ s=s_; t=t_; };
+		part(const std::wstring &s_, intro::Type::pointer_t t_)
+		{
+			s = s_; t = t_;
+		};
 		/// the constant string (if t==NULL) or a variable name if t != NULL (the variable's type).
 		std::wstring s;
 		/// The type of the variable, or NULL if a constant string
@@ -124,66 +116,59 @@ class StringConstant : public Expression
 	typedef std::vector<part>::iterator iterator;
 protected:
 	virtual Type::pointer_t makeType(Environment *, ErrorLocation *);
-
-	Type::pointer_t original;
 public:
-	StringConstant(int l,int p,wchar_t *token) : Expression(l,p), myType(new Type(Type::String))
+	StringConstant(int l, int p, wchar_t *token) : Expression(l, p)
 	{
 		value.assign(token);
-		original = myType;
 	};
 	~StringConstant()
 	{
-		//for (iterator i=parts.begin();i!=parts.end();i++)
-		//	if (i->t!=NULL) deleteCopy(i->t);
-		//delete myType;
 	};
 	virtual void print(std::wostream &s);
-	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
+	virtual void getFreeVariables(VariableSet &free, VariableSet &bound)
 	{
-		for (iterator i=parts.begin();i!=parts.end();i++)
-			if (i->t!=NULL)
-				if (bound.find(i->s)==bound.end()) free.insert(std::make_pair(i->s,i->t));
+		for (iterator i = parts.begin();i != parts.end();i++)
+			if (i->t != NULL)
+				if (bound.find(i->s) == bound.end()) free.insert(std::make_pair(i->s, i->t));
 	};
-	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	virtual void collectFunctions(std::vector<intro::Function*> &funcs){ /*NOP*/ };
+	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB, CodeGenEnvironment *env);
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs) { /*NOP*/ };
 };
 
 /// List constants are either a literal list of the elements initialized to, or a generator based expression
 class ListConstant : public Expression
 {
 	/// The elements, in case of generators there must be one entry here
-	std::vector<intro::Expression*> elements; 
+	std::vector<intro::Expression*> elements;
 	GeneratorStatement *generators;
-	Type::pointer_t myType;
 protected:
 	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors);
 public:
-	ListConstant(int l,int p,std::vector<intro::Expression*> contents) : Expression(l,p),elements(contents), generators(NULL)
+	ListConstant(int l, int p, std::vector<intro::Expression*> contents)
+		: Expression(l, p)
+		, elements(contents)
+		, generators(NULL)
 	{
 	};
 	~ListConstant()
 	{
-		//delete myType;
-		if (generators!=NULL) delete generators;
+		if (generators != NULL) delete generators;
 		std::vector<intro::Expression*>::iterator iter;
-		for (iter=elements.begin();iter!=elements.end();iter++)
+		for (iter = elements.begin();iter != elements.end();iter++)
 			delete *iter;
 	};
-	inline void setGenerators(GeneratorStatement *gen) { generators=gen; };
+	inline void setGenerators(GeneratorStatement *gen) { generators = gen; };
 	/// Virtual function to print the expression to the given stream.
 	virtual void print(std::wostream &s);
 	/// Collect the free variables in this expression into the given set.
-	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
+	virtual void getFreeVariables(VariableSet &free, VariableSet &bound)
 	{
-		if (generators!=nullptr) generators->getFreeVariables(free,bound);
+		if (generators != nullptr) generators->getFreeVariables(free, bound);
 		std::vector<intro::Expression*>::iterator iter;
-		for (iter=elements.begin();iter!=elements.end();iter++)
-			(*iter)->getFreeVariables(free,bound);
+		for (iter = elements.begin();iter != elements.end();iter++)
+			(*iter)->getFreeVariables(free, bound);
 	};
-	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
+	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB, CodeGenEnvironment *env);
 	virtual void collectFunctions(std::vector<intro::Function*> &funcs);
 };
 
@@ -191,47 +176,47 @@ public:
 class DictionaryConstant : public Expression
 {
 public:
-	typedef std::vector<std::pair<intro::Expression*,intro::Expression*> > memberlist;
+	typedef std::vector<std::pair<intro::Expression*, intro::Expression*> > memberlist;
 private:
 	/// The elements, in case of generators there must be one entry here
-	memberlist elements; 
+	memberlist elements;
 	GeneratorStatement *generators;
-	Type::pointer_t myType;
 protected:
 	/// Purely virtual function that is used to create an expressions type.
 	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors);
 public:
-	DictionaryConstant (int l,int p,memberlist contents) : Expression(l,p),elements(contents), generators(NULL), myType(NULL)
+	DictionaryConstant(int l, int p, memberlist contents)
+		: Expression(l, p)
+		, elements(contents)
+		, generators(NULL)
 	{
 	};
 	~DictionaryConstant()
 	{
-		//delete myType;
-		if (generators!=NULL) delete generators;
+		if (generators != NULL) delete generators;
 		memberlist::iterator iter;
-		for (iter=elements.begin();iter!=elements.end();iter++)
+		for (iter = elements.begin();iter != elements.end();iter++)
 		{
 			delete iter->first;
 			delete iter->second;
 		}
 	};
-	inline void setGenerators(GeneratorStatement *gen) { generators=gen; };
+	inline void setGenerators(GeneratorStatement *gen) { generators = gen; };
 	/// Virtual function to print the expression to the given stream.
 	virtual void print(std::wostream &s);
 	/// Collect the free variables in this expression into the given set.
-	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
+	virtual void getFreeVariables(VariableSet &free, VariableSet &bound)
 	{
-		if (generators!=NULL) generators->getFreeVariables(free,bound);;
+		if (generators != NULL) generators->getFreeVariables(free, bound);;
 		memberlist::iterator iter;
-		for (iter=elements.begin();iter!=elements.end();iter++)
+		for (iter = elements.begin();iter != elements.end();iter++)
 		{
-			iter->first->getFreeVariables(free,bound);
-			iter->second->getFreeVariables(free,bound);
+			iter->first->getFreeVariables(free, bound);
+			iter->second->getFreeVariables(free, bound);
 		}
 	};
 
-	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
+	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB, CodeGenEnvironment *env);
 	virtual void collectFunctions(std::vector<intro::Function*> &funcs);
 };
 
@@ -243,43 +228,43 @@ class RecordExpression : public Expression
 {
 protected:
 	/// The members of the record are label-expression pairs.
-	std::vector<std::pair<std::wstring,Expression*> > members;
-	Type::pointer_t myType;
+	std::vector<std::pair<std::wstring, Expression*> > members;
+
 	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors);
 	bool isVariant;
 public:
 
-	typedef std::vector<std::pair<std::wstring,Expression*> >::iterator iterator;
+	typedef std::vector<std::pair<std::wstring, Expression*> >::iterator iterator;
 
-	RecordExpression(int l,int p) : Expression(l,p), myType(nullptr), isVariant(false)
+	RecordExpression(int l, int p)
+		: Expression(l, p)
+		, isVariant(false)
 	{};
 
 	~RecordExpression()
 	{
-		//delete myType;
 		iterator iter;
-		for (iter=members.begin();iter!=members.end();iter++)
+		for (iter = members.begin();iter != members.end();iter++)
 			delete iter->second;
 	};
-	inline void addMember(std::wstring &label,Expression *expr)
+	inline void addMember(std::wstring &label, Expression *expr)
 	{
-		members.push_back(make_pair(label,expr));
+		members.push_back(make_pair(label, expr));
 	};
 
-	void setToVariant() { isVariant=true; };
+	void setToVariant() { isVariant = true; };
 
-	inline iterator begin() {return members.begin(); };
-	inline iterator end() {return members.end(); };
+	inline iterator begin() { return members.begin(); };
+	inline iterator end() { return members.end(); };
 
 	virtual void print(std::wostream &s);
-	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
+	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB, CodeGenEnvironment *env);
 
-	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
+	virtual void getFreeVariables(VariableSet &free, VariableSet &bound)
 	{
 		iterator iter;
-		for (iter=members.begin();iter!=members.end();iter++)
-			iter->second->getFreeVariables(free,bound);
+		for (iter = members.begin();iter != members.end();iter++)
+			iter->second->getFreeVariables(free, bound);
 	};
 	virtual void collectFunctions(std::vector<intro::Function*> &funcs);
 };
@@ -289,37 +274,35 @@ public:
 */
 class VariantExpression : public Expression
 {
-	
+
 protected:
 	/// The members of the record are label-expression pairs.
-	//std::list<std::pair<std::wstring,RecordExpression*> > members;
 	std::wstring tag;
 	RecordExpression *record;
-	Type::pointer_t myType;
 	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors);
 public:
 
 
-	VariantExpression(int l,int p) : Expression(l,p), record(nullptr), myType(nullptr)
+	VariantExpression(int l, int p) 
+		: Expression(l, p)
+		, record(nullptr)
 	{};
 	~VariantExpression()
 	{
-		//delete myType;
 		delete record;
 	};
-	inline void setVariant(const std::wstring &tag,RecordExpression *expr)
+	inline void setVariant(const std::wstring &tag, RecordExpression *expr)
 	{
-		this->tag=tag;
-		record=expr;
+		this->tag = tag;
+		record = expr;
 		record->setToVariant();
 	};
 	virtual void print(std::wostream &s);
-	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
+	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB, CodeGenEnvironment *env);
 
-	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
+	virtual void getFreeVariables(VariableSet &free, VariableSet &bound)
 	{
-		record->getFreeVariables(free,bound);
+		record->getFreeVariables(free, bound);
 	};
 	virtual void collectFunctions(std::vector<intro::Function*> &funcs);
 };
@@ -333,7 +316,7 @@ class Variable : public Expression
 public:
 	enum Modifier
 	{
-		Unrestricted=0,
+		Unrestricted = 0,
 		ReadOnly = 1,
 		WriteOnly = 2
 	};
@@ -342,33 +325,30 @@ private:
 	std::wstring name;
 	int modifiers;
 	bool relative;
-	//Type *original; ///< Type loaded from env can differ from type after unification (subtyping), necessitating coercion
 
 protected:
 	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors);
 public:
-	Variable(int l,int p,bool rel,std::wstring name_,const std::vector<std::wstring> &path_,int mod=0) 
-		: Expression(l,p)
+	Variable(int l, int p, bool rel, std::wstring name_, const std::vector<std::wstring> &path_, int mod = 0)
+		: Expression(l, p)
 		, path(path_)
 		, name(name_)
 		, modifiers(mod)
 		, relative(rel)
-		//, original(nullptr)
 	{
 	};
 
 	~Variable()
 	{
-		//if (original != nullptr) deleteCopy(original);
 	}
 	const std::wstring &getName(void) { return name; };
 	virtual void print(std::wostream &s);
-	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
+	virtual void getFreeVariables(VariableSet &free, VariableSet &bound)
 	{
 		// If it's in some module or the global scope, then we take it from there.
 		if (relative&&path.empty())
 		{
-			if (bound.find(name) == bound.end()) free.insert(std::make_pair(name,getType()));
+			if (bound.find(name) == bound.end()) free.insert(std::make_pair(name, getType()));
 		}
 	};
 
@@ -383,42 +363,38 @@ public:
 	};
 
 	/// (Use after type inference) Generate the address that can be written to, if this expression is writable;
-	virtual Expression::cgvalue getWriteAddress(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
+	virtual Expression::cgvalue getWriteAddress(llvm::IRBuilder<> &TmpB, CodeGenEnvironment *env);
 
-	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	virtual void collectFunctions(std::vector<intro::Function*> &funcs){ /*NOP*/ };
+	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB, CodeGenEnvironment *env);
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs) { /*NOP*/ };
 };
 
 /// A record element access expression: givena record and a label, extract the approriate element.
 /**	Every type of constant has a node representing it. The node also stores
 	a representation of the constant value.
 */
-class RecordAccess: public Expression
+class RecordAccess : public Expression
 {
 	Expression *record; ///< The record to be accessed
 	std::wstring label;	///< The label that is requested
-	Type::pointer_t myRecord;
 protected:
 	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors);
 public:
-	RecordAccess(int l,int p,Expression *rec,std::wstring &lab) 
-		: Expression(l,p)
+	RecordAccess(int l, int p, Expression *rec, std::wstring &lab)
+		: Expression(l, p)
 		, record(rec)
 		, label(lab)
-		, myRecord(nullptr)
 	{ };
 	virtual ~RecordAccess()
 	{
 		delete record;
-		//if (myRecord != nullptr) delete myRecord;
 	};
 
 	inline const std::wstring &getLabel() { return label; };
 	virtual void print(std::wostream &s);
-	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
+	virtual void getFreeVariables(VariableSet &free, VariableSet &bound)
 	{
-		record->getFreeVariables(free,bound);
+		record->getFreeVariables(free, bound);
 	};
 
 	virtual bool isWritable(void)
@@ -428,28 +404,22 @@ public:
 	/// (Use after type inference) If writable, this method returns the type that can be written (e.g. the dictionaries value type).
 	virtual Type::pointer_t getWritableType(void)
 	{
-		Type::pointer_t rt=record->getType();
+		Type::pointer_t rt = record->getType();
 		if (rt->getKind() != Type::Record) return Type::pointer_t();
 		RecordType *rect = (RecordType*)rt.get();
 		return rect->findMember(label)->second;
 	};
 
 	/// (Use after type inference) Generate the address that can be written to, if this expression is writable;
-	virtual Expression::cgvalue getWriteAddress(llvm::IRBuilder<> &,CodeGenEnvironment *);
+	virtual Expression::cgvalue getWriteAddress(llvm::IRBuilder<> &, CodeGenEnvironment *);
 
-	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
+	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB, CodeGenEnvironment *env);
 	virtual void collectFunctions(std::vector<intro::Function*> &funcs);
 };
 
 /// Extraction represetns the [] operator for dictionaries
 class Extraction: public Application
 {
-	Type::pointer_t myType;
-	Type::pointer_t dict;
-	//RecordType none,some;
-	//VariantType maybe;
-
 protected:
 	virtual Type::pointer_t getCalledFunctionType(Environment *env, ErrorLocation *errors);
 	virtual std::wstring getOperationDescription(void)
@@ -459,16 +429,12 @@ protected:
 public:
 	Extraction(int l,int p,Expression *source,Expression *key) 
 		: Application(l,p)
-		//, myType(NULL)
-		//, dict(NULL)
 	{
 		params.push_back(source);
 		params.push_back(key);
 	};
 	virtual ~Extraction()
 	{
-		//if (myType!=NULL) delete myType;
-		//if (dict!=NULL) delete dict;
 	};
 	virtual void print(std::wostream &s);
 	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
@@ -500,11 +466,6 @@ public:
 /// Dictionary Erase represeted b '\'
 class DictionaryErase: public Application
 {
-	Type::pointer_t myType;
-	Type::pointer_t dict;
-	//RecordType none,some;
-	//VariantType maybe;
-
 protected:
 	virtual Type::pointer_t getCalledFunctionType(Environment *env, ErrorLocation *errors);
 	virtual std::wstring getOperationDescription(void)
@@ -514,16 +475,12 @@ protected:
 public:
 	DictionaryErase(int l,int p,Expression *source,Expression *key) 
 		: Application(l,p)
-		//, myType(NULL)
-		//, dict(NULL)
 	{
 		params.push_back(source);
 		params.push_back(key);
 	};
 	virtual ~DictionaryErase()
 	{
-		//if (myType!=NULL) delete myType;
-		//if (dict!=NULL) delete dict;
 	};
 	virtual void print(std::wostream &s);
 	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
@@ -547,7 +504,6 @@ public:
 	};
 
 	/// (Use after type inference) Generate the address that can be written to, if this expression is writable;
-	//virtual cgvalue getWriteAddress(llvm::IRBuilder<> &,CodeGenEnvironment *);
 	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
 	virtual void collectFunctions(std::vector<intro::Function*> &funcs);
 };
@@ -555,11 +511,7 @@ public:
 /// Splice a list or string, ternary []- operator (sequence, first, last)
 class Splice : public Application
 {
-	Type::pointer_t myType;
 	Type::pointer_t counter;
-	//Type *myTypeParam[2];
-	//Type *sequence;
-
 protected:
 	virtual Type::pointer_t getCalledFunctionType(Environment *env, ErrorLocation *errors);
 	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors);
@@ -570,21 +522,14 @@ protected:
 public:
 	Splice(int l,int p,Expression *source,Expression *start,Expression *end=NULL) 
 		: Application(l,p)
-		, myType(NULL)
 		, counter(new Type(Type::Integer))
-		//, sequence(nullptr)
 	{
-		//myTypeParam[0]=myTypeParam[1]=NULL;
 		params.push_back(source);
 		params.push_back(start);
 		if (end!=NULL) params.push_back(end);
 	};
 	virtual ~Splice()
 	{
-		//if (myType!= nullptr) delete myType;
-		//if (myTypeParam[0]!= nullptr) delete myTypeParam[0];
-		//if (myTypeParam[1]!= nullptr) delete myTypeParam[1];
-		//if (sequence != nullptr) delete sequence;
 	};
 	virtual void print(std::wostream &s);
 	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
@@ -622,7 +567,6 @@ public:
 /// Assignment a new value to a variable.
 class Assignment : public Expression
 {
-	Type::pointer_t myType;
 protected:
 	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors);
 	/// The list of expressions that evaluate to the function call's parameters
@@ -632,7 +576,6 @@ protected:
 public:
 	Assignment(int l,int p,Expression *dest,Expression *val) 
 		: Expression(l,p)
-		, myType(NULL)
 		, destination(dest)
 		, value(val)
 	{ };
@@ -640,7 +583,6 @@ public:
 	{
 		delete destination;
 		delete value;
-		//if (myType!=NULL) delete myType;
 	};
 	virtual void print(std::wostream &s);
 	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
@@ -649,7 +591,6 @@ public:
 		value->getFreeVariables(free,bound);
 	};
 	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
 	virtual void collectFunctions(std::vector<intro::Function*> &funcs);
 };
 
@@ -679,9 +620,6 @@ public:
 	};
 protected:
 	OpType op;
-	//Type* valtype;
-	//Type boolean,number;
-	Type::pointer_t myType;
 	virtual Type::pointer_t getCalledFunctionType(Environment *, ErrorLocation *);
 	virtual std::wstring getOperationDescription(void)
 	{
@@ -692,21 +630,15 @@ public:
 	UnaryOperation(int l,int p, OpType type,Expression *operand) 
 		: Application(l,p)
 		, op(type)
-		//, boolean(Type::Boolean)
-		//, number(Type::Number)
-		, myType(NULL)
 	{
 		params.push_back(operand);
 	};
 	virtual ~UnaryOperation(void)
 	{
-		//if (valtype!=NULL) delete valtype;
-		//if (myType!=NULL) delete myType;
 	};
 	inline OpType getOperation(void) { return op; };
 	virtual void print(std::wostream &s);
 	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
 };
 
 /// Boolean binary operations take two booleans and return a boolean.
@@ -721,8 +653,6 @@ public:
 	};
 protected:
 	OpType op;
-	Type::pointer_t myType;
-	Type::pointer_t boolean;
 	virtual Type::pointer_t getCalledFunctionType(Environment *, ErrorLocation *);
 	virtual std::wstring getOperationDescription(void)
 	{
@@ -738,18 +668,14 @@ public:
 	BooleanBinary(int l, int p, OpType optype, Expression *op1, Expression *op2)
 		: BinaryOperation(l, p, op1, op2)
 		, op(optype)
-		, myType(NULL)
-		, boolean(new Type(Type::Boolean))
 	{};
 
 	virtual ~BooleanBinary()
 	{
-		//if (myType!=NULL) delete myType; 
 	};
 	inline OpType getOperation(void) { return op; };
 	virtual void print(std::wostream &s);
 	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB, CodeGenEnvironment *env);
-	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
 };
 
 /// Comparisons are polymorphic as (A,A)->Boolean
@@ -767,9 +693,6 @@ public:
 	};
 protected:
 	OpType op;
-	Type::pointer_t myType;
-	Type::pointer_t myTypeParam;
-	Type::pointer_t comparable;
 	virtual Type::pointer_t getCalledFunctionType(Environment *, ErrorLocation *);
 	virtual std::wstring getOperationDescription(void)
 	{
@@ -789,20 +712,14 @@ public:
 	CompareOperation(int l, int p, OpType optype, Expression *op1, Expression *op2)
 		: BinaryOperation(l, p, op1, op2)
 		, op(optype)
-		, myType(NULL)
-		, myTypeParam(NULL)
-		, comparable(new Type(Type::Comparable))
 	{};
 
 	virtual ~CompareOperation(void)
 	{
-		//if (myType!=NULL) delete myType; 
-		//if (myTypeParam!=NULL) delete myTypeParam;
 	};
 	inline OpType getOperation(void) { return op; };
 	virtual void print(std::wostream &s);
 	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB, CodeGenEnvironment *env);
-	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
 };
 
 /// Arithmetic is (Integer,Integer)->Integer or (Real,Real)->Real. With mixed parameters, Integer is coerced to Real.
@@ -842,9 +759,6 @@ public:
 	};
 protected:
 	OpType op;
-	Type::pointer_t myType;
-	Type::pointer_t myTypeParam;
-	Type::pointer_t number;
 	virtual Type::pointer_t getCalledFunctionType(Environment *, ErrorLocation *);
 	virtual std::wstring getOperationDescription(void)
 	{
@@ -863,21 +777,15 @@ public:
 	ArithmeticBinary(int l,int p,OpType optype,Expression *op1,Expression *op2) 
 		: BinaryOperation(l,p,op1,op2)
 		, op(optype)
-		, myType(NULL)
-		, myTypeParam(NULL)
-		, number(new Type(Type::Number))
 	{ };
 
 	virtual ~ArithmeticBinary(void)
 	{
-		//if (myType!=NULL) delete myType; 
-		//if (myTypeParam!=NULL) delete myTypeParam;
 	};
 
 	inline OpType getOperation(void) { return op; };
 	virtual void print(std::wostream &s);
 	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
 };
 
 }

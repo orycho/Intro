@@ -868,7 +868,8 @@ namespace intro {
 		// For each part, it's a constant string, or a variable interpolation
 		std::vector<llvm::Value*> ArgsV;
 		Value *targetsize = llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext),elements.size(),false);
-		rtt::tag_t rttbuf=myType->getFirstParameter()->find()->getRTKind();
+		//rtt::tag_t rttbuf=myType->getFirstParameter()->find()->getRTKind();
+		rtt::tag_t rttbuf = getType()->getFirstParameter()->find()->getRTKind();
 		Value *elem_rtt = llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext),rttbuf,false);
 		ArgsV.push_back(targetsize);
 		ArgsV.push_back(elem_rtt);
@@ -885,7 +886,8 @@ namespace intro {
 				ArgsV[1]=elemval.first;
 				// if number/integer, need to coerce to int
 				TmpB.CreateCall(appendListF, ArgsV);
-				env->removeIntermediateOrIncrement(TmpB, myType->getFirstParameter()->find(), elemval.first, elemval.second);
+				//env->removeIntermediateOrIncrement(TmpB, myType->getFirstParameter()->find(), elemval.first, elemval.second);
+				env->removeIntermediateOrIncrement(TmpB, getType()->getFirstParameter()->find(), elemval.first, elemval.second);
 				env->decrementIntermediates(TmpB);
 			}
 		}
@@ -893,7 +895,8 @@ namespace intro {
 		{
 			generators->setBodyCallback([&](llvm::IRBuilder<> &builder,CodeGenEnvironment *env) {
 				Expression::cgvalue elemval = elements.front()->codeGen(builder,env);
-				if (myType->getFirstParameter()->find()->getKind()==Type::Variable)
+				//if (myType->getFirstParameter()->find()->getKind()==Type::Variable)
+				if (getType()->getFirstParameter()->find()->getKind() == Type::Variable)
 				{
 					llvm::Function *setTypeF = TheModule->getFunction("setElemTypeList");
 					llvm::Value *stargs[]={retval, elemval.second };
@@ -918,9 +921,11 @@ namespace intro {
 		// Generate call to string allocation intrisic, guesstimate length by taking source string length
 		// For each part, it's a constant string, or a variable interpolation
 		std::vector<llvm::Value*> ArgsV;
-		rtt::tag_t rttbuf=myType->getParameter(0)->find()->getRTKind();
+		//rtt::tag_t rttbuf=myType->getParameter(0)->find()->getRTKind();
+		rtt::tag_t rttbuf = getType()->getParameter(0)->find()->getRTKind();
 		Value *key_rtt = llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext),rttbuf,false);
-		rttbuf=myType->getParameter(1)->find()->getRTKind();
+		//rttbuf=myType->getParameter(1)->find()->getRTKind();
+		rttbuf = getType()->getParameter(1)->find()->getRTKind();
 		Value *value_rtt = llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext),rttbuf,false);
 		ArgsV.push_back(key_rtt);
 		ArgsV.push_back(value_rtt);
@@ -939,8 +944,8 @@ namespace intro {
 				Expression::cgvalue value_val = iter->second->codeGen(TmpB,env);
 				ArgsV[2]=value_val.first;
 				TmpB.CreateCall(insertDictF, ArgsV);
-				env->removeIntermediateOrIncrement(TmpB, myType->getParameter(0)->find(), key_val.first, key_val.second);
-				env->removeIntermediateOrIncrement(TmpB, myType->getParameter(1)->find(), value_val.first, value_val.second);
+				env->removeIntermediateOrIncrement(TmpB, getType()->getParameter(0)->find(), key_val.first, key_val.second);
+				env->removeIntermediateOrIncrement(TmpB, getType()->getParameter(1)->find(), value_val.first, value_val.second);
 				env->decrementIntermediates(TmpB);
 			}
 		}
@@ -948,7 +953,7 @@ namespace intro {
 		{
 			generators->setBodyCallback([&](llvm::IRBuilder<> &builder,CodeGenEnvironment *env) {
 				Expression::cgvalue key_val = elements.front().first->codeGen(builder,env);
-				if (myType->getFirstParameter()->find()->getKind()==Type::Variable)
+				if (getType()->getFirstParameter()->find()->getKind()==Type::Variable)
 				{
 					llvm::Function *setTypeF = TheModule->getFunction("setKeyTypeDict");
 					llvm::Value *stargs[]={retval, key_val.second };
@@ -957,7 +962,8 @@ namespace intro {
 				ArgsV[1]=key_val.first;
 
 				Expression::cgvalue value_val = elements.front().second->codeGen(builder,env);
-				if (myType->getFirstParameter()->find()->getKind()==Type::Variable)
+				//if (myType->getFirstParameter()->find()->getKind()==Type::Variable)
+				if (getType()->getFirstParameter()->find()->getKind() == Type::Variable)
 				{
 					llvm::Function *setTypeF = TheModule->getFunction("setValueTypeDict");
 					llvm::Value *stargs[]={retval, value_val.second };
@@ -965,8 +971,8 @@ namespace intro {
 				}
 				ArgsV[2]=value_val.first;
 				builder.CreateCall(insertDictF, ArgsV);
-				env->removeIntermediateOrIncrement(TmpB, myType->getParameter(0)->find(), key_val.first, key_val.second);
-				env->removeIntermediateOrIncrement(TmpB, myType->getParameter(1)->find(), value_val.first, value_val.second);
+				env->removeIntermediateOrIncrement(TmpB, getType()->getParameter(0)->find(), key_val.first, key_val.second);
+				env->removeIntermediateOrIncrement(TmpB, getType()->getParameter(1)->find(), value_val.first, value_val.second);
 				env->decrementIntermediates(TmpB);
 				// if number/integer, need to coerce to int
 				
@@ -1074,12 +1080,12 @@ namespace intro {
 	Expression::cgvalue RecordExpression::codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
 		std::int32_t *offsets=nullptr;
-		if (myType->getKind() != Type::Record)
+		if (getType()->getKind() != Type::Record)
 		{
 			printf("Error, expected record in variant!\n");
 			exit(1);
 		}
-		intro::RecordType *rectype = (RecordType*)myType.get();
+		intro::RecordType *rectype = (RecordType*)getType().get();
 		const size_t size=rectype->size();
 		std::vector<llvm::Value*> args;
 		// do we have fields? ...

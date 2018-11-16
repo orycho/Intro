@@ -53,18 +53,6 @@ public:
 			inline edge(void) : parentTemplate(NULL), super(NULL), sub(NULL)
 			{};
 
-			inline ~edge(void)
-			{
-				//if (parentTemplate!=NULL) deleteCopy(parentTemplate);
-				//for (Type *t : super_params)
-				//	if (t->getKind()!=Type::Variable)
-				//		delete t;
-				//if (parentTemplate != NULL) delete parentTemplate;
-				//std::vector<Type*>::iterator it;
-				//for (it=super_params.begin();it!=super_params.end();it++)
-				//	deleteCopy(*it);
-				
-			};
 		};
 
 		std::wstring name; ///< Name of the type?
@@ -127,13 +115,7 @@ public:
 
 	~TypeGraph();
 
-	/// Given a type, returns the parent type with type paramters transformations applied
-	/** Note the returned type should be treated as a copied type, i.e. deleted with deleteCopy() once
-		done with.
-	*/
-	//Type *getParentType(Type *type);
-
-	PartialOrder findSupertype(Type::pointer_t ta, Type::pointer_t  tb,std::vector<Type::pointer_t > &cur,Type::set_t &exclude);
+	PartialOrder findSupertype(Type::pointer_t ta, Type::pointer_t  tb,std::vector<Type::pointer_t > &cur);
 
 	// Find the node that represents the passed type's position in the type hierarchy, returns NULL on failure.
 	node *getNode(Type::pointer_t type);
@@ -142,12 +124,6 @@ public:
 	{
 		node*n=getNode(type);
 		return n->isAbstract;
-	}
-
-	static inline void clearMapping(std::vector<Type*> &cur, std::set<Type*> &exclusions)
-	{
-		//for (std::vector<Type*>::iterator iter = cur.begin();iter != cur.end();++iter)
-			//deleteExcept(*iter, exclusions);
 	}
 
 };

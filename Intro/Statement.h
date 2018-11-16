@@ -123,12 +123,7 @@ public:
 
 	~Function()
 	{
-		std::vector<Statement*>::iterator sit;
 		delete body;
-		ParameterList::iterator pit;
-		//for (pit=parameters.begin();pit!=parameters.end();pit++)
-		//	deleteCopy(pit->type);
-		//if (myType!=NULL) delete myType;
 	};
 
 	void setParentVar(ValueStatement *pv) { parentvar=pv; };

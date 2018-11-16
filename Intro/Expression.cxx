@@ -31,19 +31,17 @@ namespace intro {
 	
 	Type::pointer_t IntegerConstant::makeType(Environment *, ErrorLocation *)
 	{
-		return myType;
+		return std::make_shared<Type>(Type::Integer);
 	}
 
 	Type::pointer_t BooleanConstant::makeType(Environment *, ErrorLocation *)
 	{
-		return myType;
-		//return new Type(Type::Boolean);
+		return std::make_shared<Type>(Type::Boolean);
 	}
 
 	Type::pointer_t RealConstant::makeType(Environment *, ErrorLocation *)
 	{
-		return myType;
-		//return new Type(Type::Boolean);
+		return std::make_shared<Type>(Type::Real);
 	}
 	
 	Type::pointer_t StringConstant::makeType(Environment *env, ErrorLocation *errors)
@@ -107,7 +105,7 @@ namespace intro {
 		};
 
 
-		return myType;
+		return std::make_shared<Type>(Type::String);
 		//return new Type(Type::Boolean);
 	}
 
@@ -184,14 +182,13 @@ namespace intro {
 				return getError(L"Error in list element expression.");
 			}
 		}
-		myType = Type::pointer_t(new Type(Type::List, param));
-		return myType;
+		return std::make_shared<Type>(Type::List, param);
 	}
 
 	Type::pointer_t DictionaryConstant::makeType(Environment *env, ErrorLocation *errors)
 	{
-		Type::pointer_t tkey=NULL;
-		Type::pointer_t tval=NULL;
+		Type::pointer_t tkey;
+		Type::pointer_t tval;
 		if (elements.empty()) 
 		{
 			tkey=Environment::fresh();
@@ -296,11 +293,7 @@ namespace intro {
 				return getError(L"Error in dictionary value.");
 			}
 		}
-		myType= Type::pointer_t(new Type(Type::Dictionary,tkey));
-		myType->addParameter(tval);
-		//DictionaryType buffer(tkey,tval);
-		//myType=copy(&buffer);
-		return myType;
+		return make_shared<Type>(Type::Dictionary,tkey,tval);
 	}
 
 	//RecordExpression
@@ -308,7 +301,7 @@ namespace intro {
 	{
 		//std::list<std::pair<std::wstring,Expression*> >::iterator iter;
 		iterator iter;
-		myType= Type::pointer_t (new RecordType());
+		Type::pointer_t myType= std::make_shared<RecordType>();
 		std::wstring errmsg;
 		Environment localenv(env);
 		// For functions defined inside, put all record members in localenv.
@@ -348,7 +341,7 @@ namespace intro {
 			return rec;
 		}
 		delete logger;
-		myType = Type::pointer_t(new VariantType());
+		Type::pointer_t myType = std::make_shared<VariantType>();
 		((VariantType*)myType.get())->addTag(tag,rec);
 		return myType;
 	}
@@ -578,10 +571,10 @@ namespace intro {
 			if (super->find()->getKind()==Type::Top)
 			{
 				// Replace supertype with record containings new label
-				myRecord=Type::pointer_t(new RecordType());
+				Type::pointer_t myRecord= std::make_shared<RecordType>();
 				Type::pointer_t buf=Environment::fresh();
 				((RecordType*)myRecord.get())->addMember(label,buf);
-				vt->replaceSupertype(myRecord);
+				vt->setSupertype(myRecord);
 				return buf;
 			}
 			else if (super->find()->getKind()==Type::Record)
@@ -620,33 +613,36 @@ namespace intro {
 	Type::pointer_t Extraction::getCalledFunctionType(Environment *env, ErrorLocation *errors)
 	{
 		std::vector<Type::pointer_t> pin;
-		dict = Type::pointer_t(new Type(Type::Dictionary, Type::Readable | Type::Writable));
-		dict->addParameter(Environment::fresh(L"?key"));
-		dict->addParameter(Environment::fresh(L"?value"));
+		Type::pointer_t dict = std::make_shared<Type>(
+			Type::Dictionary,
+			Environment::fresh(L"?key"),
+			Environment::fresh(L"?value"),
+			Type::Readable | Type::Writable);
+		//dict->addParameter();
+		//dict->addParameter();
 		Type::pointer_t maybe(new VariantType);
 		VariantType *var = (VariantType*)maybe.get();
 		var->addTag(std::wstring(L"None"), Type::pointer_t(new RecordType()));
 		RecordType *some = new RecordType();
 		some->addMember(std::wstring(L"value"), dict->getParameter(1));
 		var->addTag(std::wstring(L"Some"), Type::pointer_t(some));
-		
 		pin.push_back(dict);
 		pin.push_back(dict->getParameter(0));
 		maybe->setAccessFlags(Type::Readable|Type::Writable);
-		myType= Type::pointer_t(new FunctionType(pin,maybe));
-		return myType;
+		return std::make_shared<FunctionType>(pin, maybe);
 	}
 	
 	Type::pointer_t DictionaryErase::getCalledFunctionType(Environment *env, ErrorLocation *errors)
 	{
 		std::vector<Type::pointer_t> pin;
-		dict= Type::pointer_t(new Type(Type::Dictionary,Type::Readable|Type::Writable));
-		dict->addParameter(Environment::fresh(L"?key"));
-		dict->addParameter(Environment::fresh(L"?value"));
+		Type::pointer_t dict = std::make_shared<Type>(
+			Type::Dictionary,
+			Environment::fresh(L"?key"),
+			Environment::fresh(L"?value"),
+			Type::Readable | Type::Writable);
 		pin.push_back(dict);
 		pin.push_back(dict->getParameter(0));
-		myType= Type::pointer_t(new FunctionType(pin,dict));
-		return myType;
+		return std::make_shared<FunctionType>(pin, dict);
 	}
 
 	Type::pointer_t Splice::getCalledFunctionType(Environment *env, ErrorLocation *errors)
@@ -658,8 +654,7 @@ namespace intro {
 		pin.push_back(tv);
 		pin.push_back(counter);
 		pin.push_back(counter);
-		myType= Type::pointer_t(new FunctionType(pin,tv));
-		return myType;
+		return std::make_shared<FunctionType>(pin,tv);
 	}
 	
 	Type::pointer_t Splice::makeType(Environment *env, ErrorLocation *errors)
@@ -731,8 +726,7 @@ namespace intro {
 		};
 		std::vector<Type::pointer_t> pin;
 		pin.push_back(valtype);
-		myType = Type::pointer_t(new FunctionType(pin, valtype));
-		return myType;
+		return std::make_shared<FunctionType>(pin, valtype);
 	}
 
 	Type::pointer_t BooleanBinary::getCalledFunctionType(Environment *, ErrorLocation *errors)
@@ -742,22 +736,19 @@ namespace intro {
 		std::vector<Type::pointer_t> pin;
 		pin.push_back(Type::pointer_t(new Type(Type::Boolean)));
 		pin.push_back(Type::pointer_t(new Type(Type::Boolean)));
-		myType= Type::pointer_t(new FunctionType(pin, Type::pointer_t(new Type(Type::Boolean))));
-		return myType;
+		return std::make_shared<FunctionType>(pin, std::make_shared<Type>(Type::Boolean));
 	}
 
 	Type::pointer_t CompareOperation::getCalledFunctionType(Environment *, ErrorLocation *errors)
 	{
 		// Get the type of the funtion valled
-		std::vector<Type::pointer_t> pin;
 		Type::pointer_t oper;
 		if (op==Equal || op==Different) oper=Environment::fresh(L"?a");
-		else oper=Environment::fresh(L"?a", Type::pointer_t(new Type(Type::Comparable)));
+		else oper=Environment::fresh(L"?a", std::make_shared<Type>(Type::Comparable));
+		std::vector<Type::pointer_t> pin;
 		pin.push_back(oper);
 		pin.push_back(oper);
-		myTypeParam= Type::pointer_t(new Type(Type::Boolean));
-		myType= Type::pointer_t(new FunctionType(pin,myTypeParam));
-		return myType;
+		return std::make_shared<FunctionType>(pin, std::make_shared<Type>(Type::Boolean));
 	}
 
 	Type::pointer_t ArithmeticBinary::getCalledFunctionType(Environment *, ErrorLocation *errors)
@@ -766,13 +757,10 @@ namespace intro {
 		std::vector<Type::pointer_t> pin;
 		// Variables will be handled elsewhere, deletion wise.
 		//Type number(Type::Number);
-		Type::pointer_t oper = Environment::fresh(L"?a", Type::pointer_t(new Type(Type::Number)));
-		// TBD: supertype as member in class
-		//Type *oper = Environment::fresh(L"?a", new Type(Type::Number));
+		Type::pointer_t oper = Environment::fresh(L"?a", std::make_shared<Type>(Type::Number));
 		pin.push_back(oper);
 		pin.push_back(oper);
-		myType = Type::pointer_t(new FunctionType(pin, oper));
-		return myType;
+		return std::make_shared<FunctionType>(pin, oper);
 	}
 
 	/////////////////////////////////////////////////////////////////////
@@ -1007,8 +995,11 @@ namespace intro {
 	{
 		s << "(";
 		params.front()->print(s);
-		s << ":";
-		params.front()->getType()->print(s);
+		if (params.front()->getType())
+		{
+			s << ":";
+			params.front()->getType()->print(s);
+		}
 		switch(op)
 		{
 		case Equal:			s << " == "; break;
@@ -1019,11 +1010,16 @@ namespace intro {
 		case LessEqual:		s << " <= "; break;
 		}
 		params.back()->print(s);
-		s << ":";
-		params.back()->getType()->print(s);
-
-		s << ") : ";
-		getType()->find()->print(s);
+		if (params.back()->getType())
+		{
+			s << ":";
+			params.back()->getType()->print(s);
+		}
+		if (getType())
+		{
+			s << ") : ";
+			getType()->find()->print(s);
+		}
 	}
 
 	//ArithmeticBinary

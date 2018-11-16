@@ -50,13 +50,6 @@ void combinePartialOrders(PartialOrder &accu, PartialOrder additional)
 
 Type::~Type()
 {
-	//if (super != this && super != nullptr) deleteCopy(super);
-	//if (getKind()!=Variable) 
-	//	TypeGraph::clearMapping(needDeletion, excludeMapping);
-	for (Type *t : needDeletion)
-		//deleteCopy(t);
-		delete t;
-	params.clear();
 }
 
 bool Type::isAbstract(void)
@@ -174,9 +167,7 @@ PartialOrder Type::checkSubtype(pointer_t other)
 PartialOrder Type::internalCheckSubtype(pointer_t other)
 {
 	std::vector<Type::pointer_t> current;
-	Type::set_t exclude;
-	PartialOrder retval=theGraph.findSupertype(shared_from_this(),other,current,exclude);
-	//theGraph.clearMapping(current,exclude);
+	PartialOrder retval=theGraph.findSupertype(shared_from_this(),other,current);
 	return retval;
 }
 
@@ -201,7 +192,6 @@ PartialOrder FunctionType::internalCheckSubtype(pointer_t other)
 		return val;
 	else
 		return ERROR;
-	//combinePartialOrders(val,fb->getReturnType()->checkSubtype(getReturnType()));
 	return val;
 }
 
@@ -399,13 +389,10 @@ Type::pointer_t mergeRecordTypes(RecordType *a, RecordType *b)
 		}
 	}
 	// Skip if errors occured above
-	//if (!errmsg.empty())
 	if (!ws.str().empty())
 	{
-		//deleteCopy(result);
 		delete result;
-		//return new ErrorType(1,1,errmsg);
-		return Type::pointer_t(new ErrorType(1, 1, ws.str()));
+		return std::make_shared<ErrorType>(1, 1, ws.str());
 	}
 	// For each label in b: if it is not in a already, it can be kept as we checked the intersection labels.
 	for (iter = b->begin();iter != b->end();iter++)
@@ -441,8 +428,6 @@ Type::pointer_t intersectVariantTypes(VariantType *a, VariantType *b, bool speci
 	// Skip if errors occured above
 	if (!ws.str().empty())
 	{
-		//deleteCopy(result);
-		//delete result;
 		return Type::pointer_t(new ErrorType(1, 1, ws.str()));
 	}
 	return result;
@@ -499,13 +484,6 @@ bool Type::unify(Type::pointer_t b, bool specialize)
 				if (merged->getKind() != Type::Error) merged = Environment::fresh(merged);
 				oroot->parent = merged;
 				mroot->parent = merged;
-				if (merged->getKind() != Type::Error)
-				{
-					//RecordType *m = dynamic_cast<RecordType*>(merged->getSupertype().get());
-					//if (!orec->setMerged(m))
-					//	if (!mrec->setMerged(m))
-					//		printf("Internal error: could not store merged record!\n");
-				}
 				return merged->getKind() != Type::Error;
 			}
 			if (oroot_sup->getKind() == Type::Variant && mroot_sup->getKind() == Type::Variant)
@@ -522,7 +500,6 @@ bool Type::unify(Type::pointer_t b, bool specialize)
 				return false;
 			oroot->parent = mroot->find();
 			return true;
-			//return false;
 		case LESS:
 			if (!oroot_sup->unify(mroot_sup, specialize))
 				return false;
@@ -565,28 +542,13 @@ bool Type::internalUnify(Type::pointer_t other, bool specialize)
 	std::vector<Type::pointer_t > currentMapping;
 	// First, check the type graph if a legal path actually exists
 
-	PartialOrder order = theGraph.findSupertype(find(), other->find(), currentMapping, excludeMapping);
-	//for (auto t : currentMapping)
-	//	if (excludeMapping.find(t)==excludeMapping.end())
-	//		needDeletion.push_back(t);
+	PartialOrder order = theGraph.findSupertype(find(), other->find(), currentMapping);
 
 	if (order == ERROR) return false;
 	Type::pointer_t goal = find();
 	Type::pointer_t source = other->find();
 	if (order == LESS) std::swap(goal, source); // order indepenent code hereafter ;)
 	goal->parent = source;
-	// Perform the actual unification by making one type the others parent,
-	// depending on wether we're specializing or not
-	/*
-	if (specialize)
-	{
-		goal->parent = source;
-	}
-	else
-	{
-		source->parent = goal;
-	}
-	*/
 	// Graph traversal may have mutated the parameters, here we check they match up with source type
 	// by unifing the result with the supertype's type
 	// The goal is to manage the relations between the types parameters, a good example is
@@ -778,7 +740,7 @@ Type::pointer_t VariantType::internalCopy(TypeVariableMap &conv)
 {
 	VariantType *b = new VariantType();
 	for (VariantType::iterator iter = beginTag();iter != endTag();iter++)
-		b->addTag(iter->first, iter->second->substitute(conv), true);
+		b->addTag(iter->first, iter->second->substitute(conv));
 	b->setAccessFlags(getAccessFlags());
 	return Type::pointer_t(b);
 }
@@ -799,13 +761,12 @@ Type::pointer_t OpaqueType::internalCopy(TypeVariableMap &conv)
 	return Type::pointer_t (cp);
 }
 
-void collectAllTypes(Type::pointer_t t,Type::set_t &items,bool deletables)
+void collectAllTypes(Type::pointer_t t,Type::set_t &items)
 {
 	if (t->getKind() == Type::Variable)
 	{
 		TypeVariable *tv = (TypeVariable *)t.get();
-		if (!tv->isStaticSuper())
-			collectAllTypes(tv->getSupertype(), items, deletables);
+		collectAllTypes(tv->getSupertype(), items);
 		return;
 	}
 	if (!items.insert(t).second) return; // visit things once
@@ -824,8 +785,8 @@ void collectAllTypes(Type::pointer_t t,Type::set_t &items,bool deletables)
 		FunctionType *f = dynamic_cast<FunctionType*>(t.get());
 		FunctionType::iterator iter;
 		for (iter = f->begin();iter != f->end();iter++)
-			collectAllTypes(*iter, items, deletables);
-		collectAllTypes(f->getReturnType(), items, deletables);
+			collectAllTypes(*iter, items);
+		collectAllTypes(f->getReturnType(), items);
 		return;
 	};
 	case Type::Generator:
@@ -834,7 +795,7 @@ void collectAllTypes(Type::pointer_t t,Type::set_t &items,bool deletables)
 	case Type::Dictionary:
 	{
 		for (Type::iterator iter = t->begin();iter != t->end();++iter)
-			collectAllTypes(*iter, items, deletables);
+			collectAllTypes(*iter, items);
 		return;
 	}
 	case Type::Record:
@@ -842,23 +803,14 @@ void collectAllTypes(Type::pointer_t t,Type::set_t &items,bool deletables)
 		RecordType *ra = dynamic_cast<RecordType*>(t.get());
 		RecordType::member_iter iter;
 		for (iter = ra->begin();iter != ra->end();iter++)
-			collectAllTypes(iter->second, items, deletables);
+			collectAllTypes(iter->second, items);
 	}
 	return;
 	case Type::Variant:
 		{
 			VariantType *va=dynamic_cast<VariantType *>(t.get());
-			if (deletables)
-			{
-				if (!va->deletesRecords())
-				{
-					for (VariantType::iterator iter = va->beginTag();iter != va->endTag();iter++)
-						if (va->isOwnedType(iter->second))
-							collectAllTypes(iter->second, items, deletables);
-				}
-			}
-			else for (VariantType::iterator iter = va->beginTag();iter != va->endTag();iter++)
-				collectAllTypes(iter->second, items, deletables);
+			for (VariantType::iterator iter = va->beginTag();iter != va->endTag();iter++)
+				collectAllTypes(iter->second, items);
 		}
 		return;
 	case Type::UserDef:
@@ -866,7 +818,7 @@ void collectAllTypes(Type::pointer_t t,Type::set_t &items,bool deletables)
 		OpaqueType *oa = dynamic_cast<OpaqueType*>(t.get());
 		OpaqueType::iterator iter;
 		for (iter = oa->begin();iter != oa->end();iter++)
-			collectAllTypes(iter->first, items, deletables);
+			collectAllTypes(iter->first, items);
 	}
 	return;
 	default:
@@ -874,29 +826,6 @@ void collectAllTypes(Type::pointer_t t,Type::set_t &items,bool deletables)
 		return;
 	}
 }
-/*
-void deleteCopy(Type *t)
-{
-	if (t == NULL) return;
-	std::set<Type*> nodes;
-	std::set<Type*>::iterator iter;
-	collectAllTypes(t, nodes,true);
-	for (iter = nodes.begin();iter != nodes.end();iter++)
-		if ((*iter)->getKind() != Type::Variable) delete *iter;
-}
-
-void deleteExcept(Type *t, std::set<Type*> exclude)
-{
-	if (t == NULL) return;
-	std::set<Type*> nodes;
-	std::set<Type*>::iterator iter;
-	collectAllTypes(t, nodes,true);
-	for (iter = nodes.begin();iter != nodes.end();iter++)
-		if ((*iter)->getKind() != Type::Variable &&
-			exclude.find(*iter) == exclude.end())
-			delete *iter;
-}
-*/
 
 bool OpaqueType::setTypeMapping(FunctionType *ft)
 {

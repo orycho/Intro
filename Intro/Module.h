@@ -160,9 +160,6 @@ public:
 		std::vector<Statement*>::iterator cit; 
 		for (cit=contents.begin();cit!=contents.end();cit++)
 			delete *cit;
-		std::map<std::wstring,Type*>::iterator expit;
-		//for (expit=expout.begin();expit!=expout.end();expit++)
-		//	deleteCopy(expit->second);
 	};
 
 	inline std::wstring getName(void) { return name; };

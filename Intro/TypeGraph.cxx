@@ -22,9 +22,6 @@ void TypeGraph::node::print(std::wostream &os)
 
 Type::pointer_t TypeGraph::fresh(const std::wstring &name)
 {
-	//TypeVariable *retval=new TypeVariable(name);
-	//variables.push_back(retval);
-	//return retval;
 	return std::make_shared<TypeVariable>(name);
 }
 
@@ -184,24 +181,16 @@ struct state
 		supers=traverse->supers.begin();
 	};
 
-	void clearCurrent(std::set<Type::pointer_t > &exclude)
-	{
-		//for (std::vector<Type::pointer_t>::iterator iter=current.begin();iter!=current.end();++iter)
-		//	deleteExcept(*iter,exclude);
-		current.clear();
-	}
-
 	state &operator =(const state &other)
 	{
 		current=other.current;
 		traverse=other.traverse;
-		//exclude=other.exclude;
 		supers=traverse->supers.begin();
 		return *this;
 	}
 };
 
-PartialOrder TypeGraph::findSupertype(Type::pointer_t ta_, Type::pointer_t  tb_,std::vector<Type::pointer_t> &cur,Type::set_t &exclude)
+PartialOrder TypeGraph::findSupertype(Type::pointer_t ta_, Type::pointer_t  tb_,std::vector<Type::pointer_t> &cur)
 {
 	std::vector<state> stack;
 	Type::pointer_t ta = ta_->find();
@@ -241,20 +230,9 @@ PartialOrder TypeGraph::findSupertype(Type::pointer_t ta_, Type::pointer_t  tb_,
 		std::swap(start,dest);
 		param_source=tb;
 	}
-
-	// Set up the mapping for the type's parameters
-	//std::vector<Type*> init;
 	std::vector<Type::pointer_t>::iterator iter;
 	stack.push_back(state(start));
 	param_source->getParameterTypes(stack.back().current);
-	// Make sure incoming types are not marked for deletion! We do not own them.
-	for (iter= stack.back().current.begin();iter!=stack.back().current.end();++iter)
-	{
-		Type::set_t innertypes;
-		collectAllTypes(*iter, innertypes);
-		exclude.insert(innertypes.begin(),innertypes.end());
-	}
-	//stack.push_back(state(start,exclude));
 	Type::TypeVariableMap mapping;
 	std::vector<Type::pointer_t>::iterator npit;
 	std::set<Type*>::iterator siter;
@@ -274,13 +252,11 @@ PartialOrder TypeGraph::findSupertype(Type::pointer_t ta_, Type::pointer_t  tb_,
 				//cur.insert(s.current.begin(), s.current.end());
 				// Type variables can end up in here. These are maintained by the Environment,
 				// so we remove them from here
-				//siter = cur.begin();
 				for (iter=s.current.begin();iter!= s.current.end();++iter)
 				{
 					if ((*iter)->getKind()!=Type::Variable)
 						cur.push_back(*iter);
 				};
-				s.current.clear();
 				found=s.traverse;
 				break; // Found the common supertype
 			}
@@ -290,37 +266,17 @@ PartialOrder TypeGraph::findSupertype(Type::pointer_t ta_, Type::pointer_t  tb_,
 			for (TypeGraph::node::iterator supers=s.traverse->supers.begin();supers!=s.traverse->supers.end();supers++)
 			{
 				node *next=(*supers)->super;
-				//std::vector<Type*> next_params;
-				//next_params.reserve((*supers)->super_params.size());
 				Type::TypeVariableMap mapping;
 				for (iter=s.current.begin(),npit=s.traverse->my_params.begin();iter!=s.current.end();++iter,++npit)
 				{
-					// If we substitute non-variables for the variables, the types may be distributed all over
-					// That can lead to multiple deletes, so we remember what must remain - 
-					// since the type is also owned by the typegraph node it's contained in,
-					// we need not care abut deletion (Y)
 					mapping.insert(std::make_pair(*npit,*iter));
-					if ((*iter)->getKind()!=Type::Variable)
-					{
-						Type::set_t innertypes;
-						collectAllTypes(*iter, innertypes);
-						exclude.insert(innertypes.begin(),innertypes.end());
-					}
 				}
-				//stack.push_back(state(next,exclude));
 				stack.push_back(state(next));
 				state &buf=stack.back();
 				for (iter=(*supers)->super_params.begin();iter!=(*supers)->super_params.end();++iter)
 					buf.current.push_back((*iter)->substitute(mapping));
 			}
 		}
-		//s.clearCurrent(exclude);
-	}
-	// Cleanup anything left on the stack
-	while (!stack.empty()) 
-	{
-		//stack.back().clearCurrent(exclude);
-		stack.pop_back();
 	}
 	if (found!=dest) return ERROR;
 	return retval;

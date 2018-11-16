@@ -227,8 +227,7 @@ public:
 	/** Type Expression only occur in a modules interface definition, and when
 		exporting this definition to the rest of the environment use this function,
 		so that the exposed opaque type is used instead of it's internal implementation.
-		IMPORTANT: The returned pointer is owned by the calling function, which must make sure it gets
-		deleted (i.e. with deleteCopy).
+		
 	*/
 	virtual Type::pointer_t getExposedType(void)=0;
 };
@@ -334,15 +333,6 @@ public:
 		for (iter=params.begin();iter!=params.end();iter++)
 			delete *iter;
 		if (func!=NULL) delete func;
-		//if (deleteCalledType)
-		//	deleteCopy(calledType);
-		//if (myFuncType!=NULL) delete myFuncType;
-		//if (funvar!=NULL) delete funvar;
-		/*for (size_t i =0;i<sourceTypes.size();++i)
-		{
-			deleteCopy(sourceTypes[i]);
-		}
-		*/
 	};
 
 	//	virtual void *evaluate(Environment &env)=0;

@@ -196,7 +196,6 @@ public:
 
 	~ContainerGen()
 	{
-		//deleteCopy(source_type);
 		delete container;
 	};
 	

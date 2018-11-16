@@ -176,10 +176,6 @@ public:
 
 		void deleteAll(void)
 		{
-			for (std::map<std::wstring,entry>::iterator iter=exports.begin();iter!=exports.end();iter++)
-			{
-				//if (iter->second.owned) deleteCopy(iter->second.type);
-			}
 			for(std::map<std::wstring,Module*>::iterator iter=submodules.begin();iter!=submodules.end();iter++)
 			{
 				iter->second->deleteAll();
@@ -290,9 +286,6 @@ public:
 
 	~Environment()
 	{
-		//iterator iter;
-		//for (iter=members.begin();iter!=members.end();iter++)
-		//	if (iter->second->getKind()!=Type::Variable)deleteCopy(iter->second);
 	}
 
 #ifdef _TEST
@@ -305,25 +298,19 @@ public:
 	/// Add a fresh type variable to the environment, which is bound by the given super-type.
 	static Type::pointer_t fresh(const std::wstring &name, Type::pointer_t super)
 	{
-		return Type::pointer_t(new TypeVariable(name,super));
-		//_typevars.insert(t);
-		//members.insert(make_pair(str,t));
-		//return t;
+		return std::make_shared<TypeVariable>(name,super);
 	}
 
 	/// Add a fresh type variable to the environment, which is bound by the given super-type.
 	static Type::pointer_t fresh(const std::wstring &name, Type::pointer_t super, Type::TypeVariableMap &conv)
 	{
-		return Type::pointer_t(new TypeVariable(name, super,conv));
-		//_typevars.insert(t);
-		//members.insert(make_pair(str,t));
-		//return t;
+		return std::make_shared<TypeVariable>(name, super,conv);
 	}
 
 	/// Add a fresh type variable to the environment, bound by the top type.
 	static Type::pointer_t fresh(const std::wstring &name)
 	{
-		return Type::pointer_t(new TypeVariable(name));
+		return std::make_shared<TypeVariable>(name);
 	}
 
 	/// Add a fresh (anonymous/intermediate)) type variable to the environment, which is bound by the given super-type.
@@ -379,9 +366,7 @@ public:
 	Type::pointer_t put(const std::wstring &ident)
 	{
 		iterator iter=members.find(ident);
-		//if (iter!=members.end()) return iter->second;
 		if (iter!=members.end()) return nullptr;
-		//Type *t=fresh(std::wstring(L"?")+ident);
 		Type::pointer_t t=fresh();
 		if (t.get()!=NULL) members.insert(make_pair(ident,t));
 		return t;
@@ -392,10 +377,7 @@ public:
 	{
 		iterator iter=members.find(ident);
 		if (iter==members.end()) return false;
-		
-		//delete iter->second; // TODO: Use deleteCopy?!
 		iter->second=type;
-		//members.insert(make_pair(ident,type));
 		return true;
 	}
 	

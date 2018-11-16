@@ -994,7 +994,7 @@ bool variantCodeGen(void)
 bool basicCompareCodeGen(void)
 {
 	cout << "\n---\nBasic Compare Code Generation:\n";
-	const char *test="var x <- 1; var b <- x < 3; var c <- x < 0.8; var d <- \"hello\" > \"world\";";
+	const char *test="var x <- 1; var b <- x < 3; var d <- \"hello\" > \"world\";";
 	//parse::Parser parser=getParser(test);
 	cout << test << endl << endl;
 	parse::Scanner scanner((const unsigned char *)test, strlen(test));

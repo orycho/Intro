@@ -163,14 +163,10 @@ public:
 private:
 	Types type; ///< The instances kind of type, actually
 	unsigned int flags; ///< this instances access restriction
-
-	//static Type _error;
-
 	pointer_t parent; ///< For union/find algorithm, holds representatve if not this.
 	int rank;	///< For union/find algorithm.
-
 	std::vector<pointer_t> params;
-
+	pointer_t super;
 protected:
 	/// Derived type specific computation of the unification of two types, always called via public driver
 	virtual bool internalUnify(pointer_t other,bool specialize);
@@ -179,16 +175,7 @@ protected:
 	/// Derived type specific check for subtype relation between two types - always called via public driver.
 	virtual PartialOrder internalCheckSubtype(pointer_t other);
 	/// This types supertype. For concrete types like int and list, it's this. For variables, it's anything.
-	pointer_t super;
-
 	void setParent(pointer_t p) { parent=p; };
-
-	// TypeGraph traversal mappings for parameters... memory management!
-	//std::vector<Type*> currentMapping;
-	std::vector<Type*> needDeletion;
-	Type::set_t excludeMapping;
-
-
 public:
 
 
@@ -202,6 +189,12 @@ public:
 	Type(Types t, pointer_t param0, unsigned int flags_ = Readable) : Type(t, flags_)
 	{
 		addParameter(param0);
+	}
+
+	Type(Types t, pointer_t param0, pointer_t param1, unsigned int flags_ = Readable) : Type(t, flags_)
+	{
+		addParameter(param0);
+		addParameter(param1);
 	}
 
 	Type(Types t, iterator &paramstart, iterator &paramend, unsigned int flags_ = Readable) : Type(t, flags_)
@@ -229,11 +222,8 @@ public:
 		return super; 
 	};
 	/// Assign a new (usually more restrictive) supertype to the type.
-	inline void replaceSupertype(pointer_t t)
+	inline void setSupertype(pointer_t t)
 	{
-		//if (super != this) deleteCopy(super);
-		//if (t != nullptr) super = t->copy();
-		//else super = nullptr;
 		super = t;
 	}
 	/// set the access flags (Readable and Writable, defined as enum in class Type). Use bitwise- or to combine flags.
@@ -329,10 +319,7 @@ public:
 };
 
 // Collect all types in a type (e.g. type parameters and labels in records have types)
-void collectAllTypes(Type::pointer_t t, Type::set_t &items, bool deletables = false);
-/// safely delete a type
-//void deleteCopy(Type::pointer_t type);
-//void deleteExcept(Type::pointer_t t, std::set<Type*> exclude);
+void collectAllTypes(Type::pointer_t t, Type::set_t &items);
 
 /// Variables are in general universially quantified
 class TypeVariable : public Type
@@ -346,43 +333,32 @@ public:
 		: Type(Type::Variable)
 		, name(n)
 	{ 
-		super = std::make_shared<Type>(Type::Top);
+		setSupertype(std::make_shared<Type>(Type::Top));
 	};
 
 	TypeVariable(const std::wstring &n, pointer_t sup)
 		: Type(Type::Variable)
 		, name(n+L"sup")
 	{
-		super = sup;
+		setSupertype(sup);
 	};
 
 	TypeVariable(const std::wstring &n, pointer_t sup, TypeVariableMap &conv)
 		: Type(Type::Variable)
 		, name(n+L"subst")
 	{ 
-		super = sup;
+		setSupertype(sup);
 	};
 
 	TypeVariable(TypeVariable *other) 
 		: Type(Type::Variable)
 		, name(other->getName() + L"copy")
 	{
-		pointer_t copy=other->getSupertype()->copy();
-		//if (copy->getKind() != Type::Variable)
-			//ownedtypes.push_back(copy);
-		super = copy;
+		setSupertype(other->getSupertype()->copy());
 	};
 
 	~TypeVariable()
 	{
-		//for (auto iter = ownedtypes.begin();iter != ownedtypes.end();++iter)
-			//deleteCopy(*iter);
-	}
-
-	inline bool isStaticSuper(void)
-	{
-		//return super == &top;
-		return false;
 	}
 
 	const std::wstring getName(void) { return name; };
@@ -529,7 +505,7 @@ public:
 class RecordType : public Type
 {
 	std::map<std::wstring, pointer_t> members;
-	pointer_t merged;
+	//pointer_t merged;
 protected:
 	/// Compute the unification of two types, always called via public driver
 	virtual bool internalUnify(pointer_t other,bool specialize);
@@ -555,6 +531,7 @@ public:
 	{
 		//if (merged != nullptr) delete merged;
 	}
+	/*
 	inline bool setMerged(pointer_t rt)
 	{
 		if (merged.get() != nullptr) 
@@ -562,6 +539,7 @@ public:
 		else merged = rt; 
 		return true;
 	};
+	*/
 	
 	virtual void setAccessFlags(int f) 
 	{ 
@@ -624,8 +602,6 @@ public:
 class VariantType : public Type
 {
 	std::map<std::wstring, pointer_t> tags;
-	bool deleteRecords;
-	//std::unordered_set<pointer_t > ownedCopies;
 protected:
 	/// Compute the unification of two types, always called via public driver
 	virtual bool internalUnify(pointer_t other,bool specialize);
@@ -641,10 +617,8 @@ public:
 
 	VariantType()
 		: Type(Type::Variant)
-		, deleteRecords(false)
-		//, mytop(Type::Top)
 	{
-		super = std::make_shared<Type>(Type::Top);
+		setSupertype(std::make_shared<Type>(Type::Top));
 	}
 
 	VariantType(const tagmap &m) : VariantType()
@@ -657,13 +631,11 @@ public:
 	/// Builds a maybe variant with the Some tag having the passed type for it's value
 	VariantType(pointer_t type) : VariantType()
 	{
-		pointer_t emptyrec(new RecordType);
-		pointer_t somerec(new RecordType);
-		//somerec->addMember(L"value", type->find()->copy());
+		pointer_t emptyrec = std::make_shared<RecordType>();
+		pointer_t somerec = std::make_shared<RecordType>();
 		((RecordType*)somerec.get())->addMember(L"value", type->find());
 		tags.insert(std::make_pair(L"Some", somerec));
 		tags.insert(std::make_pair(L"None", emptyrec));
-		//deleteRecords = true;
 	}
 
 	VariantType(VariantType &other) : VariantType() // Type(Type::Variant), mytop(Type::Top)
@@ -675,29 +647,11 @@ public:
 
 	virtual ~VariantType(void)
 	{
-		/*
-		if (deleteRecords)
-		{
-			//tagmap::iterator iter;
-			//for (iter = beginTag();iter != endTag();iter++)
-				//delete iter->second;
-		}
-		*/
-	}
-
-	inline bool deletesRecords(void)
-	{
-		return deleteRecords;
 	}
 
 	iterator beginTag(void) { return tags.begin(); };
 	iterator findTag(const std::wstring &tag) { return tags.find(tag); };
 	iterator endTag(void) { return tags.end(); };
-	bool isOwnedType(pointer_t rt)
-	{
-		//return ownedCopies.find(rt) != ownedCopies.end();
-		return false;
-	}
 
 	virtual void setAccessFlags(int f) 
 	{ 
@@ -709,20 +663,19 @@ public:
 
 	}
 
-	void addTag(const std::wstring &tag, pointer_t contents,bool owned=false)
+	void addTag(const std::wstring &tag, pointer_t contents)
 	{
 		tags.insert(make_pair(tag,contents));
-		//if (owned) ownedCopies.insert(contents);
 	}
 
-	void addTag(const wchar_t *tag, pointer_t contents, bool owned = false)
+	void addTag(const wchar_t *tag, pointer_t contents)
 	{
-		addTag(std::wstring(tag,wcslen(tag)),contents, owned);
+		addTag(std::wstring(tag,wcslen(tag)),contents);
 	}
 
-	void addTag(iterator &iter, bool owned = false)
+	void addTag(iterator &iter)
 	{
-		addTag(iter->first,iter->second,owned);
+		addTag(iter->first,iter->second);
 	}
 
 	inline size_t size(void) { return tags.size(); };
@@ -832,7 +785,6 @@ class OpaqueType : public Type
 		shared->refcount--;
 		if (shared->refcount==0) 
 		{
-			//deleteCopy(shared->hidden);
 			delete shared;
 		}
 		shared=NULL;
@@ -865,7 +817,6 @@ public:
 
 	~OpaqueType(void)
 	{
-		//if (instance!=NULL) deleteCopy(instance);
 		unshare();
 	};
 
