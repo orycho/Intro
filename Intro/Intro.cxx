@@ -29,7 +29,7 @@ namespace intro
 	void initRuntime(void);
 	void deleteRuntime(void);
 	void dumpModule(bool optimize=false);
-	void runStatements(const std::list<intro::Statement*> &statements);
+	void runStatements(const std::vector<intro::Statement*> &statements);
 	void cleanupSourceFiles();
 
 	//extern llvm::LLVMContext theContext;

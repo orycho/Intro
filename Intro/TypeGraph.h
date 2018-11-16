@@ -45,10 +45,10 @@ public:
 				subtitutes the record type to [key:Integer;value:String;] which is what we need
 				to continue type inference.</p>
 			*/
-			std::vector<Type*> super_params; ///< Replace with actual type of parent expressed with above variables, so that we can just copy for return value!
-			Type *parentTemplate; ///< used with this types paramter to convert a type instance to it's supertype isntance.
+			std::vector<Type::pointer_t> super_params; ///< Replace with actual type of parent expressed with above variables, so that we can just copy for return value!
+			Type::pointer_t parentTemplate; ///< used with this types paramter to convert a type instance to it's supertype isntance.
 			node *super,*sub;
-			typedef std::vector<Type*>::iterator iterator;
+			typedef std::vector<Type::pointer_t>::iterator iterator;
 
 			inline edge(void) : parentTemplate(NULL), super(NULL), sub(NULL)
 			{};
@@ -56,10 +56,10 @@ public:
 			inline ~edge(void)
 			{
 				//if (parentTemplate!=NULL) deleteCopy(parentTemplate);
-				for (Type *t : super_params)
-					if (t->getKind()!=Type::Variable)
-						delete t;
-				if (parentTemplate != NULL) delete parentTemplate;
+				//for (Type *t : super_params)
+				//	if (t->getKind()!=Type::Variable)
+				//		delete t;
+				//if (parentTemplate != NULL) delete parentTemplate;
 				//std::vector<Type*>::iterator it;
 				//for (it=super_params.begin();it!=super_params.end();it++)
 				//	deleteCopy(*it);
@@ -69,11 +69,11 @@ public:
 
 		std::wstring name; ///< Name of the type?
 		size_t rank; ///< The rank is the distance from the Top type, that is the number of supertypes. Type Error has no meaningfull rank
-		std::vector<TypeVariable*> my_params;	///< Type parameters of this type, see member super_params
+		std::vector<Type::pointer_t > my_params;	///< Type parameters of this type, see member super_params
 		bool isAbstract; ///< An abstract type does not have actual values, but has subtypes that do have values.
 		Type::Types my_kind; ///< Nodes refer to the type they represent.
 		typedef std::vector<edge*> edges; ///< Type for lists of edges (connections between nodes).
-		typedef std::vector<TypeVariable*>::iterator param_iter;
+		typedef std::vector<Type::pointer_t >::iterator param_iter;
 		typedef edges::iterator iterator; ///< An nterator tpe for edges.
 		edges children; ///< Edges linking to subtypes.
 		edges supers; ///< Edges linking to supertypes.
@@ -115,13 +115,13 @@ private:
 
 	std::list<TypeVariable*> variables;
 
-	TypeVariable *fresh(const std::wstring &name);
+	Type::pointer_t fresh(const std::wstring &name);
 	/// Add the built in types to the type graph
 	void createBuiltins(void);
 
 public:
 
-	void addOpaque(OpaqueType *opaque,Type *super);
+	void addOpaque(Type::pointer_t opaque, Type::pointer_t super);
 
 	TypeGraph();
 
@@ -133,12 +133,12 @@ public:
 	*/
 	//Type *getParentType(Type *type);
 
-	PartialOrder findSupertype(Type *ta,Type*tb,std::vector<Type*> &cur,std::set<Type*> &exclude);
+	PartialOrder findSupertype(Type::pointer_t ta, Type::pointer_t  tb,std::vector<Type::pointer_t > &cur,Type::set_t &exclude);
 
 	// Find the node that represents the passed type's position in the type hierarchy, returns NULL on failure.
-	node *getNode(Type *type); 
+	node *getNode(Type::pointer_t type);
 	
-	inline bool isAbtractType(Type *type)
+	inline bool isAbtractType(Type::pointer_t type)
 	{
 		node*n=getNode(type);
 		return n->isAbstract;
@@ -146,8 +146,8 @@ public:
 
 	static inline void clearMapping(std::vector<Type*> &cur, std::set<Type*> &exclusions)
 	{
-		for (std::vector<Type*>::iterator iter = cur.begin();iter != cur.end();++iter)
-			deleteExcept(*iter, exclusions);
+		//for (std::vector<Type*>::iterator iter = cur.begin();iter != cur.end();++iter)
+			//deleteExcept(*iter, exclusions);
 	}
 
 };

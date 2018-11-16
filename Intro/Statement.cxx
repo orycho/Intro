@@ -11,7 +11,7 @@ namespace intro
 		Environment localenv(env);
 		bool success = true;
 		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), L"block scope");
-		std::list<Statement*>::iterator stmts;
+		std::vector<Statement*>::iterator stmts;
 		for (stmts = body.begin();stmts != body.end();stmts++)
 			success &= (*stmts)->makeType(&localenv, logger);
 		if (success) delete logger;
@@ -20,7 +20,7 @@ namespace intro
 	}
 
 	
-	Type *Function::makeType(Environment *env, ErrorLocation *errors)
+	Type::pointer_t Function::makeType(Environment *env, ErrorLocation *errors)
 	{
 		Environment localenv(env);
 		// Add return and paramter types to local environment
@@ -30,7 +30,7 @@ namespace intro
 		if (body->isReturnLike())
 			localenv.put(L"!return");
 		else
-			localenv.put(L"!return", &unit_type);
+			localenv.put(L"!return", Type::pointer_t(new Type(Type::Unit)));
 		ParameterList::iterator iter;
 		for (iter = parameters.begin();iter != parameters.end();iter++)
 		{
@@ -43,14 +43,14 @@ namespace intro
 			return getError(L"Error in function body");
 		}
 		else delete logger;
-		std::list<Type*> p;
+		std::vector<Type::pointer_t> p;
 		for (iter = parameters.begin();iter != parameters.end();iter++)
 		{
 			p.push_back(iter->type);
 		}
 
-		myType = new FunctionType(p, localenv.get(L"!return"));
-		if (myType->getReturnType()->getKind() != Type::Unit
+		myType = Type::pointer_t (new FunctionType(p, localenv.get(L"!return")));
+		if (((FunctionType*)myType.get())->getReturnType()->getKind() != Type::Unit
 			&& !body->isReturnLike())
 			errors->addError(new ErrorDescription(getLine(), getColumn(), L"Function returns a value but does not end in a return-like statement!"));
 		//return getError(L"Function returning a value does not end on return-like satement!");
@@ -67,7 +67,7 @@ namespace intro
 		// but since it is not a variable, it cannot be unified there.
 		// That is desirable for the outer environment, but not the inner,
 		// so we should probabl split that...?
-		Type *t = env->put(name);
+		Type::pointer_t t = env->put(name);
 		if (t == nullptr)
 		{
 			errors->addError(new ErrorDescription(getLine(), getColumn(), std::wstring(L"The variable name'") + name + L"' is already in use!"));
@@ -77,7 +77,7 @@ namespace intro
 		// @TODO: When adding constants in the future, do it here...
 		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"definition of variable '") + name + L"'");
 		if (!constant) t->setAccessFlags(Type::Readable | Type::Writable);
-		Type *et = value->getType(env, logger);
+		Type::pointer_t et = value->getType(env, logger);
 		et->setAccessFlags(t->getAccessFlags());
 		if (et->getKind() == Type::Error)
 		{
@@ -110,7 +110,7 @@ namespace intro
 		for (iter = conditions.begin();iter != conditions.end();iter++)
 		{
 			logger = new ErrorLocation(getLine(), getColumn(), L"if statement (condition)");
-			Type *cond_type = iter->first->getType(env, logger);
+			Type::pointer_t cond_type = iter->first->getType(env, logger);
 			if (cond_type->getKind() == Type::Error)
 			{
 				errors->addError(new ErrorDescription(getLine(), getColumn(), L"Could not determine type of condition expression"));
@@ -119,7 +119,7 @@ namespace intro
 			else delete logger;
 
 			Environment localenv(env);
-			if (!iter->first->getType()->unify(&boolean))
+			if (!iter->first->getType()->unify(Type::pointer_t(new Type(Type::Boolean))))
 			{
 				std::wstringstream strs;
 				strs << L"The type of the condition expression is not Boolean but ";
@@ -150,28 +150,28 @@ namespace intro
 		return true;
 	}
 
-	bool CaseStatement::Case::makeType(VariantType *variant, Environment *env, ErrorLocation *errors)
+	bool CaseStatement::Case::makeType(Type::pointer_t variant, Environment *env, ErrorLocation *errors)
 	{
 		Environment local(env);
-		VariantType::iterator iter = variant->findTag(tag);
-		myRecord = new RecordType;
-		if (iter == variant->endTag())
+		VariantType::iterator iter = ((VariantType*)variant.get())->findTag(tag);
+		myRecord = Type::pointer_t(new RecordType);
+		if (iter == ((VariantType*)variant.get())->endTag())
 		{
 			std::wstring q = std::wstring(L"?");
-			for (std::list<std::wstring>::iterator pit = params.begin();pit != params.end();pit++)
+			for (std::vector<std::wstring>::iterator pit = params.begin();pit != params.end();pit++)
 			{
-				TypeVariable *tvar = local.fresh(q + *pit);
+				Type::pointer_t tvar = local.fresh(q + *pit);
 				local.put(*pit, tvar);
-				myRecord->addMember(*pit, tvar);
+				((RecordType*)myRecord.get())->addMember(*pit, tvar);
 			}
-			variant->addTag(tag, myRecord);
+			((VariantType*)variant.get())->addTag(tag, myRecord);
 		}
 		else
 		{
-			RecordType::iterator members;
-			for (members = iter->second->begin();members != iter->second->end();++members)
+			RecordType::member_iter members;
+			for (members = ((RecordType*)iter->second.get())->begin();members != ((RecordType*)iter->second.get())->end();++members)
 			{
-				myRecord->addMember(members->first, members->second);
+				((RecordType*)myRecord.get())->addMember(members->first, members->second);
 				local.put(members->first, members->second);
 			}
 		}
@@ -189,7 +189,7 @@ namespace intro
 	bool CaseStatement::makeType(Environment *env, ErrorLocation *errors)
 	{
 		// Inferring type here means it is not assumed inside the case?!
-		Type *exprtype = caseof->getType(env, errors);
+		Type::pointer_t exprtype = caseof->getType(env, errors);
 		if (exprtype->getKind() == Type::Error)
 			return false;
 		else if (exprtype->getKind() == Type::Variable)
@@ -198,7 +198,7 @@ namespace intro
 			// (Only way to introduce type vars) we need to communicate the
 			// Expected types for each arm to the outside world
 
-			handled = new VariantType;
+			handled = Type::pointer_t (new VariantType);
 			bool success = true;
 			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), L"case statement");
 			for (iterator iter = cases.begin();iter != cases.end();iter++)
@@ -209,7 +209,7 @@ namespace intro
 				errors->addError(logger);
 				return false;
 			}
-			Type *variable = env->fresh(handled);
+			Type::pointer_t variable = env->fresh(handled);
 			if (!exprtype->unify(variable, exprtype->getKind() == Type::Variable))
 			{
 				std::wstringstream strs;
@@ -227,7 +227,7 @@ namespace intro
 		}
 		else if (exprtype->getKind() == Type::Variant)
 		{
-			VariantType *input = dynamic_cast<VariantType *>(exprtype);
+			VariantType *input = dynamic_cast<VariantType *>(exprtype.get());
 			bool success = true;
 			if (input->size() > cases.size())
 			{
@@ -240,7 +240,7 @@ namespace intro
 			}
 			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), L"case statement");
 			for (iterator iter = cases.begin();iter != cases.end();iter++)
-				success &= (*iter)->makeType(input, env, logger);
+				success &= (*iter)->makeType(exprtype, env, logger);
 			if (success) delete logger;
 			else
 			{
@@ -281,7 +281,7 @@ namespace intro
 	
 	bool WhileStatement::makeType(Environment *env, ErrorLocation *errors)
 	{
-		Type *t = condition->getType(env, errors);
+		Type::pointer_t t = condition->getType(env, errors);
 		if (t->find()->getKind() != Type::Boolean)
 		{
 			errors->addError(new ErrorDescription(getLine(), getColumn(), L"while statement requires boolean condition expression"));
@@ -300,7 +300,7 @@ namespace intro
 
 	bool ReturnStatement::makeType(Environment *env, ErrorLocation *errors)
 	{
-		Type *t;
+		Type::pointer_t t;
 		if (expr != NULL)
 		{
 			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"return value expression"));
@@ -312,8 +312,8 @@ namespace intro
 			}
 			delete logger;
 		}
-		else t = &unit;
-		Type *r = env->get(L"!return");
+		else t = Type::pointer_t(new Type(Type::Unit));
+		Type::pointer_t r = env->get(L"!return");
 		// Return is contravariant
 		if (!t->unify(r, true))
 		//if (!t->unify(r))
@@ -332,7 +332,7 @@ namespace intro
 
 	bool YieldStatement::makeType(Environment *env, ErrorLocation *errors)
 	{
-		Type *r = env->get(L"!return");
+		Type::pointer_t r = env->get(L"!return");
 		if (r->getKind() != Type::Variable && r->getKind() != Type::Generator)
 		{
 			if (r->getKind() != Type::Error)
@@ -342,7 +342,7 @@ namespace intro
 		//		std::wcout << L"\nGenerator source Type from env: ";
 		//		r->print(std::wcout);
 
-		Type *yieldType;
+		Type::pointer_t yieldType;
 		if (expr == NULL) yieldType = env->fresh();
 		else
 		{
@@ -360,7 +360,7 @@ namespace intro
 		// An empty generator can be concatenated with any other, so top is ok supertype?!
 		// But that could lead to an empty list with element type top...
 		// that means we cannot do much with those elements... but is it a problem?!
-		myType = new Type(Type::Generator, yieldType);
+		myType = Type::pointer_t (new Type(Type::Generator, yieldType));
 		// What is a fact is that variant types can cause trouble
 		// when checking supertypes, because yield needs to specialize, just like return.
 		// But two unrelated variant types will cause the two generators
@@ -388,7 +388,7 @@ namespace intro
 
 	bool ExpressionStatement::makeType(Environment *env, ErrorLocation *errors)
 	{
-		Type *t = expr->getType(env, errors);
+		Type::pointer_t t = expr->getType(env, errors);
 		return t->getKind() != Type::Error;
 	}
 

@@ -20,11 +20,12 @@ void TypeGraph::node::print(std::wostream &os)
 	}
 }
 
-TypeVariable *TypeGraph::fresh(const std::wstring &name)
+Type::pointer_t TypeGraph::fresh(const std::wstring &name)
 {
-	TypeVariable *retval=new TypeVariable(name);
-	variables.push_back(retval);
-	return retval;
+	//TypeVariable *retval=new TypeVariable(name);
+	//variables.push_back(retval);
+	//return retval;
+	return std::make_shared<TypeVariable>(name);
 }
 
 static Type string_t(Type::String);
@@ -51,7 +52,7 @@ void TypeGraph::createBuiltins(void)
 	// Integer <: Real <: Number
 	node *number=new node(L"Number",Type::Number,true);
 	edge=number->addSuper(comparable);
-	edge->parentTemplate=new Type(Type::Comparable);
+	edge->parentTemplate.reset(new Type(Type::Comparable));
 	node *real=new node(L"Real",Type::Real);
 	node *integer=new node(L"Integer",Type::Integer);
 	//real->setSuper(number);
@@ -59,57 +60,58 @@ void TypeGraph::createBuiltins(void)
 	//integer->setSuper(real);
 	//integer->parentTemplate=new Type(Type::Real);
 	edge=integer->addSuper(number);
-	edge->parentTemplate=new Type(Type::Number);
+	edge->parentTemplate.reset(new Type(Type::Number));
 	//edge=real->addSuper(integer);
 	//edge->parentTemplate=new Type(Type::Integer);
 	edge=real->addSuper(number);
-	edge->parentTemplate=new Type(Type::Number);
+	edge->parentTemplate.reset(new Type(Type::Number));
 	// Generators
 	node *generator=new node(L"Generator",Type::Generator);
 	edge=generator->addSuper(top);
-	edge->parentTemplate=new Type(Type::Top);
-	generator->my_params.push_back(fresh(L"?A"));
+	edge->parentTemplate.reset(new Type(Type::Top));
+	generator->my_params.push_back(Type::pointer_t(fresh(L"?A")));
 	// Dictionary(Key,Value)<:Generator([key:Key;value:Value;])
-	TypeVariable *key_t=fresh(L"?Key"),
-		*value_t=fresh(L"?Value");
-	RecordType *dict_to_gen=new RecordType();
-	dict_to_gen->addMember(L"key",key_t);
-	dict_to_gen->addMember(L"value",value_t);
+	Type::pointer_t key_t=fresh(L"?Key"),
+		value_t=fresh(L"?Value");
+	Type::pointer_t dict_to_gen=std::make_shared<RecordType>();
+	RecordType *dict_rec = (RecordType*)dict_to_gen.get();
+	dict_rec->addMember(L"key",key_t);
+	dict_rec->addMember(L"value",value_t);
 	node *dictionary=new node(L"Dictionary",Type::Dictionary);
 	dictionary->my_params.push_back(key_t);
 	dictionary->my_params.push_back(value_t);
 	edge=dictionary->addSuper(generator);
 	edge->super_params.push_back(dict_to_gen);
-	edge->parentTemplate=new Type(Type::Generator,dict_to_gen);
+	edge->parentTemplate.reset(new Type(Type::Generator, dict_to_gen));
 	// Sequences (lists and strings)
 	node *sequence=new node(L"Sequence",Type::Sequence,true);
 	edge=sequence->addSuper(generator);
 	sequence->my_params.push_back(fresh(L"?A"));
 	edge->super_params.push_back(sequence->my_params.front());
-	edge->parentTemplate=new Type(Type::Generator,sequence->my_params.front());
+	edge->parentTemplate.reset(new Type(Type::Generator,sequence->my_params.front()));
 	// Lists
 	node *list=new node(L"List",Type::List);
 	edge=list->addSuper(sequence);
 	list->my_params.push_back(fresh(L"?A"));
 	edge->super_params.push_back(list->my_params.front());
-	edge->parentTemplate=new Type(Type::Generator,list->my_params.front());
+	edge->parentTemplate.reset(new Type(Type::Generator,list->my_params.front()));
 	// String
 	node *string=new node(L"String",Type::String);
 	edge=string->addSuper(sequence);
 	//edge->super_params.push_back(&string_t); // LEAK
-	edge->super_params.push_back(new Type(Type::String)); // LEAK
-	edge->parentTemplate=new Type(Type::Sequence,edge->super_params.front()); // LEAK
+	edge->super_params.push_back(Type::pointer_t(new Type(Type::String))); // LEAK
+	edge->parentTemplate.reset(new Type(Type::Sequence,edge->super_params.front())); // LEAK
 	//edge->parentTemplate = new Type(Type::Sequence, &string_t);
-	string->addSuper(comparable)->parentTemplate=new Type(Type::Comparable);
+	string->addSuper(comparable)->parentTemplate.reset(new Type(Type::Comparable));
 	node *record=new node(L"Record",Type::Record);
 	record->addSuper(top);
-	edge->parentTemplate=new Type(Type::Top);
+	edge->parentTemplate.reset(new Type(Type::Top));
 	node *variant=new node(L"Variant",Type::Variant);
 	edge=variant->addSuper(top);
-	edge->parentTemplate=new Type(Type::Top);
+	edge->parentTemplate.reset(new Type(Type::Top));
 	node *function=new node(L"Function",Type::Function);
 	edge=function->addSuper(top);
-	edge->parentTemplate=new Type(Type::Top);
+	edge->parentTemplate.reset(new Type(Type::Top));
 	// Put them all into the map
 	builtins[Type::Top]=top;
 	builtins[Type::Unit]=unit;
@@ -129,11 +131,11 @@ void TypeGraph::createBuiltins(void)
 }
 
 // Find the node that represents the passed type's position in the type hierarchy, returns NULL on failure.
-TypeGraph::node *TypeGraph::getNode(Type *type)
+TypeGraph::node *TypeGraph::getNode(Type::pointer_t type)
 {
 	if (type->getKind()==Type::UserDef)
 	{
-		OpaqueType *ot=dynamic_cast<OpaqueType *>(type);
+		OpaqueType *ot=dynamic_cast<OpaqueType *>(type.get());
 		std::map<std::wstring,node*>::iterator oit=opaques.find(ot->getName());
 		if (oit==opaques.end()) return NULL;
 		else return oit->second;
@@ -146,7 +148,7 @@ TypeGraph::node *TypeGraph::getNode(Type *type)
 	}
 }
 
-void TypeGraph::addOpaque(/*const std::wstring &name,*/OpaqueType *opaque,Type *super)
+void TypeGraph::addOpaque(/*const std::wstring &name,*/Type::pointer_t opaque,Type::pointer_t super)
 {
 	// Super may be opaque or builtin
 	// Super may be top (or abstract?)
@@ -172,23 +174,20 @@ TypeGraph::~TypeGraph()
 
 struct state
 {
-	std::vector<Type*> current;
+	std::vector<Type::pointer_t > current;
 	TypeGraph::node *traverse;
-	//std::set<Type*> &exclude;
-	//Type::TypeVariableMap mapping;
 	TypeGraph::node::iterator supers;
 
-	state(TypeGraph::node *traverse_/*,std::set<Type*> &exclude_*/) 
+	state(TypeGraph::node *traverse_) 
 		: traverse(traverse_)
-		//, exclude(exclude_)
 	{
 		supers=traverse->supers.begin();
 	};
 
-	void clearCurrent(std::set<Type*> &exclude)
+	void clearCurrent(std::set<Type::pointer_t > &exclude)
 	{
-		for (std::vector<Type*>::iterator iter=current.begin();iter!=current.end();++iter)
-			deleteExcept(*iter,exclude);
+		//for (std::vector<Type::pointer_t>::iterator iter=current.begin();iter!=current.end();++iter)
+		//	deleteExcept(*iter,exclude);
 		current.clear();
 	}
 
@@ -202,21 +201,21 @@ struct state
 	}
 };
 
-PartialOrder TypeGraph::findSupertype(Type *ta,Type*tb,std::vector<Type*> &cur,std::set<Type*> &exclude)
+PartialOrder TypeGraph::findSupertype(Type::pointer_t ta_, Type::pointer_t  tb_,std::vector<Type::pointer_t> &cur,Type::set_t &exclude)
 {
 	std::vector<state> stack;
-	ta = ta->find();
-	tb = tb->find();
+	Type::pointer_t ta = ta_->find();
+	Type::pointer_t tb = tb_->find();
 	TypeGraph::node *start=getNode(ta);
 	TypeGraph::node *dest=getNode(tb);
-	Type *param_source;
+	Type::pointer_t param_source;
 
 	PartialOrder retval=EQUAL;
 	// Same rank must be same node
 	if (start->rank==dest->rank) 
 	{
 		if (start!=dest) return ERROR;
-		std::vector<Type*>::iterator tit,oit;
+		Type::iterator tit,oit;
 		for (tit=ta->begin(),oit=tb->begin();tit!=ta->end() && retval!=ERROR;tit++,oit++)
 		{
 			PartialOrder po=(*tit)->checkSubtype(*oit);
@@ -245,19 +244,19 @@ PartialOrder TypeGraph::findSupertype(Type *ta,Type*tb,std::vector<Type*> &cur,s
 
 	// Set up the mapping for the type's parameters
 	//std::vector<Type*> init;
-	std::vector<Type*>::iterator iter;
+	std::vector<Type::pointer_t>::iterator iter;
 	stack.push_back(state(start));
 	param_source->getParameterTypes(stack.back().current);
 	// Make sure incoming types are not marked for deletion! We do not own them.
 	for (iter= stack.back().current.begin();iter!=stack.back().current.end();++iter)
 	{
-		std::set<Type*> innertypes;
+		Type::set_t innertypes;
 		collectAllTypes(*iter, innertypes);
 		exclude.insert(innertypes.begin(),innertypes.end());
 	}
 	//stack.push_back(state(start,exclude));
 	Type::TypeVariableMap mapping;
-	std::vector<TypeVariable*>::iterator npit;
+	std::vector<Type::pointer_t>::iterator npit;
 	std::set<Type*>::iterator siter;
 	node *found=NULL;
 
@@ -303,7 +302,7 @@ PartialOrder TypeGraph::findSupertype(Type *ta,Type*tb,std::vector<Type*> &cur,s
 					mapping.insert(std::make_pair(*npit,*iter));
 					if ((*iter)->getKind()!=Type::Variable)
 					{
-						std::set<Type*> innertypes;
+						Type::set_t innertypes;
 						collectAllTypes(*iter, innertypes);
 						exclude.insert(innertypes.begin(),innertypes.end());
 					}
@@ -315,12 +314,12 @@ PartialOrder TypeGraph::findSupertype(Type *ta,Type*tb,std::vector<Type*> &cur,s
 					buf.current.push_back((*iter)->substitute(mapping));
 			}
 		}
-		s.clearCurrent(exclude);
+		//s.clearCurrent(exclude);
 	}
 	// Cleanup anything left on the stack
 	while (!stack.empty()) 
 	{
-		stack.back().clearCurrent(exclude);
+		//stack.back().clearCurrent(exclude);
 		stack.pop_back();
 	}
 	if (found!=dest) return ERROR;

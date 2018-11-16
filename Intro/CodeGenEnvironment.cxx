@@ -29,7 +29,7 @@ namespace intro
 	}
 
 	// If we know a type is not referenced, do not emit increment code.
-	static void incrementKnownReferenced(llvm::IRBuilder<> &builder,Type *type,llvm::Value *address,llvm::Value *rtt)
+	static void incrementKnownReferenced(llvm::IRBuilder<> &builder, Type::pointer_t type,llvm::Value *address,llvm::Value *rtt)
 	{
 		Type::Types kind=type->getKind();
 		if (kind==Type::Integer ||kind==Type::Real ||kind==Type::Boolean)
@@ -119,7 +119,7 @@ namespace intro
 			parent->closeAllScopes(builder);
 	}
 
-	bool CodeGenEnvironment::removeIntermediateOrIncrement(llvm::IRBuilder<> &builder, Type *type, llvm::Value *address, llvm::Value *rtt)
+	bool CodeGenEnvironment::removeIntermediateOrIncrement(llvm::IRBuilder<> &builder, Type::pointer_t type, llvm::Value *address, llvm::Value *rtt)
 	{
 		im_iter iter = intermediates.find(address);
 		if (iter != intermediates.end())
@@ -224,7 +224,7 @@ namespace intro
 		return llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext), rtt,false);
 	}
 	
-	llvm::Value *CodeGenEnvironment::getRTT(Type *type)
+	llvm::Value *CodeGenEnvironment::getRTT(Type::pointer_t type)
 	{
 		return getRTT(type->find()->getRTKind());
 	}

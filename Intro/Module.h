@@ -33,7 +33,7 @@ class ModuleStatement : public Statement
 
 		std::wstring getName(void) { return name; };
 
-		virtual Type *getType(Environment *env, ErrorLocation *errors)=0;
+		virtual Type::pointer_t getType(Environment *env, ErrorLocation *errors)=0;
 
 		virtual void print(std::wostream &s)=0;
 	};
@@ -41,10 +41,10 @@ class ModuleStatement : public Statement
 	/// Class representing an opaque type definition.
 	class OpaqueTypeDeclaration : public ExportDeclaration
 	{
-		std::list<TypeExpression*> parameters;
-		OpaqueType *ot;
+		std::vector<TypeExpression*> parameters;
+		Type::pointer_t ot;
 	public:
-		OpaqueTypeDeclaration(size_t l, size_t p,const std::wstring &n,std::list<TypeExpression*> params)
+		OpaqueTypeDeclaration(size_t l, size_t p,const std::wstring &n,std::vector<TypeExpression*> params)
 			: ExportDeclaration(l,p,n)
 			, parameters(params)
 			, ot(NULL)
@@ -52,23 +52,23 @@ class ModuleStatement : public Statement
 
 		virtual ~OpaqueTypeDeclaration(void)
 		{
-			std::list<TypeExpression*>::iterator it;
+			std::vector<TypeExpression*>::iterator it;
 			for (it=parameters.begin();it!=parameters.end();it++)
 				delete *it;
-			if (ot!=NULL) delete ot;
+			//if (ot!=NULL) delete ot;
 		};
 
 		virtual bool isExport(void) { return false; };
 
-		virtual Type *getType(Environment *env, ErrorLocation *errors)
+		virtual Type::pointer_t getType(Environment *env, ErrorLocation *errors)
 		{
 			Environment localenv(env);
-			ot=new OpaqueType(name);
-			std::list<TypeExpression*>::iterator it;
+			ot= Type::pointer_t (new OpaqueType(name));
+			std::vector<TypeExpression*>::iterator it;
 			// Grammar guarantees that only type variables can occur here...
 			for (it = parameters.begin();it != parameters.end();it++)
 			{
-				ot->addParameter(dynamic_cast<TypeVariable*>((*it)->getType(&localenv, errors)));
+				((OpaqueType*)ot.get())->addParameter((*it)->getType(&localenv, errors));
 			}
 			env->put(name,ot);
 			return ot;
@@ -79,7 +79,7 @@ class ModuleStatement : public Statement
 			s << name;
 			if (parameters.empty()) return;
 			s << "(";
-			std::list<TypeExpression*>::iterator it=parameters.begin();
+			std::vector<TypeExpression*>::iterator it=parameters.begin();
 			(*it)->print(s);
 			it++;
 			while (it!=parameters.end())
@@ -97,7 +97,7 @@ class ModuleStatement : public Statement
 	class MemberTypeDeclaration : public ExportDeclaration
 	{
 		TypeExpression *expr;
-		Type *type;
+		Type::pointer_t type;
 	public:
 		MemberTypeDeclaration(int l,int p,const std::wstring &n,TypeExpression *te)
 			: ExportDeclaration(l,p,n), expr(te), type(NULL)
@@ -108,7 +108,7 @@ class ModuleStatement : public Statement
 			delete expr;
 		};
 
-		virtual Type *getType(Environment *env, ErrorLocation *errors)
+		virtual Type::pointer_t getType(Environment *env, ErrorLocation *errors)
 		{
 			Environment localenv(env);
 			type=expr->getType(env,errors);
@@ -116,7 +116,7 @@ class ModuleStatement : public Statement
 			return type;
 		};
 
-		Type *getExposedType(void)
+		Type::pointer_t getExposedType(void)
 		{
 			return expr->getExposedType();
 		};
@@ -134,19 +134,19 @@ class ModuleStatement : public Statement
 	/// Is the path to the module relative?
 	bool relative; 
 	/// The path to the Module
-	std::list<std::wstring> path; 
+	std::vector<std::wstring> path; 
 
 	/// Map names of submodules to their module.
 	std::map<std::wstring,ModuleStatement*> submodules;
 	/// Exported types of the module
-	std::list<ExportDeclaration*> exports;
+	std::vector<ExportDeclaration*> exports;
 	/// The content of the module is executed to create the values therein.
-	std::list<Statement*> contents;
+	std::vector<Statement*> contents;
 
-	std::map<std::wstring,Type*> expout;
+	std::map<std::wstring, Type::pointer_t> expout;
 
 public:
-	ModuleStatement(int l,int p,bool rel,const std::list<std::wstring> &pa) 
+	ModuleStatement(int l,int p,bool rel,const std::vector<std::wstring> &pa) 
 		: Statement(l,p)
 		, relative(rel)
 		, path(pa)
@@ -154,15 +154,15 @@ public:
 
 	virtual ~ModuleStatement(void)
 	{
-		std::list<ExportDeclaration*>::iterator eit;
+		std::vector<ExportDeclaration*>::iterator eit;
 		for (eit=exports.begin();eit!=exports.end();eit++)
 			delete *eit;
-		std::list<Statement*>::iterator cit; 
+		std::vector<Statement*>::iterator cit; 
 		for (cit=contents.begin();cit!=contents.end();cit++)
 			delete *cit;
 		std::map<std::wstring,Type*>::iterator expit;
-		for (expit=expout.begin();expit!=expout.end();expit++)
-			deleteCopy(expit->second);
+		//for (expit=expout.begin();expit!=expout.end();expit++)
+		//	deleteCopy(expit->second);
 	};
 
 	inline std::wstring getName(void) { return name; };
@@ -173,7 +173,7 @@ public:
 		exports.push_back(otd);
 	};
 
-	inline void addOpaque(size_t line, size_t col,const std::wstring &n,std::list<TypeExpression*> params)
+	inline void addOpaque(size_t line, size_t col,const std::wstring &n,std::vector<TypeExpression*> params)
 	{
 		OpaqueTypeDeclaration *otd=new OpaqueTypeDeclaration(line,col,n,params);
 		exports.push_back(otd);
@@ -197,7 +197,7 @@ public:
 
 		Environment localenv(env);
 		// Iterate over the statements comprising the module body and infer their types.
-		std::list<Statement*>::iterator cit; 
+		std::vector<Statement*>::iterator cit; 
 		bool success=true;
 		std::wstringstream strs;
 		strs << L"module ";
@@ -220,15 +220,15 @@ public:
 		// exposed type first(Pair(?A,?B))->?A = first([first:?A,second:?B])->?A.
 		// However, this part also exports the constructors, as it picks them out
 		// anyways, knowing it is a constructor and which type it is for.
-		std::list<ExportDeclaration*>::iterator exported;
+		std::vector<ExportDeclaration*>::iterator exported;
 		Environment exportenv(env);
 		logger = new ErrorLocation(getLine(), getColumn(), strs.str()+L" interface");
 		for (exported= exports.begin();exported!=exports.end() && success;exported++)
 		{
-			Type *exptype=(*exported)->getType(&exportenv,logger);
+			Type::pointer_t exptype=(*exported)->getType(&exportenv,logger);
 			if ((*exported)->isExport()) 
 			{
-				Type *inside=localenv.get((*exported)->getName());
+				Type::pointer_t inside=localenv.get((*exported)->getName());
 				if (inside==NULL)
 				{
 					// some form of error treatment/notification
@@ -241,36 +241,39 @@ public:
 			else	// Opaque Type declaration
 			{
 				// Look for variable of same name in environment
-				OpaqueType *ot=dynamic_cast<OpaqueType*>(exptype);
-				Type *inside=localenv.get(ot->getName());
-				if (inside==NULL)
+				OpaqueType *ot = dynamic_cast<OpaqueType*>(exptype.get());
+				Type::pointer_t inside = localenv.get(ot->getName());
+				if (inside == NULL)
 				{
 					// Need error message? Or is it ok if there is no "standard"-ctor?
-					success=false;
+					success = false;
 					continue;
 				}
-				if (inside->getKind()!=Type::Function)
+				if (inside->getKind() != Type::Function)
 				{
 					// Need error message!
-					success=false;
+					success = false;
 					continue;
 				}
-				FunctionType *ft=dynamic_cast<FunctionType*>(inside);
-				success&=ot->setTypeMapping(ft);
+				FunctionType *ft = dynamic_cast<FunctionType*>(inside.get());
+				success &= ot->setTypeMapping(ft);
 				// We build up a function type for the constructor,
 				// with the opaque type's parameter types going
 				// into the functions parameters' types.
 				// The type is constructed completely on the heap,
-				// so that ownership can be passed to the modle, 
+				// so that ownership can be passed to the module, 
 				// which will delete it eventually.
-				OpaqueType *returned=new OpaqueType(*ot);
-				FunctionType *ctor=new FunctionType(returned);
+				//OpaqueType *returned=new OpaqueType(*ot);
+				//FunctionType *ctor=new FunctionType(returned);
+				Type::pointer_t returned = Type::pointer_t (new OpaqueType(*ot));
+				Type::pointer_t ctor = Type::pointer_t (new FunctionType(returned));
+
 				OpaqueType::iterator iter;
-				for (iter=returned->begin();iter!=returned->end();iter++)
+				for (iter = ((OpaqueType*)returned.get())->begin();iter != ((OpaqueType*)returned.get())->end();iter++)
 				{
 					ctor->addParameter(iter->first);
 				}
-				module->addExport((*exported)->getName(),ctor);
+				module->addExport((*exported)->getName(), ctor);
 			}
 		}
 		Environment::popModule();
@@ -281,7 +284,7 @@ public:
 	inline void printPath(std::wostream &s)
 	{
 		if (!relative) s << "::";
-		std::list<std::wstring>::iterator pit = path.begin();
+		std::vector<std::wstring>::iterator pit = path.begin();
 		s << *pit;
 		for (pit++;pit != path.end();pit++) s << "::" << *pit;
 	}
@@ -290,19 +293,19 @@ public:
 	{
 		s << "module ";
 		/*if (!relative) s << "::";
-		std::list<std::wstring>::iterator pit=path.begin();
+		std::vector<std::wstring>::iterator pit=path.begin();
 		s << *pit;
 		for	(pit++;pit!=path.end();pit++) s << "::" << *pit;
 		*/
 		printPath(s);
 		s << " exports\n";
-		std::list<ExportDeclaration*>::iterator eit;	
+		std::vector<ExportDeclaration*>::iterator eit;	
 		for (eit=exports.begin();eit!=exports.end();eit++)
 		{
 			(*eit)->print(s);
 		}
 		s << "from\n";
-		std::list<Statement*>::iterator cit; 
+		std::vector<Statement*>::iterator cit; 
 		for (cit=contents.begin();cit!=contents.end();cit++)
 		{
 			(*cit)->print(s);
@@ -318,7 +321,7 @@ public:
 
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
 
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)
 	{
 		// to be done!!!
 	};

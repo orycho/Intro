@@ -13,7 +13,7 @@ using namespace std;
 /// Helpers
 namespace intro
 {
-	llvm::Function * generateCode(const std::list<intro::Statement*> &statements);
+	llvm::Function * generateCode(const std::vector<intro::Statement*> &statements);
 }
 
 void deleteStatements(parse::Parser &parser);
@@ -737,11 +737,11 @@ bool freeVariableDetection(void)
 	parse::Scanner scanner((const unsigned char *)test,strlen(test));
 	parse::Parser parser(&scanner);
 	parser.Parse();
-	std::list<intro::Statement*>::iterator iter;
+	parse::Parser::iterator iter;
 	for (iter=parser.parseResult.begin();iter!=parser.parseResult.end();iter++)
 	{
-		std::list<intro::Function*> funcs;
-		std::list<intro::Function*>::iterator fit;
+		std::vector<intro::Function*> funcs;
+		std::vector<intro::Function*>::iterator fit;
 		(*iter)->collectFunctions(funcs);
 		for (fit=funcs.begin();fit!=funcs.end();fit++)
 		{

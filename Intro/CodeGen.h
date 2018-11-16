@@ -103,11 +103,11 @@ namespace intro
 	/// Create a constant global string in the llvm module
 	llvm::Constant *createGlobalString(const std::wstring &s);
 	/// Construct a llvm::Type that  reprsents the given Type during runtime
-	llvm::Type *toTypeLLVM(intro::Type *type);
+	llvm::Type *toTypeLLVM(Type::pointer_t type);
 	/// Create code for type specific unboxing of a value
-	llvm::Value *createUnboxValue(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env,llvm::Value *field,intro::Type *type);
+	llvm::Value *createUnboxValue(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env,llvm::Value *field, intro::Type::Types type);
 	/// Create code for type specific boxing of a value
-	llvm::Value *createBoxValue(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env,llvm::Value *field,intro::Type *type);
+	llvm::Value *createBoxValue(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env,llvm::Value *field, intro::Type::Types type);
 }
 
 #endif

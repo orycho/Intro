@@ -13,6 +13,7 @@
 #include "Runtime.h"
 
 #include  "PerfHash.h"
+#include "LibBase.h"
 
 #ifdef _MSC_VER
 
@@ -116,7 +117,7 @@ namespace intro {
 	}
 	
 	/// Called by basic testing and runStatements
-	llvm::Function *generateCode(const std::list<intro::Statement*> &statements)
+	llvm::Function *generateCode(const std::vector<intro::Statement*> &statements)
 	{
 		std::vector<llvm::Type*> args;
 		llvm::IRBuilder<> Builder(theContext);
@@ -127,7 +128,7 @@ namespace intro {
 		//CodeGenEnvironment env(nullptr,CodeGenEnvironment::GlobalScope);
 		CodeGenEnvironment *env = CodeGenModule::getRoot();
 		env->setAnonFunction(func);
-		for (std::list<intro::Statement*>::const_iterator iter = statements.begin();iter != statements.end();iter++)
+		for (std::vector<intro::Statement*>::const_iterator iter = statements.begin();iter != statements.end();iter++)
 			if (!(*iter)->codeGen(Builder, env)) return nullptr;
 			//if (!(*iter)->codeGen(Builder, &env)) return nullptr;
 		Builder.CreateRetVoid();
@@ -137,7 +138,7 @@ namespace intro {
 	}
 
 	/// Called by non-interactive mode to execute all statements
-	void runStatements(const std::list<intro::Statement*> &statements)
+	void runStatements(const std::vector<intro::Statement*> &statements)
 	{
 		//llvm::Function *root = 
 		intro::generateCode(statements);
@@ -416,10 +417,12 @@ namespace intro {
 		llvm::InitializeNativeTargetAsmParser();
 		
 		createInternalTypes();
+
+		LibLoader::initialize();
 		
 		TheJIT = llvm::make_unique<JIT>();
 		
-
+		/*
 		// Create a new pass manager attached to it.
 		TheFPM = llvm::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
 
@@ -435,7 +438,7 @@ namespace intro {
 		TheFPM->add(llvm::createCFGSimplificationPass());
 
 		TheFPM->doInitialization();
-		
+		*/
  	}
 
 	void deleteRuntime(void)
@@ -454,7 +457,7 @@ namespace intro {
 	}
 	
 	/// Convert Intro Type to LLVM type used by runtime to represent the Intro type.
-	llvm::Type *toTypeLLVM(intro::Type *type)
+	llvm::Type *toTypeLLVM(intro::Type::pointer_t type)
 	{
 		switch(type->getKind())
 		{
@@ -493,13 +496,13 @@ namespace intro {
 
 	/////////////////////////////////////////////////////////////////////
 
-	llvm::Value *createUnboxValue(IRBuilder<> &TmpB,CodeGenEnvironment *env,llvm::Value *field,intro::Type *type)
+	llvm::Value *createUnboxValue(IRBuilder<> &TmpB,CodeGenEnvironment *env,llvm::Value *field, intro::Type::Types type)
 	{
 		std::vector<Value*> ArgsV;
 		//ArgsV.push_back(1);
 		//retval=Builder.CreateCall(createStringReserveF, ArgsV, "newstring");
 		// Conversion function to be decided upon below
-		switch(type->getKind())
+		switch(type)
 		{
 		case Type::Unit:
 			return field;
@@ -539,13 +542,13 @@ namespace intro {
 		return field;
 	}
 
-	llvm::Value *createBoxValue(IRBuilder<> &TmpB,CodeGenEnvironment *env,llvm::Value *field,intro::Type *type)
+	llvm::Value *createBoxValue(IRBuilder<> &TmpB,CodeGenEnvironment *env,llvm::Value *field,intro::Type::Types type)
 	{
 		std::vector<Value*> ArgsV;
 		//ArgsV.push_back(1);
 		//retval=Builder.CreateCall(createStringReserveF, ArgsV, "newstring");
 		// Conversion function to be decided upon below
-		switch(type->getKind())
+		switch(type)
 		{
 		case Type::Unit:
 			return field;
@@ -585,8 +588,6 @@ namespace intro {
 	*/
 	static llvm::Value *cgCoerceIntIfNeeded(llvm::IRBuilder<> &builder,CodeGenEnvironment *env,llvm::Function *TheFunction,llvm::Value *value, llvm::Value *otherIsInt)
 	{
-		intro::Type typeInt(intro::Type::Integer);
-		intro::Type typeReal(intro::Type::Real);
 		llvm::BasicBlock *convert = llvm::BasicBlock::Create(theContext, "convert");
 		llvm::BasicBlock *keep = llvm::BasicBlock::Create(theContext, "keep");
 		llvm::BasicBlock *merge = llvm::BasicBlock::Create(theContext, "mergecoerce");
@@ -594,12 +595,12 @@ namespace intro {
 		
 		TheFunction->getBasicBlockList().push_back(convert);
 		builder.SetInsertPoint(keep);
-		llvm::Value *keepbuf=createUnboxValue(builder,env,value,&typeReal);
+		llvm::Value *keepbuf=createUnboxValue(builder,env,value,intro::Type::Real);
 		builder.CreateBr(merge);
 		
 		TheFunction->getBasicBlockList().push_back(keep);
 		builder.SetInsertPoint(convert);
-		llvm::Value *convbuf=createUnboxValue(builder,env,value,&typeInt);
+		llvm::Value *convbuf=createUnboxValue(builder,env,value,intro::Type::Integer);
 		convbuf = builder.CreateSIToFP(convbuf,double_t,"int2real");
 		builder.CreateBr(merge);
 		
@@ -620,45 +621,43 @@ namespace intro {
 		@param rhstype Inferred Type of the right hand side parameter
 	*/
 	static Expression::cgvalue genNumberOps(llvm::IRBuilder<> &builder,CodeGenEnvironment *env,
-		Expression::cgvalue &lhs,intro::Type *lhst,Expression::cgvalue &rhs,intro::Type *rhst,
-		Application::codegen_cb int_op,intro::Type * int_op_type, Application::codegen_cb real_op,intro::Type *real_op_type)
+		Expression::cgvalue &lhs,intro::Type::pointer_t lhst,Expression::cgvalue &rhs,intro::Type::pointer_t rhst,
+		Application::codegen_cb int_op,intro::Type::pointer_t int_op_type, Application::codegen_cb real_op,intro::Type::pointer_t real_op_type)
 	{
-		intro::Type typeInt(intro::Type::Integer);
-		intro::Type typeReal(intro::Type::Real);
 		intro::rtt::tag_t int_op_rtt = int_op_type->getRTKind();
 		intro::rtt::tag_t real_op_rtt = real_op_type->getRTKind();
 		llvm::Function *TheFunction = env->currentFunction();
 		std::vector<llvm::Value*> args{ lhs.first,rhs.first };
 		if (lhst->getKind()==intro::Type::Integer && rhst->getKind()==intro::Type::Integer)
 		{
-			args[0]=createUnboxValue(builder,env,args[0],lhst);
-			args[1]=createUnboxValue(builder,env,args[1],rhst);
+			args[0]=createUnboxValue(builder,env,args[0],lhst->getKind());
+			args[1]=createUnboxValue(builder,env,args[1],rhst->getKind());
 			llvm::Value *buf=int_op(builder,args);
-			buf=createBoxValue(builder,env,buf,&typeInt);
+			buf=createBoxValue(builder,env,buf,intro::Type::Integer);
 			return makeRTValue(buf,int_op_rtt);
 		}
 		if (lhst->getKind()==intro::Type::Real && rhst->getKind()==intro::Type::Real)
 		{
-			args[0]=createUnboxValue(builder,env,args[0],lhst);
-			args[1]=createUnboxValue(builder,env,args[1],rhst);
+			args[0]=createUnboxValue(builder,env,args[0],lhst->getKind());
+			args[1]=createUnboxValue(builder,env,args[1],rhst->getKind());
 			llvm::Value *buf=real_op(builder,args);
-			buf=createBoxValue(builder,env,buf,real_op_type);
+			buf=createBoxValue(builder,env,buf,real_op_type->getKind());
 			return makeRTValue(buf,real_op_rtt);
 		}
 		else if (lhst->getKind()!=intro::Type::Variable && rhst->getKind()!=intro::Type::Variable)
 		{
-			args[0]=createUnboxValue(builder,env,args[0],lhst);
+			args[0]=createUnboxValue(builder,env,args[0],lhst->getKind());
 			if (lhst->getKind()==intro::Type::Integer) 
 			{
 				args[0]=builder.CreateSIToFP(args[0],double_t,"lint2real");
 			}
-			args[1]=createUnboxValue(builder,env,args[1],rhst);
+			args[1]=createUnboxValue(builder,env,args[1],rhst->getKind());
 			if (rhst->getKind()==intro::Type::Integer) 
 			{
 				args[1]=builder.CreateSIToFP(args[1],double_t,"rint2real");
 			}
 			llvm::Value *buf=real_op(builder,args);
-			buf=createBoxValue(builder,env,buf,real_op_type);
+			buf=createBoxValue(builder,env,buf,real_op_type->getKind());
 			return makeRTValue(buf,real_op_rtt);
 		}
 		else // at least one variables -have to check runtime types.
@@ -676,11 +675,11 @@ namespace intro {
 				TheFunction->getBasicBlockList().push_back(intopblock);
 				builder.SetInsertPoint(intopblock);
 				std::vector<llvm::Value*> argsbuf{
-					createUnboxValue(builder,env,args[0],&typeInt),
-					createUnboxValue(builder,env,args[1],&typeInt)
+					createUnboxValue(builder,env,args[0],intro::Type::Integer),
+					createUnboxValue(builder,env,args[1],intro::Type::Integer)
 				};
 				llvm::Value *intresult=int_op(builder,argsbuf);
-				intresult=createBoxValue(builder,env,intresult,int_op_type);
+				intresult=createBoxValue(builder,env,intresult,int_op_type->getKind());
 				builder.CreateBr(mergeblock);
 				
 				TheFunction->getBasicBlockList().push_back(realopblock);
@@ -690,12 +689,12 @@ namespace intro {
 				//args[1]=cgCoerceIntIfNeeded(builder,env,TheFunction,args[1], rhsInt);
 				//llvm::Value *realresult=real_op(builder,args);
 
-				argsbuf[0] = createUnboxValue(builder, env, args[0], &typeReal);
-				argsbuf[1] = createUnboxValue(builder, env, args[1], &typeReal);
+				argsbuf[0] = createUnboxValue(builder, env, args[0], intro::Type::Real);
+				argsbuf[1] = createUnboxValue(builder, env, args[1], intro::Type::Real);
 				
 				llvm::Value *realresult = real_op(builder, argsbuf);
 
-				realresult=createBoxValue(builder,env,realresult,real_op_type);
+				realresult=createBoxValue(builder,env,realresult,real_op_type->getKind());
 				builder.CreateBr(mergeblock);
 				
 				// Arg generation for operand added blocks, find actual last block!
@@ -722,7 +721,7 @@ namespace intro {
 
 	/// Generate code for operations that have one operator and return the input type (negation, splice, ...)
 	static Expression::cgvalue genTypeChoiceOps(llvm::IRBuilder<> &builder,CodeGenEnvironment *env,
-		Expression::cgvalue &input,intro::Type *inferred,
+		Expression::cgvalue &input, Type::pointer_t inferred,
 		Application::cgcb_elem ops[],size_t op_count,llvm::Type *returned_type=builtin_t,//bool ignoreResult=false,
 		Expression::cgvalue extrainput[]=nullptr,size_t extras_count=0)
 	{
@@ -789,7 +788,7 @@ namespace intro {
 	Expression::cgvalue IntegerConstant::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
 		llvm::Value *constant=llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), value,true);
-		constant=createBoxValue(TmpB,env,constant,getType());
+		constant=createBoxValue(TmpB,env,constant,getType()->getKind());
 		// Value type need not be made intermediate
 		return makeRTValue(constant,rtt::Integer);
 	}
@@ -797,7 +796,7 @@ namespace intro {
 	Expression::cgvalue BooleanConstant::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
 		llvm::Value *constant=llvm::ConstantInt::get(llvm::Type::getInt1Ty(theContext), value,false);
-		constant=createBoxValue(TmpB,env,constant,getType());
+		constant=createBoxValue(TmpB,env,constant,getType()->getKind());
 		// Value type need not be made intermediate
 		return makeRTValue(constant,rtt::Boolean);
 	}
@@ -805,7 +804,7 @@ namespace intro {
 	Expression::cgvalue RealConstant::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
 		llvm::Value *constant=llvm::ConstantFP::get(theContext, llvm::APFloat(value));
-		constant=createBoxValue(TmpB,env,constant,getType());
+		constant=createBoxValue(TmpB,env,constant,getType()->getKind());
 		// Value type need not be made intermediate
 		return makeRTValue(constant,rtt::Real);
 	}
@@ -879,7 +878,7 @@ namespace intro {
 		if (generators==NULL) // append fixed initializer expressions
 		{
 			
-			std::list<intro::Expression*>::iterator iter;
+			std::vector<intro::Expression*>::iterator iter;
 			for (iter=elements.begin();iter!=elements.end();iter++)
 			{
 				Expression::cgvalue elemval = (*iter)->codeGen(TmpB,env);
@@ -1075,7 +1074,13 @@ namespace intro {
 	Expression::cgvalue RecordExpression::codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
 		std::int32_t *offsets=nullptr;
-		const size_t size=myType->size();
+		if (myType->getKind() != Type::Record)
+		{
+			printf("Error, expected record in variant!\n");
+			exit(1);
+		}
+		intro::RecordType *rectype = (RecordType*)myType.get();
+		const size_t size=rectype->size();
 		std::vector<llvm::Value*> args;
 		// do we have fields? ...
 		if (size>0)
@@ -1084,8 +1089,8 @@ namespace intro {
 			offsets=new std::int32_t[size];
 			// generate perfect hash
 			std::set<std::wstring> keys;
-			RecordType::iterator iter;
-			for (iter=myType->begin();iter!=myType->end();++iter)
+			RecordType::member_iter iter;
+			for (iter= rectype->begin();iter!= rectype->end();++iter)
 				keys.insert(iter->first);
 			
 			args.push_back(cgOffsets(TmpB,env,keys,offsets));
@@ -1129,7 +1134,14 @@ namespace intro {
 	{
 		std::int32_t *offsets=nullptr;
 		//rtt_t *fields=nullptr;
-		intro::RecordType *rectype=(RecordType*)record->getType()->find();
+		//intro::RecordType *rectype=(RecordType*)record->getType()->find();
+		Type::pointer_t recordptr = record->getType()->find();
+		if (recordptr->getKind() != Type::Record)
+		{
+			printf("Error, expected record in variant!\n");
+			exit(1);
+		}
+		intro::RecordType *rectype = (RecordType*)recordptr.get();
 		const size_t size=rectype->size();
 		std::vector<llvm::Value*> args;
 		// do we have fields? ...
@@ -1139,7 +1151,7 @@ namespace intro {
 			offsets=new std::int32_t[size];
 			// generate perfect hash
 			std::set<std::wstring> keys;
-			RecordType::iterator iter;
+			RecordType::member_iter iter;
 			for (iter=rectype->begin();iter!=rectype->end();++iter)
 				keys.insert(iter->first);
 			
@@ -1312,16 +1324,27 @@ namespace intro {
 	}
 
 	/// internal helper function to convert an Intro Function Type to an LLVM Function Type
-	static llvm::FunctionType *buildFunctionType(Type *somefun)
+	static llvm::FunctionType *buildFunctionType(Type::pointer_t somefun)
 	{
 		FunctionType *fun;
 		if (somefun->getKind() == Type::Variable)
 		{
-			TypeVariable *var = dynamic_cast<TypeVariable *>(somefun);
-			fun= dynamic_cast<FunctionType*>(var->getSupertype()->find());
+			TypeVariable *var = dynamic_cast<TypeVariable *>(somefun.get());
+			Type::pointer_t supfun = somefun->getSupertype()->find();
+			if (supfun->getKind() != Type::Function) 
+			{
+				printf("Exprected function type bound variable to generate code for!\n");
+				exit(1);
+			}
+			fun= dynamic_cast<FunctionType*>(supfun.get());
 		}
-		else 
-			fun=dynamic_cast<FunctionType*>(somefun);
+		else if (somefun->getKind() == Type::Function)
+			fun=dynamic_cast<FunctionType*>(somefun.get());
+		else
+		{
+			printf("Exprected function type to generate code for!\n");
+			exit(1);
+		}
 		bool returnsValue = fun->getReturnType()->find()->getKind()!=Type::Unit;
 		// Create LLVM Function type, and Function with entry block
 		std::vector<llvm::Type*> paramtypes;
@@ -1382,9 +1405,10 @@ namespace intro {
 	// The iteration function should be wrapped in a constructor...
 	llvm::Function *Function::buildFunction(CodeGenEnvironment *parent,const VariableSet &free)
 	{
-		bool returnsValue = myType->getReturnType()->find()->getKind()!=Type::Unit;
+		FunctionType *myFunc = (FunctionType *)myType.get();
+		bool returnsValue = myFunc->getReturnType()->find()->getKind()!=Type::Unit;
 		bool returnsGenerator = false;
-		if (returnsValue) returnsGenerator = myType->getReturnType()->find()->getKind()==Type::Generator;
+		if (returnsValue) returnsGenerator = myFunc->getReturnType()->find()->getKind()==Type::Generator;
 		llvm::FunctionType *FT = buildFunctionType(myType);
 		llvm::Function *F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, "function", TheModule.get());
 
@@ -1501,7 +1525,7 @@ namespace intro {
 		Expression::cgvalue dict=params[0]->codeGen(TmpB,env);
 		Expression::cgvalue key=params[1]->codeGen(TmpB,env);
 		// If key type in dict is variable, create code to write key rtt to dict.
-		Type *dict_type = params[0]->getType();
+		Type::pointer_t dict_type = params[0]->getType();
 		if (dict_type->getParameter(0)->getKind() == Type::Variable)
 		{
 			llvm::Function *setKeyTypeDictF = TheModule->getFunction("setKeyTypeDict");
@@ -1561,7 +1585,7 @@ namespace intro {
 	Expression::cgvalue Splice::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
 		// Generate the input sequence code.
-		intro::Type *pt=params.front()->getType()->find();
+		Type::pointer_t  pt=params.front()->getType()->find();
 		Expression::cgvalue source=params.front()->codeGen(TmpB,env);
 		// If "last" is used, generate value... need local env!
 		static cgcb_elem getlen[] =
@@ -1587,22 +1611,21 @@ namespace intro {
 			source.first
 		};
 		Expression::cgvalue length=genTypeChoiceOps(TmpB,env,source,pt,getlen,2,integer_t);
-		Type tI(Type::Integer);
 		llvm::Value *lastval=TmpB.CreateSub(length.first,llvm::ConstantInt::get(integer_t, 1,true),"lastitem");
-		lastval = createBoxValue(TmpB, env, lastval, &tI);
+		lastval = createBoxValue(TmpB, env, lastval, intro::Type::Integer);
 		// Add last (which is size-1) to fresh env for parameters
 		CodeGenEnvironment local(env);
 		CodeGenEnvironment::iterator localvar=local.createVariable(L"last");
 		//TmpB.CreateStore(lastval,localvar->second.address);
 		//TmpB.CreateStore(env->getRTT(&counter),localvar->second.rtt);
-		localvar->second.store(TmpB, lastval, env->getRTT(&counter));
+		localvar->second.store(TmpB, lastval, env->getRTT(counter));
 		Expression::cgvalue extras[2];
 		extras[0]=params[1]->codeGen(TmpB,&local);
-		extras[0].first = createUnboxValue(TmpB, env, extras[0].first, &tI);
+		extras[0].first = createUnboxValue(TmpB, env, extras[0].first, intro::Type::Integer);
 		if (params.size() == 3)
 		{
 			extras[1] = params[2]->codeGen(TmpB, &local);
-			extras[1].first = createUnboxValue(TmpB, env, extras[1].first, &tI);
+			extras[1].first = createUnboxValue(TmpB, env, extras[1].first, intro::Type::Integer);
 		}
 		else extras[1]=extras[0];
 		// Call the actual splice operator
@@ -1651,10 +1674,10 @@ namespace intro {
 		{
 		case Not:
 		{
-			intro::Type TBoolean(intro::Type::Boolean);
-			llvm::Value *val = createUnboxValue(TmpB, env, p.first, &TBoolean);
+			//intro::Type TBoolean(intro::Type::Boolean);
+			llvm::Value *val = createUnboxValue(TmpB, env, p.first, intro::Type::Boolean);
 			val = TmpB.CreateNot(p.first, "nottmp");
-			val = createBoxValue(TmpB, env, p.first, &TBoolean);
+			val = createBoxValue(TmpB, env, p.first, intro::Type::Boolean);
 			return makeRTValue(val, rtt::Boolean);
 		}
 		case Negate:
@@ -1664,23 +1687,21 @@ namespace intro {
 					{
 						rtt::Integer,
 						[&env](llvm::IRBuilder<> &builder,std::vector<llvm::Value*> &args){
-							intro::Type t(intro::Type::Integer);
-							llvm::Value *val=createUnboxValue(builder,env, args.front(),&t);
+							llvm::Value *val=createUnboxValue(builder,env, args.front(), intro::Type::Integer);
 							val=builder.CreateNeg(val,"intnegtmp");
-							return createBoxValue(builder, env, val, &t);
+							return createBoxValue(builder, env, val, intro::Type::Integer);
 						}
 					},
 					{
 						rtt::Real,
 						[&env](llvm::IRBuilder<> &builder,std::vector<llvm::Value*> &args) {
-							intro::Type t(intro::Type::Real);
-							llvm::Value *val = createUnboxValue(builder, env, args.front(), &t);
+							llvm::Value *val = createUnboxValue(builder, env, args.front(), intro::Type::Real);
 							val = builder.CreateFNeg(val, "relnegtmp");
-							return createBoxValue(builder, env, val, &t);
+							return createBoxValue(builder, env, val, intro::Type::Real);
 						}
 					}
 				};
-				intro::Type *pt=params.front()->getType(env);
+				Type::pointer_t pt=params.front()->getType(env);
 				return genTypeChoiceOps(TmpB,env,p,pt,ops,2);
 			}
 			break;
@@ -1692,9 +1713,8 @@ namespace intro {
 	{
 		Expression::cgvalue L = params.front()->codeGen(TmpB,env);
 		Expression::cgvalue R = params.back()->codeGen(TmpB,env);
-		intro::Type TBoolean(intro::Type::Boolean);
-		L.first=createUnboxValue(TmpB,env,L.first,&TBoolean);
-		R.first=createUnboxValue(TmpB,env,R.first,&TBoolean);
+		L.first=createUnboxValue(TmpB,env,L.first, intro::Type::Boolean);
+		R.first=createUnboxValue(TmpB,env,R.first, intro::Type::Boolean);
 		llvm::Value *retval=nullptr;
 		switch(op)
 		{
@@ -1702,17 +1722,17 @@ namespace intro {
 		case Or: retval=TmpB.CreateOr(L.first,R.first,"ortmp"); break;
 		case Xor: retval=TmpB.CreateXor(L.first,R.first,"xortmp"); break;
 		}
-		return makeRTValue(createBoxValue(TmpB,env,retval,&TBoolean),rtt::Boolean);
+		return makeRTValue(createBoxValue(TmpB,env,retval, intro::Type::Boolean),rtt::Boolean);
 	}
 	
 	Expression::cgvalue CompareOperation::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
 		
-		intro::Type *lt=params.front()->getType(env)->find();
-		intro::Type *rt=params.back()->getType(env)->find();
+		Type::pointer_t lt=params.front()->getType(env)->find();
+		Type::pointer_t rt=params.back()->getType(env)->find();
 		Expression::cgvalue lhs = params.front()->codeGen(TmpB,env);
 		Expression::cgvalue rhs = params.back()->codeGen(TmpB,env);
-		intro::Type TBoolean(intro::Type::Boolean);
+		Type::pointer_t TBoolean= Type::pointer_t(new intro::Type(intro::Type::Boolean));
 		// If we can specialize for number, we will do it ;) Because we can!
 		if (op==Greater || op==GreaterEqual || op==Less || op==LessEqual)
 		{
@@ -1765,7 +1785,7 @@ namespace intro {
 					rhs.first
 				};
 				llvm::Value *strrel=TmpB.CreateCall(strop, args, "strop");
-				strrel=createBoxValue(TmpB,env,strrel,&TBoolean);
+				strrel=createBoxValue(TmpB,env,strrel,TBoolean->getKind());
 				strresult=makeRTValue(strrel,rtt::Boolean);
 			}
 			
@@ -1808,7 +1828,7 @@ namespace intro {
 				default:
 					break;
 				}
-				numresult=genNumberOps(TmpB,env,lhs,lt,rhs,rt,int_op,&TBoolean,real_op,&TBoolean);
+				numresult=genNumberOps(TmpB,env,lhs,lt,rhs,rt,int_op,TBoolean,real_op,TBoolean);
 				numopblock=TmpB.GetInsertBlock();
 			}
 			
@@ -1853,7 +1873,7 @@ namespace intro {
 			default:
 				break;
 			}
-			return genNumberOps(TmpB,env,lhs,lt,rhs,rt,int_op,&TBoolean,real_op,&TBoolean);
+			return genNumberOps(TmpB,env,lhs,lt,rhs,rt,int_op,TBoolean,real_op,TBoolean);
 		}
 		// Give up and just go with the runtime function
 		llvm::Function *equalPolyF = TheModule->getFunction("equalPoly");
@@ -1866,26 +1886,26 @@ namespace intro {
 		llvm::Value *retval=TmpB.CreateCall(equalPolyF, args, "equalPolyOp");
 		if (op==Different)
 			retval=TmpB.CreateNot(retval,"notequal");
-		retval=createBoxValue(TmpB,env,retval,&TBoolean);
+		retval=createBoxValue(TmpB,env,retval,TBoolean->getKind());
 		return makeRTValue(retval,rtt::Boolean);
 		//return NULL;
 	}
 
 	Expression::cgvalue ArithmeticBinary::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
-		intro::Type *lhst=params[0]->getType()->find();
-		intro::Type *rhst=params[1]->getType()->find();
+		intro::Type::pointer_t lhst=params[0]->getType()->find();
+		intro::Type::pointer_t rhst=params[1]->getType()->find();
 		Expression::cgvalue lhs=params[0]->codeGen(TmpB,env);
 		Expression::cgvalue rhs=params[1]->codeGen(TmpB,env);
-		intro::Type int_type(intro::Type::Integer);
-		intro::Type real_type(intro::Type::Real);
+		intro::Type::pointer_t int_type = intro::Type::pointer_t(new intro::Type(intro::Type::Integer));
+		intro::Type::pointer_t real_type = intro::Type::pointer_t(new intro::Type(intro::Type::Real));
 		switch(op)
 		{
-		case Add: return genNumberOps(TmpB,env,lhs,lhst,rhs,rhst,gen_add_int,&int_type,gen_add_real,&real_type); break;
-		case Sub: return genNumberOps(TmpB,env,lhs,lhst,rhs,rhst,gen_sub_int,&int_type,gen_sub_real,&real_type); break;
-		case Mul: return genNumberOps(TmpB,env,lhs,lhst,rhs,rhst,gen_mul_int,&int_type,gen_mul_real,&real_type); break;
-		case Div: return genNumberOps(TmpB,env,lhs,lhst,rhs,rhst,gen_div_int,&int_type,gen_div_real,&real_type); break;
-		case Mod: return genNumberOps(TmpB,env,lhs,lhst,rhs,rhst,gen_rem_int,&int_type,gen_rem_real,&real_type); break;
+		case Add: return genNumberOps(TmpB,env,lhs,lhst,rhs,rhst,gen_add_int,int_type,gen_add_real,real_type); break;
+		case Sub: return genNumberOps(TmpB,env,lhs,lhst,rhs,rhst,gen_sub_int,int_type,gen_sub_real,real_type); break;
+		case Mul: return genNumberOps(TmpB,env,lhs,lhst,rhs,rhst,gen_mul_int,int_type,gen_mul_real,real_type); break;
+		case Div: return genNumberOps(TmpB,env,lhs,lhst,rhs,rhst,gen_div_int,int_type,gen_div_real,real_type); break;
+		case Mod: return genNumberOps(TmpB,env,lhs,lhst,rhs,rhst,gen_rem_int,int_type,gen_rem_real,real_type); break;
 		}
 		return makeRTValue(nullptr,rtt::Undefined);
 	}
@@ -1928,7 +1948,7 @@ namespace intro {
 
 	bool ValueStatement::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env) 
 	{
-		Type *t=value->getType(env);
+		intro::Type::pointer_t t=value->getType(env);
 		if (isInteractive && env->isGlobal())
 		{
 			std::wcout << name << L":";
@@ -1987,7 +2007,7 @@ namespace intro {
 			TheFunction->getBasicBlockList().push_back(alternatives[i]);
 			TmpB.SetInsertPoint(alternatives[i]);
 			Expression::cgvalue condition=iter->first->codeGen(TmpB,env);
-			llvm::Value *condval=createUnboxValue(TmpB,env,condition.first,&TBoolean);
+			llvm::Value *condval=createUnboxValue(TmpB,env,condition.first,intro::Type::Boolean);
 			env->decrementIntermediates(TmpB);
 			// Body block and conditional branch
 			llvm::BasicBlock *block=BasicBlock::Create(theContext, "if_body");
@@ -2021,7 +2041,7 @@ namespace intro {
 	{
 		// Create Codegen Env, and apply to body statements.
 		CodeGenEnvironment local(env);
-		std::list<Statement*>::iterator stmts;
+		std::vector<Statement*>::iterator stmts;
 		for (stmts=body.begin();stmts!=body.end();stmts++)
 		{
 			(*stmts)->codeGen(TmpB,&local);
@@ -2064,7 +2084,7 @@ namespace intro {
 		TmpB.SetInsertPoint(test);
 		Expression::cgvalue cond=condition->codeGen(TmpB,env);	
 		intro::Type TBoolean(intro::Type::Boolean);
-		cond.first=createUnboxValue(TmpB,env,cond.first,&TBoolean);
+		cond.first=createUnboxValue(TmpB,env,cond.first,intro::Type::Boolean);
 		env->decrementIntermediates(TmpB);
 		TmpB.CreateCondBr(cond.first,loopbody ,after); // go to returning NULL if the element is NULL
 		// The loop body comes next in it's block
@@ -2137,8 +2157,9 @@ namespace intro {
 			TmpB.SetInsertPoint(current);
 			// add bound fields from variants to local env
 			CodeGenEnvironment innerlocal(&local);
-			intro::RecordType *record = (*iter)->myRecord;
-			intro::RecordType::iterator fit;
+			intro::Type::pointer_t recptr=(*iter)->myRecord;
+			intro::RecordType *record = (intro::RecordType *)recptr.get();
+			intro::RecordType::member_iter fit;
 			for (fit=record->begin();fit!=record->end();++fit) // Must load from slot
 			{
 				std::vector<llvm::Value*> argsSlot {
@@ -2299,7 +2320,7 @@ namespace intro {
 		if (by == nullptr)
 		{
 			by_val.first = llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), 1, true);
-			by_val.first = createBoxValue(TmpB, env, by_val.first, &tI);
+			by_val.first = createBoxValue(TmpB, env, by_val.first, intro::Type::Integer);
 			by_val.second = env->getRTT(rtt::Integer);
 		}
 		else by_val=by->codeGen(TmpB,env);
@@ -2313,10 +2334,10 @@ namespace intro {
 		TheFunction->getBasicBlockList().push_back(loop);
 		llvm::Value *iter_val=TmpB.CreateLoad(from_ptr->second.address, "iterval");
 		llvm::Value *incr_val=TmpB.CreateLoad(by_ptr->second.address, "incrval");
-		iter_val = createUnboxValue(TmpB, env, iter_val, &tI);
-		incr_val = createUnboxValue(TmpB, env, incr_val, &tI);
+		iter_val = createUnboxValue(TmpB, env, iter_val, intro::Type::Integer);
+		incr_val = createUnboxValue(TmpB, env, incr_val, intro::Type::Integer);
 		iter_val=TmpB.CreateAdd(iter_val, incr_val,"incr_iter");
-		iter_val = createBoxValue(TmpB, env, iter_val, &tI);
+		iter_val = createBoxValue(TmpB, env, iter_val, intro::Type::Integer);
 		TmpB.CreateStore(iter_val,from_ptr->second.address);
 		TmpB.CreateBr(test);
 		
@@ -2324,9 +2345,9 @@ namespace intro {
 		TmpB.SetInsertPoint(test);
 		TheFunction->getBasicBlockList().push_back(test);
 		iter_val=TmpB.CreateLoad(from_ptr->second.address, "iterval");
-		iter_val = createUnboxValue(TmpB, env, iter_val, &tI);
+		iter_val = createUnboxValue(TmpB, env, iter_val, intro::Type::Integer);
 		llvm::Value *last_val=TmpB.CreateLoad(to_ptr->second.address, "lastval");
-		last_val = createUnboxValue(TmpB, env, last_val, &tI);
+		last_val = createUnboxValue(TmpB, env, last_val, intro::Type::Integer);
 		llvm::Value *notdone=TmpB.CreateICmpSLE(iter_val,last_val,"condpassed");
 		TmpB.CreateCondBr(notdone,body,exit);
 		
@@ -2445,7 +2466,7 @@ namespace intro {
 		{
 			if (op.iscondition) continue;
 			std::wstring name=op.generator->getVariableName();
-			Type *type=op.generator->getVariableType();
+			intro::Type::pointer_t type=op.generator->getVariableType();
 			CodeGenEnvironment::iterator iter=local.createVariable(name);
 			TmpB.CreateStore(env->getRTT(type),iter->second.rtt);
 		}
@@ -2459,7 +2480,7 @@ namespace intro {
 				llvm::BasicBlock *postcondbody = llvm::BasicBlock::Create(theContext, "postcondbody");
 				Expression::cgvalue cond=generators[i].condition->codeGen(TmpB,&local);
 				// If the condition is violated, jump to the current loop's loop start
-				TmpB.CreateCondBr(createUnboxValue(TmpB,env,cond.first,&TBoolean),postcondbody,lastgen->loop);
+				TmpB.CreateCondBr(createUnboxValue(TmpB,env,cond.first, intro::Type::Boolean),postcondbody,lastgen->loop);
 				TheFunction->getBasicBlockList().push_back(postcondbody);
 				TmpB.SetInsertPoint(postcondbody);
 			}
@@ -2524,7 +2545,7 @@ namespace intro {
 	{
 		CodeGenEnvironment module_env(env,CodeGenEnvironment::GlobalScope);
 		// Iterate over the statements comprising the module body and infer their types.
-		std::list<Statement*>::iterator stmt;
+		std::vector<Statement*>::iterator stmt;
 		bool success = true;
 		for (stmt = contents.begin();stmt != contents.end();stmt++)
 		{
@@ -2542,7 +2563,7 @@ namespace intro {
 			env->getCurrentModule() : CodeGenModule::getRoot();
 		CodeGenModule *myself = base->getRelativePath(path);
 		// Iterate over interface and copy exports to the module 
-		std::list<ExportDeclaration*>::iterator eit;
+		std::vector<ExportDeclaration*>::iterator eit;
 		for (eit = exports.begin();eit != exports.end();eit++)
 		{
 			CodeGenEnvironment::iterator exportvalue = module_env.find((*eit)->getName());

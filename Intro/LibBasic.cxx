@@ -2,6 +2,8 @@
 #include "LibBasic.h"
 #include <wchar.h>
 
+std::vector<LibLoader*> LibLoader::instances;
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -208,46 +210,48 @@ MKCLOSURE(stringTrim, stringTrim_)
 #endif
 
 namespace {
-	intro::Type integer_type(intro::Type::Integer);
-	intro::Type real_type(intro::Type::Real);
+	//intro::Type::pointer_t integer_type(new intro::Type(intro::Type::Integer));
+	intro::Type::pointer_t integer_type=std::make_shared<intro::Type>(intro::Type::Integer);
+	//intro::Type::pointer_t real_type(new intro::Type(intro::Type::Real));
+	intro::Type::pointer_t real_type = std::make_shared<intro::Type>(intro::Type::Real);
 	//intro::VariantType maybe_string_type(&string_type);
-	intro::FunctionType mathToRealType(&integer_type, &real_type);
+	intro::Type::pointer_t mathToRealType = intro::Type::pointer_t(new intro::FunctionType(integer_type, real_type));
 
 	REGISTER_MODULE(math)
-		EXPORT(L"toReal", "mathToReal", &mathToRealType)
+		EXPORT(L"toReal", "mathToReal", mathToRealType)
 	CLOSE_MODULE
 
-	intro::TypeVariable genvar(L"?value");
-	intro::Type gentoptype(intro::Type::Generator, &genvar);
-	intro::Type boolean(intro::Type::Boolean);
-	intro::VariantType maybe_genvar_type(&genvar);
-	intro::FunctionType genNextType(&gentoptype, &boolean);
-	intro::FunctionType genGetType(&gentoptype, &maybe_genvar_type);
+	intro::Type::pointer_t genvar = intro::Type::pointer_t(new intro::TypeVariable(L"?value"));
+	intro::Type::pointer_t gentoptype= intro::Type::pointer_t(new intro::Type(intro::Type::Generator, genvar));
+	intro::Type::pointer_t boolean= intro::Type::pointer_t(new intro::Type(intro::Type::Boolean));
+	intro::Type::pointer_t maybe_genvar_type= intro::Type::pointer_t(new intro::VariantType(genvar));
+	intro::Type::pointer_t genNextType= intro::Type::pointer_t(new intro::FunctionType(gentoptype, boolean));
+	intro::Type::pointer_t genGetType= intro::Type::pointer_t(new intro::FunctionType(gentoptype, maybe_genvar_type));
 
 	REGISTER_MODULE(gen)
-		EXPORT(L"next", "genNext", &genNextType)
-		EXPORT(L"get", "genGet", &genGetType)
+		EXPORT(L"next", "genNext", genNextType)
+		EXPORT(L"get", "genGet", genGetType)
 	CLOSE_MODULE
 
-	intro::Type unit_type(intro::Type::Unit);
-	intro::TypeVariable elemvar(L"?element");
-	intro::Type sequence_type(intro::Type::Sequence, &elemvar);
-	intro::FunctionType seqSizeType(&sequence_type, &integer_type);
-	intro::FunctionType seqAppendToType(&sequence_type, &elemvar, &sequence_type);
-	intro::VariantType maybe_elem_type(&elemvar);
-	intro::FunctionType seqFirstType(&sequence_type, &maybe_elem_type);
+	intro::Type::pointer_t unit_type = intro::Type::pointer_t(new intro::Type(intro::Type::Unit));
+	intro::Type::pointer_t elemvar = intro::Type::pointer_t(new intro::TypeVariable(L"?element"));
+	intro::Type::pointer_t sequence_type = intro::Type::pointer_t(new intro::Type(intro::Type::Sequence, elemvar));
+	intro::Type::pointer_t seqSizeType= intro::Type::pointer_t(new intro::FunctionType (sequence_type, integer_type));
+	intro::Type::pointer_t seqAppendToType= intro::Type::pointer_t(new intro::FunctionType (sequence_type, elemvar, sequence_type));
+	intro::Type::pointer_t maybe_elem_type = intro::Type::pointer_t(new intro::VariantType(elemvar));
+	intro::Type::pointer_t seqFirstType = intro::Type::pointer_t(new intro::FunctionType(sequence_type, maybe_elem_type));
 
 	REGISTER_MODULE(seq)
-		EXPORT(L"size", "seqSize", &seqSizeType)
-		EXPORT(L"appendTo", "seqAppendTo", &seqAppendToType)
-		EXPORT(L"first", "seqFirst", &seqFirstType)
+		EXPORT(L"size", "seqSize", seqSizeType)
+		EXPORT(L"appendTo", "seqAppendTo", seqAppendToType)
+		EXPORT(L"first", "seqFirst", seqFirstType)
 	CLOSE_MODULE
 
-	intro::Type string_type(intro::Type::String);
-	intro::FunctionType stringTransform(&string_type, &string_type, &string_type);
+	intro::Type::pointer_t  string_type =intro::Type::pointer_t(new intro::Type(intro::Type::String));
+	intro::Type::pointer_t  stringTransform= intro::Type::pointer_t (new intro::FunctionType (string_type, string_type, string_type));
 	REGISTER_MODULE(string)
-		EXPORT(L"trimLeft", "stringTrimLeft", &stringTransform)
-		EXPORT(L"trimRight", "stringTrimRight", &stringTransform)
-		EXPORT(L"trim", "stringTrim", &stringTransform)
+		EXPORT(L"trimLeft", "stringTrimLeft", stringTransform)
+		EXPORT(L"trimRight", "stringTrimRight", stringTransform)
+		EXPORT(L"trim", "stringTrim", stringTransform)
 	CLOSE_MODULE
 }

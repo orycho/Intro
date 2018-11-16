@@ -13,7 +13,7 @@ class ValueStatement;
 /// A block statement is used to create a local sub-environement.
 class BlockStatement : public Statement
 {
-	std::list<Statement*> body;
+	std::vector<Statement*> body;
 
 public:
 
@@ -22,7 +22,7 @@ public:
 
 	~BlockStatement()
 	{
-		std::list<Statement*>::iterator iter;
+		std::vector<Statement*>::iterator iter;
 		for (iter=body.begin();iter!=body.end();iter++)
 			delete *iter;
 	}
@@ -33,7 +33,7 @@ public:
 
 	virtual void print(std::wostream &s)
 	{
-		std::list<Statement*>::iterator stmts;
+		std::vector<Statement*>::iterator stmts;
 		for (stmts=body.begin();stmts!=body.end();stmts++)
 		{
 			(*stmts)->print(s);
@@ -42,16 +42,16 @@ public:
 	}
 	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
 	{
-		std::list<Statement*>::iterator stmts;
+		std::vector<Statement*>::iterator stmts;
 		// TODO: Capture this variable?!
 		for (stmts=body.begin();stmts!=body.end();stmts++)
 			(*stmts)->getFreeVariables(free,bound);
 	}
 
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)
 	{
-		std::list<Statement*>::iterator stmts;
+		std::vector<Statement*>::iterator stmts;
 		for (stmts=body.begin();stmts!=body.end();stmts++)
 			(*stmts)->collectFunctions(funcs);
 	}
@@ -71,7 +71,7 @@ public:
 	virtual size_t countVariableStmts(void)
 	{
 		size_t retval=0;
-		std::list<Statement*>::iterator stmts;
+		std::vector<Statement*>::iterator stmts;
 		for (stmts=body.begin();stmts!=body.end();stmts++)
 			retval+=(*stmts)->countVariableStmts();
 		return retval;
@@ -86,9 +86,9 @@ public:
 	struct Parameter
 	{
 		std::wstring name;
-		Type *type;
+		Type::pointer_t type;
 
-		Parameter(const std::wstring &n,Type *t) : name(n), type(t) {};
+		Parameter(const std::wstring &n, Type::pointer_t t) : name(n), type(t) {};
 
 		void print(std::wostream &s)
 		{
@@ -98,19 +98,19 @@ public:
 		}
 	};
 
-	typedef std::list<Parameter> ParameterList;
+	typedef std::vector<Parameter> ParameterList;
 private:
 	ParameterList parameters; /// The function's parameters, for which types are inferred.
 	BlockStatement *body; /// The function body.
-	Type *type; ///< The return type of the function.
+	Type::pointer_t type; ///< The return type of the function.
 	bool isGenerator; ///< True if this is a generator using yield statements.
-	FunctionType *myType;
+	Type::pointer_t myType;
 	ValueStatement *parentvar; ///< If not, this points to the var statement holding the function expressnion.
 
 	Type unit_type;
 
 protected:
-	virtual Type *makeType(Environment *env, ErrorLocation *errors);
+	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors);
 
 	/// This method constructs the actual function body. Called by codeGen to have that decluttered.
 	/** We pass in the free vars as an array in order to guarantee identical ordering with
@@ -123,20 +123,20 @@ public:
 
 	~Function()
 	{
-		std::list<Statement*>::iterator sit;
+		std::vector<Statement*>::iterator sit;
 		delete body;
 		ParameterList::iterator pit;
 		//for (pit=parameters.begin();pit!=parameters.end();pit++)
 		//	deleteCopy(pit->type);
-		if (myType!=NULL) delete myType;
+		//if (myType!=NULL) delete myType;
 	};
 
 	void setParentVar(ValueStatement *pv) { parentvar=pv; };
 	inline ParameterList &getParameters(void) { return parameters; };
 	
 	inline void setBody(BlockStatement *s) { body=s; };
-	inline Type *getType(void) { return type; };
-	inline void setType(Type *t) { type=t; };
+	inline Type::pointer_t getType(void) { return type; };
+	inline void setType(Type::pointer_t t) { type=t; };
 
 	virtual void print(std::wostream &s)
 	{
@@ -173,7 +173,7 @@ public:
 	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
 	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
 
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)
 	{
 		funcs.push_back(this);
 		std::list<Statement*>::iterator bodyiter;
@@ -242,7 +242,7 @@ public:
 		value->getFreeVariables(free,bound);
 	};
 
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)
 	{
 		value->collectFunctions(funcs);
 	};
@@ -330,7 +330,7 @@ public:
 	};
 
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)
 	{
 		iterator iter;
 		for (iter=conditions.begin();iter!=conditions.end();iter++)
@@ -372,11 +372,11 @@ public:
 	struct Case
 	{
 		std::wstring tag; ///< The tag of the variant wanted
-		std::list<std::wstring> params; ///< The list of labels that are extracted from the variant
+		std::vector<std::wstring> params; ///< The list of labels that are extracted from the variant
 		BlockStatement *body;
 		size_t  line, col;
 
-		RecordType *myRecord;
+		Type::pointer_t myRecord;
 
 		Case(size_t l, size_t c)
 			: line(l)
@@ -387,17 +387,17 @@ public:
 
 		~Case()
 		{
-			if (myRecord!=NULL) delete myRecord;
+			//if (myRecord!=NULL) delete myRecord;
 			delete body;
 		};
 
-		bool makeType(VariantType *input,Environment *env, ErrorLocation *errors);
+		bool makeType(Type::pointer_t input,Environment *env, ErrorLocation *errors);
 
 		void print(std::wostream &s)
 		{
 			s << tag << " ";
-			std::list<std::wstring>::iterator param_iter; 
-			std::list<Statement*>::iterator body_iter;
+			std::vector<std::wstring>::iterator param_iter; 
+			std::vector<Statement*>::iterator body_iter;
 			for (param_iter=params.begin();param_iter!=params.end();param_iter++)
 				s << *param_iter << " ";
 			s << "then\n";
@@ -406,17 +406,17 @@ public:
 
 		void getFreeVariables(VariableSet &free,VariableSet &bound)
 		{
-			std::list<std::wstring>::iterator iter;
+			std::vector<std::wstring>::iterator iter;
 			VariableSet bound2(bound.begin(),bound.end());
 			for (iter=params.begin();iter!=params.end();iter++)
 			{
-				bound2.insert(std::make_pair(*iter,this->myRecord->findMember(*iter)->second));
+				bound2.insert(std::make_pair(*iter,((RecordType*)this->myRecord.get())->findMember(*iter)->second));
 			}
 			body->getFreeVariables(free,bound2);
 		};
 
 		//virtual bool codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-		void collectFunctions(std::list<intro::Function*> &funcs)
+		void collectFunctions(std::vector<intro::Function*> &funcs)
 		{
 			std::list<Statement*>::iterator iter;
 			body->collectFunctions(funcs);
@@ -430,7 +430,7 @@ private:
 
 	Expression *caseof;
 	caselist cases;
-	VariantType *handled;
+	Type::pointer_t handled;
 
 public:
 
@@ -440,7 +440,7 @@ public:
 	~CaseStatement()
 	{
 		delete caseof;
-		if (handled != nullptr) delete handled;
+		//if (handled != nullptr) delete handled;
 		iterator iter;
 		for (iter=cases.begin();iter!=cases.end();iter++)
 		{
@@ -481,7 +481,7 @@ public:
 	};
 
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)
 	{
 		iterator iter;
 		for (iter=cases.begin();iter!=cases.end();iter++)
@@ -571,7 +571,7 @@ public:
 	};
 
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)
 	{
 		generators->collectFunctions(funcs);
 		body->collectFunctions(funcs);
@@ -617,7 +617,7 @@ public:
 		body->getFreeVariables(free,bound);
 	};
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)
 	{
 		condition->collectFunctions(funcs);
 		body->collectFunctions(funcs);
@@ -675,7 +675,7 @@ public:
 	{
 	};
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB, CodeGenEnvironment *env);
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)
 	{
 	};
 
@@ -715,7 +715,7 @@ public:
 		if (expr!=nullptr) expr->getFreeVariables(free,bound);
 	};
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)
 	{
 		expr->collectFunctions(funcs);
 	};
@@ -737,7 +737,7 @@ class YieldStatement : public Statement
 {
 	Expression *expr;
 
-	Type *myType;
+	Type::pointer_t myType;
 
 public:
 	YieldStatement(int l,int p,Expression *e) : Statement(l,p), expr(e), myType(NULL)
@@ -746,7 +746,7 @@ public:
 	~YieldStatement()
 	{
 		delete expr;
-		delete myType;
+		//delete myType;
 	};
 
 	Expression *getExpression(void) { return expr; };
@@ -766,7 +766,7 @@ public:
 	};
 
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)
 	{
 		if (expr!=nullptr) expr->collectFunctions(funcs);
 	};
@@ -816,7 +816,7 @@ public:
 	};
 
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)
 	{
 		expr->collectFunctions(funcs);
 	};
@@ -832,18 +832,18 @@ public:
 class ImportStatement  : public Statement
 {
 	bool relative;
-	std::list<std::wstring> path;
+	std::vector<std::wstring> path;
 	
 	void printPath(std::wostream &s)
 	{
 		if (!relative) s << L"::";
-		std::list<std::wstring>::iterator iter = path.begin();
+		std::vector<std::wstring>::iterator iter = path.begin();
 		s << *iter;
 		for (iter++;iter != path.end();iter++) s << L"::" << *iter;
 	};
 
 public:
-	ImportStatement(int l,int p,bool rel,std::list<std::wstring> &path) : Statement(l,p)
+	ImportStatement(int l,int p,bool rel,std::vector<std::wstring> &path) : Statement(l,p)
 	{
 		this->relative=rel;
 		this->path=path;
@@ -867,7 +867,7 @@ public:
 	};
 
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)
 	{
 	};
 	
@@ -903,7 +903,7 @@ public:
 	virtual void getFreeVariables(VariableSet &free, VariableSet &bound)
 	{};
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB, CodeGenEnvironment *env);
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)
 	{ };
 
 	virtual size_t countVariableStmts(void)

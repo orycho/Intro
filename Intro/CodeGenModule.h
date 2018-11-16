@@ -44,7 +44,7 @@ public:
 	}
 	
 	/// Return the module with the given path, creates all intermediate if necessary.
-	CodeGenModule *getRelativePath(std::list<std::wstring> path)
+	CodeGenModule *getRelativePath(std::vector<std::wstring> path)
 	{
 		CodeGenModule *current = this;
 		for (const auto module_name : path)
@@ -60,7 +60,7 @@ public:
 		return current;
 	}
 
-	static CodeGenModule *getAbsolutePath(std::list<std::wstring> path)
+	static CodeGenModule *getAbsolutePath(std::vector<std::wstring> path)
 	{
 		return getRoot()->getRelativePath(path);
 	}

@@ -10,6 +10,7 @@
 #include <vector>
 #include <memory>
 #include <iostream>
+#include <memory>
 
 //#include "ProductList.h"
 #include "RTType.h"
@@ -21,13 +22,8 @@ class Type;
 class TypeVariable;
 class OpaqueType;
 
-// Collect all types in a type (e.g. type parameters and labels in records have types)
-void collectAllTypes(Type *t, std::set<Type*> &items,bool deletables=false);
-/// safely delete a type
-void deleteCopy(Type *type);
-void deleteExcept(Type *t,std::set<Type*> exclude);
 
-typedef std::set<TypeVariable*> TypeVariableSet;
+//typedef std::set<TypeVariable*> TypeVariableSet;
 
 //typedef ::std::tr1::shared_ptr<Type> pType;
 
@@ -118,13 +114,16 @@ inline bool isLessOrEqual(PartialOrder value)
 	@see Environment
 	@see TypeGraph
 */
-class Type
+class Type : public std::enable_shared_from_this<Type>
 {
 public:
 	/// TypeVariableMaps are used in several operations that need to preserve a types internal structure, e.g. copy.
-	typedef std::map<Type*,Type*> TypeVariableMap;
-	typedef std::vector<Type*>::iterator iterator;
-	typedef std::vector<Type*>::const_iterator const_iterator;
+	typedef std::shared_ptr<Type> pointer_t;
+	typedef std::weak_ptr<Type> weakptr_t;
+	typedef std::unordered_set<pointer_t> set_t;
+	typedef std::map<pointer_t, pointer_t> TypeVariableMap;
+	typedef std::vector<pointer_t>::iterator iterator;
+	typedef std::vector<pointer_t>::const_iterator const_iterator;
 
 	/// All kinds of type known to the language
 	enum Types : unsigned int
@@ -167,71 +166,70 @@ private:
 
 	//static Type _error;
 
-	Type *parent; ///< For union/find algorithm, holds representatve if not this.
+	pointer_t parent; ///< For union/find algorithm, holds representatve if not this.
 	int rank;	///< For union/find algorithm.
 
-	std::vector<Type*> params;
+	std::vector<pointer_t> params;
 
 protected:
 	/// Derived type specific computation of the unification of two types, always called via public driver
-	virtual bool internalUnify(Type *other,bool specialize);
+	virtual bool internalUnify(pointer_t other,bool specialize);
 	/// Derived type specific copy, recurse to contained types via "substitute" to retain existing conv mapping.
-	virtual Type *internalCopy(TypeVariableMap &conv);
+	virtual pointer_t internalCopy(TypeVariableMap &conv);
 	/// Derived type specific check for subtype relation between two types - always called via public driver.
-	virtual PartialOrder internalCheckSubtype(Type *other);
+	virtual PartialOrder internalCheckSubtype(pointer_t other);
 	/// This types supertype. For concrete types like int and list, it's this. For variables, it's anything.
-	Type *super;
+	pointer_t super;
 
-	void setParent(Type *p) { parent=p; };
+	void setParent(pointer_t p) { parent=p; };
 
 	// TypeGraph traversal mappings for parameters... memory management!
 	//std::vector<Type*> currentMapping;
 	std::vector<Type*> needDeletion;
-	std::set<Type*> excludeMapping;
+	Type::set_t excludeMapping;
 
 
 public:
 
 
-	Type(Types t,unsigned int flags_=Readable) : type(t), flags(flags_)
+	Type(Types t, unsigned int flags_ = Readable) 
+		: type(t)
+		, flags(flags_)
 	{
-		parent=this;
-		super=this;
-		rank=0; 
-	};
-
-	Type(Types t,Type *param0,unsigned int flags_=Readable) : type(t), flags(flags_)
-	{
-		parent=this;
-		super=this;
 		rank = 0;
-		addParameter(param0);
-	};
+	}
 
-	Type(Types t,iterator &paramstart,iterator &paramend,unsigned int flags_=Readable) : type(t), flags(flags_)
+	Type(Types t, pointer_t param0, unsigned int flags_ = Readable) : Type(t, flags_)
 	{
-		params.insert(params.begin(),paramstart,paramend);
-		parent=this;
-		super=this;
-		rank=0; 
-	};
+		addParameter(param0);
+	}
+
+	Type(Types t, iterator &paramstart, iterator &paramend, unsigned int flags_ = Readable) : Type(t, flags_)
+	{
+		params.insert(params.begin(), paramstart, paramend);
+	}
 
 	virtual ~Type();
 
 	inline iterator begin(void){ return params.begin(); };
 	inline iterator end(void) { return params.end(); };
-	inline void addParameter(Type *p) { params.push_back(p); };
+	inline void addParameter(pointer_t p) { params.push_back(p); };
 	inline size_t parameterCount(void) { return params.size(); };
-	inline Type *getFirstParameter(void) { return params.front(); };
-	inline Type *getParameter(size_t index) { return params[index]; };
+	inline pointer_t getFirstParameter(void) { return params.front(); };
+	inline pointer_t getParameter(size_t index) { return params[index]; };
 	bool isAbstract(void);
 
 	/// The kind of a type, as defined by the Types enumeration, is used to determine subclass, quickly compare inequality for types, and more...
 	inline Types getKind(void) { return type; };
 	/// Returns a pointer to this types supertype (constraint).To convert a type to it's supertype @see TypeGraph::getParentType().
-	inline Type *getSupertype(void) { return super; };
+	inline pointer_t getSupertype(void) 
+	{ 
+		if (super.get()==nullptr)
+			return shared_from_this();
+		return super; 
+	};
 	/// Assign a new (usually more restrictive) supertype to the type.
-	inline void replaceSupertype(Type *t)
+	inline void replaceSupertype(pointer_t t)
 	{
 		//if (super != this) deleteCopy(super);
 		//if (t != nullptr) super = t->copy();
@@ -248,20 +246,20 @@ public:
 	inline bool isWritable(void) { return (flags&Writable)==Writable; };
 	/// Fill a vector with any parameter type this type has, including non-variables!
 	
-	inline void getParameterTypes(std::vector<Type*> &parameters)
+	inline void getParameterTypes(std::vector<pointer_t > &parameters)
 	{
 		parameters=params;
 	}
 	
-	inline void getParameterTypes(std::set<Type*> &parameters)
+	inline void getParameterTypes(std::set<pointer_t > &parameters)
 	{
 		parameters.insert(params.begin(),params.end());
 	}
 
 	/// Unify this type with anther, return false if not possible
-	bool unify(Type *b,bool specialize=false);
+	bool unify(pointer_t b,bool specialize=false);
 	/// Return a copy of the type
-	inline Type *copy()
+	inline pointer_t copy()
 	{
 		TypeVariableMap conv;
 		return find()->internalCopy(conv);
@@ -270,26 +268,26 @@ public:
 	/** Variables not covered by conv will be mapped to fresh variables and added to the mapping.
 		(Otherwise, the types do not stay consistend.)
 	*/
-	inline Type *substitute(TypeVariableMap &conv) 
+	inline pointer_t substitute(TypeVariableMap &conv)
 	{
 		return find()->internalCopy(conv); 
 	};
 	/// Check the subtype relation between this type and another
-	PartialOrder checkSubtype(Type *other);
+	PartialOrder checkSubtype(pointer_t other);
 
 	/// Find the representative for this type.
 	/** Used during unification, the representative is the most general type that fullfills
 		all accumulated constraints on the use of the type.
 		Also propagates access flags to parent.
 	*/
-	inline Type *find()
+	inline pointer_t find()
 	{
-		if (parent==this) return this;
-		else 
+		if (parent.get()==nullptr) return shared_from_this();
+		else
 		{
-			Type *r=parent=parent->find();
-			r->setAccessFlags(getAccessFlags());
-			return r;
+			parent = parent->find();
+			parent->setAccessFlags(getAccessFlags());
+			return parent;
 		}
 	}
 
@@ -321,7 +319,7 @@ public:
 	/// Print the type to the stream, overloaded by polytypes.
 	virtual void print(std::wostream &s);
 
-	virtual void getVariables(TypeVariableSet &result)
+	virtual void getVariables(set_t &result)
 	{ 
 		for (iterator iter=begin();iter!=end();iter++)
 		{
@@ -330,36 +328,37 @@ public:
 	}
 };
 
+// Collect all types in a type (e.g. type parameters and labels in records have types)
+void collectAllTypes(Type::pointer_t t, Type::set_t &items, bool deletables = false);
+/// safely delete a type
+//void deleteCopy(Type::pointer_t type);
+//void deleteExcept(Type::pointer_t t, std::set<Type*> exclude);
 
 /// Variables are in general universially quantified
 class TypeVariable : public Type
 {
 	std::wstring name;
-	Type top;
-	std::vector<Type*> ownedtypes;
+	std::vector<pointer_t> ownedtypes;
 protected:
-	virtual Type *internalCopy(TypeVariableMap &conv);
+	virtual Type::pointer_t internalCopy(TypeVariableMap &conv);
 public:
 	TypeVariable(const std::wstring &n)
 		: Type(Type::Variable)
 		, name(n)
-		, top(Type::Top)
 	{ 
-		super = &top;
+		super = std::make_shared<Type>(Type::Top);
 	};
 
-	TypeVariable(const std::wstring &n, Type *sup)
+	TypeVariable(const std::wstring &n, pointer_t sup)
 		: Type(Type::Variable)
 		, name(n+L"sup")
-		, top(Type::Top)
 	{
 		super = sup;
 	};
 
-	TypeVariable(const std::wstring &n,Type *sup, TypeVariableMap &conv)
+	TypeVariable(const std::wstring &n, pointer_t sup, TypeVariableMap &conv)
 		: Type(Type::Variable)
 		, name(n+L"subst")
-		, top(Type::Top)
 	{ 
 		super = sup;
 	};
@@ -367,23 +366,23 @@ public:
 	TypeVariable(TypeVariable *other) 
 		: Type(Type::Variable)
 		, name(other->getName() + L"copy")
-		, top(Type::Top)
 	{
-		Type *copy=other->super->copy();
+		pointer_t copy=other->getSupertype()->copy();
 		//if (copy->getKind() != Type::Variable)
-			ownedtypes.push_back(copy);
+			//ownedtypes.push_back(copy);
 		super = copy;
 	};
 
 	~TypeVariable()
 	{
-		for (auto iter = ownedtypes.begin();iter != ownedtypes.end();++iter)
-			deleteCopy(*iter);
+		//for (auto iter = ownedtypes.begin();iter != ownedtypes.end();++iter)
+			//deleteCopy(*iter);
 	}
 
 	inline bool isStaticSuper(void)
 	{
-		return super == &top;
+		//return super == &top;
+		return false;
 	}
 
 	const std::wstring getName(void) { return name; };
@@ -391,13 +390,14 @@ public:
 	virtual void print(std::wostream &s)
 	{
 		s << name << "<:";
-		super->find()->print(s);
+		getSupertype()->find()->print(s);
 	};
 
-	virtual void getVariables(TypeVariableSet &set)
+	virtual void getVariables(set_t &set)
 	{
-		TypeVariable *buf=dynamic_cast<TypeVariable*>(find());
-		if (buf!=NULL) set.insert(buf);
+		pointer_t buf = find();
+		if (buf.get() == nullptr) return;
+		if (buf->getKind()==Type::Variable) set.insert(find());
 	};
 
 	virtual rtt::RTType getRTKind(void) 
@@ -413,7 +413,7 @@ class ErrorType : public Type
 	size_t line, col;
 protected:
 	/// Internal variant of Return a copy of this type, calls during recursion
-	virtual Type *internalCopy(TypeVariableMap &conv);
+	virtual pointer_t internalCopy(TypeVariableMap &conv);
 	/// Check the subtype relation between two types - always called via public driver
 	//virtual PartialOrder internalCheckSubtype(Type *other)0;
 
@@ -431,44 +431,44 @@ public:
 		s << "Type Error ("<< line << ", "<< col <<"): " << message << '!' << std::endl;
 	};
 
-	virtual void getVariables(TypeVariableSet &)
+	virtual void getVariables(set_t &)
 	{
 	};
 };
 /// Function types internally pretend that the parameters are (formally) a tuple.
 class FunctionType : public Type
 {
-	Type *rettype;
+	pointer_t rettype;
 protected:
 	/// Compute the unification of two types, always called via public driver. This one handles simple (mono) types.
-	virtual bool internalUnify(Type *other,bool specialize);
+	virtual bool internalUnify(pointer_t other,bool specialize);
 	/// Internal variant of Return a copy of this type, calls during recursion
-	virtual Type *internalCopy(TypeVariableMap &conv);
+	virtual pointer_t internalCopy(TypeVariableMap &conv);
 	/// Check the subtype relation between two types - always called via public driver
-	virtual PartialOrder internalCheckSubtype(Type *other);
+	virtual PartialOrder internalCheckSubtype(pointer_t other);
 
 public: 
-	FunctionType(const std::list<Type*> &p,Type *rt) : Type(Type::Function)
+	FunctionType(const std::vector<Type::pointer_t> &p, pointer_t rt) : Type(Type::Function)
 	{
-		std::list<Type*>::const_iterator iter;
+		std::vector<Type::pointer_t>::const_iterator iter;
 		for (iter=p.begin();iter!=p.end();iter++)
 			addParameter((*iter)->find());
 		rettype=rt->find();
 	};
 
-	FunctionType(Type *p1, Type *rt) : Type(Type::Function)
+	FunctionType(pointer_t p1, pointer_t rt) : Type(Type::Function)
 	{
 		addParameter(p1->find());
 		rettype = rt->find();
 	};
 
-	FunctionType(Type *p1, Type *p2, Type *rt) : Type(Type::Function)
+	FunctionType(pointer_t p1, pointer_t p2, pointer_t rt) : Type(Type::Function)
 	{
 		addParameter(p1->find());
 		addParameter(p2->find());
 		rettype = rt->find();
 	}
-	FunctionType(Type *rt) : Type(Type::Function)
+	FunctionType(pointer_t rt) : Type(Type::Function)
 	{
 		rettype=rt->find();
 	};
@@ -490,8 +490,8 @@ public:
 	{
 	};
 
-	inline void setReturnType(Type *r) { rettype=r; };
-	inline Type *getReturnType(void) { return rettype; };
+	inline void setReturnType(pointer_t r) { rettype=r; };
+	inline pointer_t getReturnType(void) { return rettype; };
 
 	virtual void print(std::wostream &s)
 	{
@@ -514,7 +514,7 @@ public:
 		
 	};
 
-	virtual void getVariables(TypeVariableSet &set)
+	virtual void getVariables(set_t &set)
 	{
 		for (iterator i=begin();i!=end();i++)
 			(*i)->find()->getVariables(set);
@@ -528,35 +528,36 @@ public:
 /// record types are composed of the identifiers and types of all fields.
 class RecordType : public Type
 {
-	std::map<std::wstring,Type*> members;
-	RecordType *merged;
+	std::map<std::wstring, pointer_t> members;
+	pointer_t merged;
 protected:
 	/// Compute the unification of two types, always called via public driver
-	virtual bool internalUnify(Type *other,bool specialize);
+	virtual bool internalUnify(pointer_t other,bool specialize);
 	/// Internal variant of Return a copy of this type, calls during recursion
-	virtual Type *internalCopy(TypeVariableMap &conv);
+	virtual pointer_t internalCopy(TypeVariableMap &conv);
 	/// Check the subtype relation between two types - always called via public driver
-	virtual PartialOrder internalCheckSubtype(Type *other);
+	virtual PartialOrder internalCheckSubtype(pointer_t other);
 public:
 
-	typedef std::map<std::wstring,Type*> membermap;
+	typedef std::map<std::wstring, pointer_t> membermap;
+	typedef std::map<std::wstring, pointer_t>::iterator member_iter;
 
-	RecordType(const std::map<std::wstring,Type*> &m) : Type(Type::Record), merged(nullptr)
+	RecordType(const std::map<std::wstring, pointer_t> &m) : Type(Type::Record)//, merged(nullptr)
 	{
 		members=m;
 	};
 
-	RecordType() : Type(Type::Record), merged(nullptr)
+	RecordType() : Type(Type::Record)//, merged(nullptr)
 	{
 	};
 
 	~RecordType()
 	{
-		if (merged != nullptr) delete merged;
+		//if (merged != nullptr) delete merged;
 	}
-	inline bool setMerged(RecordType *rt)
+	inline bool setMerged(pointer_t rt)
 	{
-		if (merged != nullptr) 
+		if (merged.get() != nullptr) 
 			return false; 
 		else merged = rt; 
 		return true;
@@ -565,42 +566,42 @@ public:
 	virtual void setAccessFlags(int f) 
 	{ 
 		Type::setAccessFlags(f); 
-		for (iterator iter=members.begin();iter!=members.end();iter++)
+		for (member_iter iter=members.begin();iter!=members.end();iter++)
 		{
 			iter->second->find()->setAccessFlags(f);
 		}
 
 	};
 
-	void addMember(const std::wstring &label,Type *type)
+	void addMember(const std::wstring &label,pointer_t type)
 	{
 		members.insert(make_pair(label,type));
 	};
 
-	void addMember(const wchar_t *label,Type *type)
+	void addMember(const wchar_t *label, pointer_t type)
 	{
 		members.insert(make_pair(std::wstring(label,wcslen(label)),type));
 	};
 
 	RecordType(RecordType &other) : Type(Type::Record)
 	{
-		std::map<std::wstring,Type*>::const_iterator iter;
+		std::map<std::wstring, pointer_t>::const_iterator iter;
 		for (iter=other.begin();iter!=other.end();iter++)
 			members.insert(make_pair(iter->first,iter->second->find()));
 	};
 
 	typedef std::map<std::wstring,Type*>::iterator iterator;
 
-	iterator begin(void) { return members.begin(); };
-	iterator findMember(const std::wstring &field) { return members.find(field); };
-	iterator end(void) { return members.end(); };
+	member_iter begin(void) { return members.begin(); };
+	member_iter findMember(const std::wstring &field) { return members.find(field); };
+	member_iter end(void) { return members.end(); };
 
 	inline size_t size(void) { return members.size(); };
 
 	virtual void print(std::wostream &s)
 	{
 		s << "[ ";
-		for (iterator iter=members.begin();iter!=members.end();iter++)
+		for (member_iter  iter=members.begin();iter!=members.end();iter++)
 		{
 			s << iter->first << " : " ;
 			iter->second->find()->print(s);
@@ -609,9 +610,9 @@ public:
 		s << "]";
 	}
 
-	virtual void getVariables(TypeVariableSet &set)
+	virtual void getVariables(set_t &set)
 	{
-		for (iterator iter=members.begin();iter!=members.end();iter++)
+		for (member_iter  iter=members.begin();iter!=members.end();iter++)
 			iter->second->find()->getVariables(set);
 	};
 
@@ -622,61 +623,66 @@ public:
 /// Variant Types
 class VariantType : public Type
 {
-	std::map<std::wstring,RecordType*> tags;
+	std::map<std::wstring, pointer_t> tags;
 	bool deleteRecords;
-	std::unordered_set<RecordType*> ownedCopies;
+	//std::unordered_set<pointer_t > ownedCopies;
 protected:
 	/// Compute the unification of two types, always called via public driver
-	virtual bool internalUnify(Type *other,bool specialize);
+	virtual bool internalUnify(pointer_t other,bool specialize);
 	/// Internal variant of Return a copy of this type, calls during recursion
-	virtual Type *internalCopy(TypeVariableMap &conv);
+	virtual pointer_t internalCopy(TypeVariableMap &conv);
 	/// Check the subtype relation between two types - always called via public driver
-	virtual PartialOrder internalCheckSubtype(Type *other);
-	Type mytop;
+	virtual PartialOrder internalCheckSubtype(pointer_t other);
+	//Type mytop;
 public:
 
-	typedef std::map<std::wstring,RecordType*> tagmap;
-	typedef std::map<std::wstring,RecordType*>::iterator iterator;
+	typedef std::map<std::wstring, pointer_t> tagmap;
+	typedef std::map<std::wstring, pointer_t>::iterator iterator;
 
-	VariantType(): Type(Type::Variant), deleteRecords(false), mytop(Type::Top)
+	VariantType()
+		: Type(Type::Variant)
+		, deleteRecords(false)
+		//, mytop(Type::Top)
 	{
-		super=&mytop;
+		super = std::make_shared<Type>(Type::Top);
 	}
 
 	VariantType(const tagmap &m) : VariantType()
 	{
 		tagmap::const_iterator iter;
 		for (iter=tags.begin();iter!=tags.end();iter++)
-			tags.insert(std::make_pair(iter->first,(RecordType*)iter->second->find()->copy()));
+			tags.insert(std::make_pair(iter->first,iter->second->find()->copy()));
 	}
 
 	/// Builds a maybe variant with the Some tag having the passed type for it's value
-	VariantType(Type *type) : VariantType()
+	VariantType(pointer_t type) : VariantType()
 	{
-		RecordType *emptyrec = new RecordType;
-		RecordType *somerec=new RecordType;
+		pointer_t emptyrec(new RecordType);
+		pointer_t somerec(new RecordType);
 		//somerec->addMember(L"value", type->find()->copy());
-		somerec->addMember(L"value", type->find());
+		((RecordType*)somerec.get())->addMember(L"value", type->find());
 		tags.insert(std::make_pair(L"Some", somerec));
 		tags.insert(std::make_pair(L"None", emptyrec));
-		deleteRecords = true;
+		//deleteRecords = true;
 	}
 
 	VariantType(VariantType &other) : VariantType() // Type(Type::Variant), mytop(Type::Top)
 	{
 		tagmap::const_iterator iter;
 		for (iter=other.beginTag();iter!=other.endTag();iter++)
-			tags.insert(std::make_pair(iter->first,(RecordType*)iter->second->find()->copy()));
+			tags.insert(std::make_pair(iter->first,iter->second->find()->copy()));
 	}
 
 	virtual ~VariantType(void)
 	{
+		/*
 		if (deleteRecords)
 		{
-			tagmap::iterator iter;
-			for (iter = beginTag();iter != endTag();iter++)
-				delete iter->second;
+			//tagmap::iterator iter;
+			//for (iter = beginTag();iter != endTag();iter++)
+				//delete iter->second;
 		}
+		*/
 	}
 
 	inline bool deletesRecords(void)
@@ -687,9 +693,10 @@ public:
 	iterator beginTag(void) { return tags.begin(); };
 	iterator findTag(const std::wstring &tag) { return tags.find(tag); };
 	iterator endTag(void) { return tags.end(); };
-	bool isOwnedType(RecordType *rt) 
+	bool isOwnedType(pointer_t rt)
 	{
-		return ownedCopies.find(rt) != ownedCopies.end();
+		//return ownedCopies.find(rt) != ownedCopies.end();
+		return false;
 	}
 
 	virtual void setAccessFlags(int f) 
@@ -702,22 +709,20 @@ public:
 
 	}
 
-	void addTag(const std::wstring &tag,RecordType *contents,bool owned=false)
+	void addTag(const std::wstring &tag, pointer_t contents,bool owned=false)
 	{
-		tags.insert(make_pair(tag,(RecordType*)contents));
-		if (owned) ownedCopies.insert(contents);
+		tags.insert(make_pair(tag,contents));
+		//if (owned) ownedCopies.insert(contents);
 	}
 
-	void addTag(const wchar_t *tag,RecordType *contents, bool owned = false)
+	void addTag(const wchar_t *tag, pointer_t contents, bool owned = false)
 	{
-		addTag(std::wstring(tag,wcslen(tag)),contents);
-		if (owned) ownedCopies.insert(contents);
+		addTag(std::wstring(tag,wcslen(tag)),contents, owned);
 	}
 
 	void addTag(iterator &iter, bool owned = false)
 	{
-		addTag(iter->first,iter->second);
-		if (owned) ownedCopies.insert(iter->second);
+		addTag(iter->first,iter->second,owned);
 	}
 
 	inline size_t size(void) { return tags.size(); };
@@ -730,7 +735,8 @@ public:
 		{
 			if (iter!=tags.begin()) s << " + ";
 			s << "[ :" << iter->first << " ";
-			for (RecordType::iterator rec_iter=iter->second->begin();rec_iter!=iter->second->end();rec_iter++)
+			RecordType *rec = (RecordType *)iter->second.get();
+			for (RecordType::member_iter rec_iter=rec->begin();rec_iter!=rec->end();rec_iter++)
 			{
 				s << rec_iter->first << " : " ;
 				rec_iter->second->find()->print(s);
@@ -744,7 +750,7 @@ public:
 	virtual rtt::RTType getRTKind(void) 
 	{ return rtt::Variant; }
 
-	virtual void getVariables(TypeVariableSet &set)
+	virtual void getVariables(set_t &set)
 	{
 		for (iterator iter=tags.begin();iter!=tags.end();iter++)
 			iter->second->find()->getVariables(set);
@@ -802,15 +808,15 @@ public:
 */
 class OpaqueType : public Type
 {
-	std::list<std::pair<TypeVariable*,TypeVariable*> > params;
+	std::vector<std::pair<pointer_t, pointer_t> > params;
 	std::wstring name;
-	Type *instance;
-	Type *error;
+	pointer_t instance;
+	pointer_t error;
 
 	/// The hidden type of an opaque type is shared by several instances, this is handled by reference counting.
 	struct shared_data
 	{
-		Type *hidden;			///< the hidden type, the implementation of the opaque type.
+		pointer_t hidden;			///< the hidden type, the implementation of the opaque type.
 		unsigned int refcount;	///< The reference count for the hidden type.
 		
 		shared_data() : hidden(nullptr), refcount(1)
@@ -826,25 +832,25 @@ class OpaqueType : public Type
 		shared->refcount--;
 		if (shared->refcount==0) 
 		{
-			deleteCopy(shared->hidden);
+			//deleteCopy(shared->hidden);
 			delete shared;
 		}
 		shared=NULL;
 	};
 protected:
 	/// Compute the unification of two types, always called via public driver
-	virtual bool internalUnify(Type *other,bool specialize);
+	virtual bool internalUnify(pointer_t other,bool specialize);
 	/// Internal variant of Return a copy of this type, calls during recursion
-	virtual Type *internalCopy(TypeVariableMap &conv);
+	virtual pointer_t internalCopy(TypeVariableMap &conv);
 	/// Check the subtype relation between two types - always called via public driver
 	//virtual PartialOrder internalCheckSubtype(Type *other);
 
 public:
-	typedef std::list<std::pair<TypeVariable*,TypeVariable*> >::iterator iterator;
+	typedef std::vector<std::pair<pointer_t, pointer_t > >::iterator iterator;
 	OpaqueType(const std::wstring &n) 
 		: Type(Type::UserDef)
 		, name(n)
-	{ shared=NULL; instance=NULL; error=NULL; };
+	{ shared=NULL;};
 
 	OpaqueType(OpaqueType &other)
 		: Type(Type::UserDef)
@@ -852,23 +858,19 @@ public:
 	{ 
 		shared=other.shared; 
 		if (shared!=NULL) shared->refcount++;
-		instance=NULL;
-		error=NULL;
-		OpaqueType::iterator iter;
+		iterator iter;
 		for (iter=other.begin();iter!=other.end();iter++)
-			addParameter((TypeVariable*)iter->first->copy());
+			addParameter(iter->first->copy());
 	};
 
 	~OpaqueType(void)
 	{
-		if (instance!=NULL) deleteCopy(instance);
-		if (error!=NULL) delete error;
-		error=NULL;
+		//if (instance!=NULL) deleteCopy(instance);
 		unshare();
 	};
 
 	/// This provides access to the hidden type for type checking a modules interface.
-	Type *getHiddenType(void) { return shared->hidden; };
+	pointer_t getHiddenType(void) { return shared->hidden; };
 
 	/// This function assigns the implementation type to the Opaque type, setting the hidden type.
 	/** Use this function to assign a constructor's type (a function) to the Opaque type.
@@ -882,10 +884,10 @@ public:
 	inline iterator begin(void) { return params.begin(); };
 	inline iterator end(void) { return params.end(); };
 
-	inline void addParameter(TypeVariable *t) { params.push_back(std::make_pair(t,(TypeVariable*)NULL)); };
-	inline void addParameter(const std::pair<TypeVariable*,TypeVariable*> &val) { params.push_back(val); };
+	inline void addParameter(pointer_t t) { params.push_back(std::make_pair(t, Type::pointer_t())); };
+	inline void addParameter(const std::pair<pointer_t , pointer_t > &val) { params.push_back(val); };
 
-	Type *instantiate(std::list<TypeVariable*> &params,size_t line,size_t col);
+	pointer_t instantiate(std::vector<pointer_t> &instparams,size_t line,size_t col);
 
 	virtual void print(std::wostream &s)
 	{
@@ -908,7 +910,7 @@ public:
 
 	//virtual void getParameterTypes(std::vector<Type*> &parameters);
 
-	virtual void getVariables(TypeVariableSet &set)
+	virtual void getVariables(set_t &set)
 	{
 		for (iterator iter=params.begin();iter!=params.end();iter++)
 			iter->first->getVariables(set);

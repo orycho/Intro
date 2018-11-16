@@ -36,7 +36,7 @@ public:
 	std::wstring getVariableName(void) { return variable; };
 	
 	// Call only after type inference...
-	virtual Type *getVariableType(void) =0;
+	virtual Type::pointer_t getVariableType(void) =0;
 	
 	/// Virtual function to print the expression to the given stream.
 	virtual void print(std::wostream &s) =0;
@@ -54,7 +54,7 @@ public:
 class RangeGen : public Generator
 {
 protected:
-	Type myInt;
+	Type::pointer_t myInt;
 	Expression *from, *to, *by;
 	bool hasIncrement;
 
@@ -63,7 +63,7 @@ public:
 	/// construct a range generator, only parameter by may be NULL.
 	RangeGen(int l,int p,std::wstring &varname,Expression *from_,Expression *to_,Expression *by_=nullptr) 
 		: Generator(l,p,varname)
-		, myInt(Type::Integer)
+		, myInt(new Type(Type::Integer))
 		, from(from_)
 		, to(to_)
 		, by(by_)
@@ -78,23 +78,23 @@ public:
 		if (by != nullptr) delete by;
 	}
 
-	virtual Type *getVariableType(void) 
+	virtual Type::pointer_t getVariableType(void)
 	{ 
-		return &myInt;
+		return myInt;
 	};
 	
 	virtual bool makeType(Environment *env, ErrorLocation *errors)
 	{
 
 		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"'from' value of ") + variable);
-		Type *t=from->getType(env,logger)->find();
+		Type::pointer_t t=from->getType(env,logger)->find();
 		if (t->getKind() == Type::Error)
 		{
 			errors->addError(logger);
 			return false;
 		}
 		else delete logger;
-		if (!t->unify(&myInt)) // Make sure we can view the child expr type as a generator type
+		if (!t->unify(myInt)) // Make sure we can view the child expr type as a generator type
 		{
 			errors->addError(new ErrorDescription(getLine(), getColumn(), std::wstring(L"Expected the 'from' value of ")+ variable + L" to be an integer"));
 			return false;
@@ -107,7 +107,7 @@ public:
 			return false;
 		}
 		else delete logger;
-		if (!t->unify(&myInt)) // Make sure we can view the child expr type as a generator type
+		if (!t->unify(myInt)) // Make sure we can view the child expr type as a generator type
 		{
 			errors->addError(new ErrorDescription(getLine(), getColumn(), std::wstring(L"Expected the 'to' value of ") + variable + L" to be an integer"));
 			return false;
@@ -122,13 +122,13 @@ public:
 				return false;
 			}
 			else delete logger;
-			if (!t->unify(&myInt)) // Make sure we can view the child expr type as a generator type
+			if (!t->unify(myInt)) // Make sure we can view the child expr type as a generator type
 			{
 				errors->addError(new ErrorDescription(getLine(), getColumn(), std::wstring(L"Expected the 'by' value of ") + variable + L" to be an integer"));
 				return false;
 			}
 		}
-		env->put(getVariableName(), &myInt);
+		env->put(getVariableName(), myInt);
 		//return t->find()->getSupertype()->getParameter(0)->find();
 		return true;
 	}
@@ -161,7 +161,7 @@ public:
 
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
 	virtual void codeGenExitBlock(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)
 	{
 	};
 	virtual size_t countVariableStmts(void)
@@ -178,9 +178,9 @@ public:
 class ContainerGen : public Generator
 {
 	Expression *container;
-	Type *mytype;
-	Type *source_type;
-	Type gentype;
+	Type::pointer_t mytype;
+	Type::pointer_t source_type;
+	Type::pointer_t gentype;
 	Expression::cgvalue rawcontval;
 	Expression::cgvalue generator;
 public:
@@ -190,17 +190,17 @@ public:
 		, container(cont)
 		, mytype(nullptr)
 		, source_type(nullptr)
-		, gentype(Type::Generator)
+		, gentype(new Type(Type::Generator))
 	{
 	};
 
 	~ContainerGen()
 	{
-		deleteCopy(source_type);
+		//deleteCopy(source_type);
 		delete container;
 	};
 	
-	virtual Type *getVariableType(void) 
+	virtual Type::pointer_t getVariableType(void)
 	{ 
 		//return mytype->find()->getSupertype()->find()->getFirstParameter()->find();
 		return mytype->find();
@@ -209,7 +209,7 @@ public:
 	virtual bool makeType(Environment *env, ErrorLocation *errors)
 	{
 		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"container expression for ") + variable);
-		Type *t=container->getType(env,logger)->find();
+		Type::pointer_t t=container->getType(env,logger)->find();
 		if (t->getKind() == Type::Error)
 		{
 			errors->addError(logger);
@@ -219,8 +219,8 @@ public:
 		// The variable name in the next line is for an intermediate, and must not clash with previous one?!
 		//Type gentype(Type::Generator, env->put(getVariableName()));
 		//gentype.replaceSupertype(env->put(getVariableName()));
-		gentype.addParameter(env->put(getVariableName()));
-		mytype=Environment::fresh(&gentype);
+		gentype->addParameter(env->put(getVariableName()));
+		mytype=Environment::fresh(gentype);
 		source_type=t->copy();
 		if (!t->unify(mytype)) // Make sure we can view the child expr type as a generator type
 		{
@@ -251,7 +251,7 @@ public:
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
 	virtual void codeGenExitBlock(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
 
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)
 	{
 		container->collectFunctions(funcs);
 	};
@@ -285,13 +285,13 @@ private:
 	} GenCond;
 
 	std::vector<GenCond> generators;
-	Type mybool;
+	Type::pointer_t mybool;
 	
 	/// Callback provided by surrounding statement/expressoin to generate the body
 	std::function<bool(llvm::IRBuilder<>&,CodeGenEnvironment*)> cgbody;
 
 public:
-	GeneratorStatement(int l,int p) : Statement(l,p), mybool(Type::Boolean)
+	GeneratorStatement(int l,int p) : Statement(l,p), mybool(new Type(Type::Boolean))
 	{
 		cgbody=[](llvm::IRBuilder<>&,CodeGenEnvironment*){
 			std::wcout << L"Error: body callback in GeneratorStatement not set!";
@@ -319,7 +319,7 @@ public:
 			if (iter->iscondition)
 			{
 				ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"generator statement (condition)"));
-				Type *t=iter->condition->getType(env,logger);
+				Type::pointer_t t=iter->condition->getType(env,logger);
 				
 				if (t->getKind()==Type::Error)
 				{
@@ -327,7 +327,7 @@ public:
 					return false;
 				}
 				else delete logger;
-				if (!t->unify(&mybool))
+				if (!t->unify(mybool))
 				{
 					std::wstringstream strs;
 					strs << L"expcted the condition to be a boolean but got ";
@@ -405,7 +405,7 @@ public:
 	}
 
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)
 	{
 		std::vector<GenCond>::iterator iter=generators.begin();
 		for (;iter!=generators.end();iter++)

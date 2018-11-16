@@ -33,7 +33,7 @@ class CodeGenEnvironment;
 class Function;
 /// A Variable set contains, by name, all references to a variable, 
 /// hence a multiset (does that even make sense!?).
-typedef std::map<std::wstring,Type*> VariableSet;
+typedef std::map<std::wstring,Type::pointer_t> VariableSet;
 
 /// The base class for all statements of the Intro language
 class Statement
@@ -58,7 +58,7 @@ public:
 	virtual bool codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env)=0;
 
 	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)=0;
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)=0;
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)=0;
 	virtual bool isReturnLike(void) { return false; };
 	virtual bool isTerminatorLike(void) { return isReturnLike(); };
 	/// Count the number of variables allocated in the statement
@@ -75,18 +75,18 @@ public:
 class Expression
 {
 	// Holds the expression's type.
-	Type *type;
+	Type::pointer_t type;
 
 	size_t  line,col;
-	ErrorType *error;
+	Type::pointer_t error;
 protected:
 	/// Purely virtual fnction that is used to create an expressions type.
-	virtual Type *makeType(Environment *env, ErrorLocation *errors)=0;
+	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors)=0;
 	/// Derived classes use this method to create a new error type with the appropriate message
-	inline ErrorType *getError(std::wstring msg)
+	inline Type::pointer_t getError(std::wstring msg)
 	{
-		if (error!=NULL) delete error; // should not happen
-		error= new ErrorType(line,col,msg);
+		//if (error!=NULL) delete error; // should not happen
+		error.reset(new ErrorType(line,col,msg));
 		error->print(std::wcout);
 		return error;
 	};
@@ -106,23 +106,23 @@ public:
 	/// Destroy an expression - deletes an error if created.
 	virtual ~Expression()
 	{
-		if (error!=NULL) delete error;
+		//if (error!=NULL) delete error;
 	};
 	/// Front end for type inference virtual function, buffing result.
-	inline Type *getType(Environment *env, ErrorLocation *errors)
+	inline Type::pointer_t getType(Environment *env, ErrorLocation *errors)
 	{
 		if (type==NULL) 
 			type=makeType(env, errors);
 		return type->find();
 	};
 	/// Return the type that was inferred for this expression, as is.
-	inline Type *getType(void)
+	inline Type::pointer_t getType(void)
 	{
-		return type!=NULL?type->find():NULL;
+		return type.get()!=nullptr?type->find():NULL;
 	};
 
 	/// Return the current type that specializes variables to concrete types
-	Type *getType(CodeGenEnvironment *env);
+	Type::pointer_t getType(CodeGenEnvironment *env);
 
 	/// (Use after type inference) Expressions may be l-values, in that case they are writable. Otherwise not.
 	/** Note that writable expressons need to check the writability of the contained type, which may refer 
@@ -133,9 +133,9 @@ public:
 		return false;
 	};
 	/// (Use after type inference) If writable, this method returns the type that can be written (e.g. the dictionaries value type).
-	virtual Type *getWritableType(void)
+	virtual Type::pointer_t getWritableType(void)
 	{
-		return NULL;
+		return Type::pointer_t();
 	};
 
 	/// (Use after type inference) Generate the address that can be written to, if this expression is writable else null.
@@ -159,25 +159,25 @@ public:
 	/// generate the code to provide the expressions run time type
 	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env)=0;
 	/// This is an utility method used during testing.
-	virtual void collectFunctions(std::list<intro::Function*> &funcs)=0;
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs)=0;
 };
 
 /// A Type expression is a representation of a type as an AST.
 class TypeExpression
 {
 	// Holds the expression's type.
-	Type *type;
+	Type::pointer_t type;
 
 	size_t line,col;
-	ErrorType *error;
+	Type::pointer_t error;
 protected:
 	/// Purely virtual fnction that is used to create an expressions type.
-	virtual Type *makeType(Environment *env, ErrorLocation *errors)=0;
+	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors)=0;
 	/// Derived classes use this method to create a new error type with the appropriate message
-	inline ErrorType *getError(std::wstring msg)
+	inline Type::pointer_t getError(std::wstring msg)
 	{
-		if (error!=NULL) delete error; // should not happen
-		error= new ErrorType(line,col,msg);
+		//if (error!=NULL) delete error; // should not happen
+		error.reset(new ErrorType(line,col,msg));
 		return error;
 	};
 
@@ -194,18 +194,18 @@ public:
 	/// Destroy an expression - deletes an error if created.
 	virtual ~TypeExpression()
 	{
-		if (error!=NULL) delete error;
+		//if (error!=NULL) delete error;
 		//if (type!=NULL && type->getKind()!=Type::Variable) delete type;
 	};
 	/// Front end for type inference virtual function, buffing result.
-	inline Type *getType(Environment *env, ErrorLocation *errors)
+	inline Type::pointer_t getType(Environment *env, ErrorLocation *errors)
 	{
 		if (type==NULL) 
 			type=makeType(env, errors);
-		return type;
+		return type->find();
 	};
 	/// Front end for type inference virtual function, caching result.
-	inline Type *getType(void)
+	inline Type::pointer_t getType(void)
 	{
 		return type->find();
 	};
@@ -230,7 +230,7 @@ public:
 		IMPORTANT: The returned pointer is owned by the calling function, which must make sure it gets
 		deleted (i.e. with deleteCopy).
 	*/
-	virtual Type *getExposedType(void)=0;
+	virtual Type::pointer_t getExposedType(void)=0;
 };
 
 /// Function application is a fundatmental operation of programming languages
@@ -262,11 +262,11 @@ public:
 protected:
 
 	/// Type of the function called for this context (i.e. may specialize functions actual type).
-	FunctionType *myFuncType;
+	Type::pointer_t myFuncType;
 	/// Buffer in case we construct a function type for an incoming type variable (we need to clean up later...)
-	FunctionType *funvar;
+	Type::pointer_t funvar;
 	/// Function type we loaded from the environment.
-	Type *calledType;
+	Type::pointer_t calledType;
 	/// If we found a non-variable function type, we copy it to leave the environment intact.
 	bool deleteCalledType; // may work without due to having a type variable that is not deleted. But that is cryptic.
 	/// The list of expressions that evaluate to the function call's parameters
@@ -279,9 +279,9 @@ protected:
 	llvm::Value *returntype;
 
 	/// Allow expressions derived from application to define their operations function type as they like.
-	virtual Type *getCalledFunctionType(Environment *env, ErrorLocation *errors);
+	virtual Type::pointer_t getCalledFunctionType(Environment *env, ErrorLocation *errors);
 
-	virtual Type *makeType(Environment *env, ErrorLocation *errors);
+	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors);
 	
 	/// struct paires types with callbacks generateing the code for that type
 
@@ -334,10 +334,10 @@ public:
 		for (iter=params.begin();iter!=params.end();iter++)
 			delete *iter;
 		if (func!=NULL) delete func;
-		if (deleteCalledType)
-			deleteCopy(calledType);
-		if (myFuncType!=NULL) delete myFuncType;
-		if (funvar!=NULL) delete funvar;
+		//if (deleteCalledType)
+		//	deleteCopy(calledType);
+		//if (myFuncType!=NULL) delete myFuncType;
+		//if (funvar!=NULL) delete funvar;
 		/*for (size_t i =0;i<sourceTypes.size();++i)
 		{
 			deleteCopy(sourceTypes[i]);
@@ -384,7 +384,7 @@ public:
 		}
 	};
 
-	virtual void collectFunctions(std::list<intro::Function*> &funcs);
+	virtual void collectFunctions(std::vector<intro::Function*> &funcs);
 };
 
 }
