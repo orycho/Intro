@@ -400,6 +400,7 @@ namespace intro {
 		// In  this case, the application will make sure that the variable has previously been
 		// unified with a function template of the correct arity.
 		// That is also true for applications of recursive functions
+		Type::pointer_t calledType;
 		if (ft->getKind() == Type::Error)
 		{
 			errors->addError(logger);
@@ -409,7 +410,6 @@ namespace intro {
 		else 
 		{
 			calledType=ft->find()->copy();
-			deleteCalledType=true;
 		}
 		delete logger;
 		return calledType;
@@ -437,23 +437,7 @@ namespace intro {
 		}
 		else if (called->getKind() == Type::Variable)
 		{
-			// Turn the incoming type variable inro a compatible function type:
-			// same number of parameters, all fresh top bound variables.
-			/*
-			std::list<Type*> p;
-			Type *retval=Environment::fresh();
-			//retval->setAccessFlags(intermediate->getReturnType()->find()->getAccessFlags());
-			for (size_t i=0;i<params.size();i++)
-			{
-				p.push_back(Environment::fresh());
-			}
-			TypeVariable *tv=(TypeVariable*)called;
-			funvar=new FunctionType(p,retval);
-			// Unify supertype instead?? Then intermediate=called
-			tv->getSupertype()->unify(funvar);
-			//intermediate=(FunctionType*)tv->find();
-			*/
-			//intermediate = called;
+			
 		}
 		else
 		{
@@ -464,10 +448,8 @@ namespace intro {
 		};
 		std::vector<Type::pointer_t> paramtypes;
 		Type::pointer_t retval = Environment::fresh();
-		//retval->setAccessFlags(intermediate->getReturnType()->find()->getAccessFlags());
 		retval->setAccessFlags(flags);
 		// Get parameter types from application expression for function type to unify against.
-		//sourceTypes.resize(params.size(),nullptr);
 		for (size_t i = 0;i < params.size();++i)
 		{
 			// Putting the pointers to type variables in the function type here
@@ -498,28 +480,11 @@ namespace intro {
 				return pt;
 			}
 			delete logger;
-			/*
-			TypeVariableSet vars;
-			pt->getVariables(vars);
-			if (vars.empty() && pt->getKind()!=Type::UserDef)
-			{
-				sourceTypes[i]=pt->copy();
-				pt=sourceTypes[i];
-			}
-			*/
 			paramtypes.push_back(pt);
 		}
 		myFuncType = Type::pointer_t(new FunctionType(paramtypes, retval));
 		Type::pointer_t funvar = Environment::fresh(myFuncType);
-		/*
-		std::wcout << L"source type: ";
-		funvar->find()->print(std::wcout);
-		std::wcout << L"\ncalled: ";
-		called->find()->print(std::wcout);
-		std::wcout << L"\n";
-		*/
 		// Check all is well...
-		//if (!called->unify(myFuncType)) 
 		if (!called->unify(funvar))
 		{
 			std::wstringstream strs;

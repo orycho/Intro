@@ -262,18 +262,9 @@ protected:
 
 	/// Type of the function called for this context (i.e. may specialize functions actual type).
 	Type::pointer_t myFuncType;
-	/// Buffer in case we construct a function type for an incoming type variable (we need to clean up later...)
-	Type::pointer_t funvar;
-	/// Function type we loaded from the environment.
-	Type::pointer_t calledType;
-	/// If we found a non-variable function type, we copy it to leave the environment intact.
-	bool deleteCalledType; // may work without due to having a type variable that is not deleted. But that is cryptic.
-	/// The list of expressions that evaluate to the function call's parameters
 	std::vector<Expression*> params;
 	/// The epression which represents the function to be called.
 	Expression *func;
-	/// List of types instantiated during type inference, remembered for deletion?!
-	//std::vector<Type*> sourceTypes;
 	/// RTT of the value that the function called has returned, if any.
 	llvm::Value *returntype;
 
@@ -282,33 +273,6 @@ protected:
 
 	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors);
 	
-	/// struct paires types with callbacks generateing the code for that type
-
-	// / Generate code that depends on type, direct for fixed type, switch statement when more than one type possible
-	/* * Might move this into CodeGenEnrvironment, and keep type variable instance management there...
-
-		Here is an example how the callback array can be defined:
-			const cgcb_elem division[]=
-			{
-				{rtt::Integer,gen_div_int},
-				{rtt::Real,gen_div_real},
-				{rtt::Top,NULL}
-			};
-
-		This was originally in Expression, but only applications should be able to be polymorphic,
-		as they interact with poymorphic functiony, while othe rexpressions are just literals.
-		Hoperfully, this stays true when we get to the complex literals
-		@param callbacks array of cgcb_elem structs that generate code for a type, reminated with {rtt::Top,NULL} element
-		@param builder the LLVM IR Builder object currently in use
-		@param env the current code generation environment, for rttypes, 
-		@param bound the type that represents the upper bound for applicable types required
-		@returns the LLVM value representing the result of the operation
-	*/
-	//llvm::Value *generateTypedCode(const cgcb_elem callbacks[],llvm::IRBuilder<> &builder,CodeGenEnvironment *env,
-	//	std::vector<llvm::Value*> &param_values,Type *bound);
-
-	//llvm::Value *generateTypedOperator(const cgcb_elem callbacks[],llvm::IRBuilder<> &builder,CodeGenEnvironment *env,Type *bound);
-
 	virtual std::wstring getOperationDescription(void)
 	{
 		return L"function application";
@@ -319,9 +283,6 @@ public:
 	Application(int l,int c)
 		: Expression(l,c)
 		, myFuncType(NULL)
-		, funvar(NULL)
-		, calledType(NULL)
-		, deleteCalledType(false)
 		, func(NULL)
 		, returntype(nullptr)
 	{ 
@@ -335,7 +296,6 @@ public:
 		if (func!=NULL) delete func;
 	};
 
-	//	virtual void *evaluate(Environment &env)=0;
 	inline void appendParam(Expression *p) { params.push_back(p); };
 	inline void setFunction(Expression *f) { func=f;};
 
@@ -343,7 +303,6 @@ public:
 	{
 		if (func->getType()==NULL) return;
 		func->print(s);
-		// || func->getType()->getKind()==Type::Error) return;
 		s <<"(";
 		iterator iter=params.begin();
 		if (iter!=params.end())
@@ -362,7 +321,6 @@ public:
 	};
 	
 	virtual cgvalue codeGen(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
-	//virtual llvm::Value *getRTT(llvm::IRBuilder<> &TmpB,CodeGenEnvironment *env);
 
 	virtual void getFreeVariables(VariableSet &free,VariableSet &bound)
 	{

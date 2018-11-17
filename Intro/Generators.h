@@ -63,7 +63,7 @@ public:
 	/// construct a range generator, only parameter by may be NULL.
 	RangeGen(int l,int p,std::wstring &varname,Expression *from_,Expression *to_,Expression *by_=nullptr) 
 		: Generator(l,p,varname)
-		, myInt(new Type(Type::Integer))
+		, myInt(std::make_shared<Type>(Type::Integer))
 		, from(from_)
 		, to(to_)
 		, by(by_)
@@ -179,8 +179,6 @@ class ContainerGen : public Generator
 {
 	Expression *container;
 	Type::pointer_t mytype;
-	Type::pointer_t source_type;
-	Type::pointer_t gentype;
 	Expression::cgvalue rawcontval;
 	Expression::cgvalue generator;
 public:
@@ -188,9 +186,6 @@ public:
 	ContainerGen(int l,int p,std::wstring &varname,Expression *cont) 
 		: Generator(l,p,varname)
 		, container(cont)
-		, mytype(nullptr)
-		, source_type(nullptr)
-		, gentype(new Type(Type::Generator))
 	{
 	};
 
@@ -216,11 +211,9 @@ public:
 		}
 		else delete logger;
 		// The variable name in the next line is for an intermediate, and must not clash with previous one?!
-		//Type gentype(Type::Generator, env->put(getVariableName()));
-		//gentype.replaceSupertype(env->put(getVariableName()));
+		Type::pointer_t gentype = std::make_shared<Type>(Type::Generator);
 		gentype->addParameter(env->put(getVariableName()));
 		mytype=Environment::fresh(gentype);
-		source_type=t->copy();
 		if (!t->unify(mytype)) // Make sure we can view the child expr type as a generator type
 		{
 			std::wstringstream strs;
@@ -284,13 +277,12 @@ private:
 	} GenCond;
 
 	std::vector<GenCond> generators;
-	Type::pointer_t mybool;
 	
 	/// Callback provided by surrounding statement/expressoin to generate the body
 	std::function<bool(llvm::IRBuilder<>&,CodeGenEnvironment*)> cgbody;
 
 public:
-	GeneratorStatement(int l,int p) : Statement(l,p), mybool(new Type(Type::Boolean))
+	GeneratorStatement(int l,int p) : Statement(l,p)
 	{
 		cgbody=[](llvm::IRBuilder<>&,CodeGenEnvironment*){
 			std::wcout << L"Error: body callback in GeneratorStatement not set!";
@@ -326,7 +318,7 @@ public:
 					return false;
 				}
 				else delete logger;
-				if (!t->unify(mybool))
+				if (!t->unify(std::make_shared<Type>(Type::Boolean)))
 				{
 					std::wstringstream strs;
 					strs << L"expcted the condition to be a boolean but got ";

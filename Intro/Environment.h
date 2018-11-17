@@ -116,9 +116,6 @@ public:
 			this->name=name;
 		};
 
-		~Module()
-		{};
-
 		inline std::wstring getName() { return name; };
 
 		inline void addExport(std::wstring name, Type::pointer_t type,bool owned=true)
@@ -209,10 +206,6 @@ protected:
 
 	/// Unique names for intermediate type variables
 	static long _fresh;
-	/// Env owns all type vars, deletes on shutdown
-	//static std::set<TypeVariable*> _typevars;
-	/// Type inference can add intermediates without sensible owner here...
-	//static std::set<Type*> _intermediates;
 
 public:
 	//
@@ -249,29 +242,6 @@ public:
 	{
 		delete root;
 		root = nullptr;
-	}
-
-	//static void addIntermediate(Type::pointer_t t)
-	//{
-	//	_intermediates.insert(t); 
-	//};
-
-	static void clearTypeVariables(void)
-	{
-		/*
-		for (std::set<TypeVariable*>::iterator iter = _typevars.begin();iter != _typevars.end();iter++)
-		{
-			(*iter)->replaceSupertype(nullptr);
-		}
-		for (std::set<TypeVariable*>::iterator iter = _typevars.begin();iter != _typevars.end();iter++)
-		{
-			delete *iter;
-		}
-		for (std::set<Type*>::iterator iter = _intermediates.begin();iter != _intermediates.end();iter++)
-		{
-			delete *iter;
-		}
-		*/
 	}
 
 	static void deleteAllModules(void)
@@ -354,8 +324,6 @@ public:
 	{
 		iterator iter=members.find(ident);
 		if (iter!=members.end()) return false;
-
-		//members.insert(make_pair(ident,type->copy()));
 		members.insert(make_pair(ident,type));
 		return true;
 	}
