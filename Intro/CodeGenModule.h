@@ -28,6 +28,22 @@ class CodeGenModule : public CodeGenEnvironment
 	//llvm::Module *lastModule;
 	size_t lastModule;
 	static size_t currentModule;
+
+/*	static void genClearModules(CodeGenModule *module, llvm::IRBuilder<> &builder)
+	{
+		//void CodeGenEnvironment::decrementValue(llvm::IRBuilder<> &builder, llvm::Value *value, llvm::Value *rtt)
+		llvm::Function *decr_op = TheModule->getFunction("decrement");
+		llvm::Value* args[] = { nullptr,nullptr };
+		//element *retvar = getReturnVariable(); // nullptr if none 
+		for (iterator iter = module->begin();iter != module->end()++;iter)
+		{
+			args[0] = builder.CreateLoad(iter->second.address, "value");
+			args[1] = builder.CreateLoad(iter->second.rtt, "type");
+			builder.CreateCall(decr_op, args);
+
+		}
+	}
+	*/
 public:
 	
 	static void nextLLVMModule(void) { currentModule++;  }
@@ -77,6 +93,8 @@ public:
 		addExternalsForGlobals();
 		lastModule = currentModule;
 	}
+
+	
 };
 
 }

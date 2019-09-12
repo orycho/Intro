@@ -26,7 +26,7 @@ __pragma(warning(disable:4244))
 __pragma(warning(pop))
 
 
-using namespace std::tr1;
+//using namespace std::tr1;
 
 #else 
 
@@ -45,10 +45,13 @@ using namespace std;
 
 namespace intro {
 
+	static llvm::ExitOnError ExitOnErr; 
 	llvm::LLVMContext theContext;
 	std::unique_ptr<llvm::Module> TheModule;
 	static std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
+	//static std::unique_ptr<JIT> TheJIT (ExitOnErr(JIT::Create()));
 	static std::unique_ptr<JIT> TheJIT;
+	
 
 	void dumpModule(bool optimize)
 	{
@@ -60,7 +63,7 @@ namespace intro {
 
 			// Add some optimizations.
 			FPM->add(llvm::createVerifierPass());
-			FPM->add(llvm::createPromoteMemoryToRegisterPass());
+//			FPM->add(llvm::createPromoteMemoryToRegisterPass());
 			FPM->add(llvm::createGVNPass());
 			FPM->add(llvm::createReassociatePass());
 			FPM->add(llvm::createInstructionCombiningPass());
@@ -144,8 +147,13 @@ namespace intro {
 		intro::generateCode(statements);
 		//TheModule->dump();
 		TheJIT->addModule(std::move(TheModule));
-		auto ExprSymbol = TheJIT->findSymbol("rootfunc"); // name by agreement with codegen.cxx
-		void(*FP)() = (void(*)())(intptr_t)cantFail(ExprSymbol.getAddress());
+		//auto ExprSymbol = TheJIT->findSymbol("rootfunc"); // name by agreement with codegen.cxx
+		//void(*FP)() = (void(*)())(intptr_t)cantFail(ExprSymbol.getAddress());
+		auto Sym =
+			ExitOnErr(TheJIT->lookup(("rootfunc")));
+
+		auto *FP = (double(*)())(intptr_t)Sym.getAddress();
+		assert(FP && "Failed to codegen function");
 		FP();
 	}
 
@@ -174,16 +182,16 @@ namespace intro {
 		initModule();
 		env->addExternalsForGlobals();
 		// Search the JIT for the "fun_name" symbol.
-		auto ExprSymbol = TheJIT->findSymbol(fun_name);
-		assert(ExprSymbol && "Function not found");
+		//auto ExprSymbol = TheJIT->findSymbol(fun_name);
+		//assert(ExprSymbol && "Function not found");
 		// Get the symbol's address and cast it to the right type so we can call it as a native function.
-		if (!ExprSymbol) printf("ExprSymbol '%s' not found!\n", fun_name.c_str());
-		else if (!ExprSymbol.getAddress()) printf("ExprSymbol has no address!\n");
-		else
-		{
-			void(*FP)() = (void(*)())(intptr_t)cantFail(ExprSymbol.getAddress());
-			FP();
-		}
+		auto Sym =
+			ExitOnErr(TheJIT->lookup(("rootfunc")));
+
+		auto *FP = (double(*)())(intptr_t)Sym.getAddress();
+		assert(FP && "Failed to codegen function");
+		//if (!ExprSymbol) printf("ExprSymbol '%s' not found!\n", fun_name.c_str());
+		FP();
 	}
 
 	llvm::Constant *createGlobalString(const wstring &s)
@@ -405,7 +413,8 @@ namespace intro {
 	void initModule(void)
 	{
 		TheModule = llvm::make_unique<llvm::Module>("Intro jit", theContext);
-		TheModule->setDataLayout(TheJIT->getTargetMachine().createDataLayout());
+		//TheModule->setDataLayout(TheJIT->getTargetMachine().createDataLayout());
+		TheModule->setDataLayout(TheJIT->getDataLayout());
 		declareRuntimeFunctions();
 		CodeGenModule::nextLLVMModule();
 	}
@@ -420,7 +429,8 @@ namespace intro {
 
 		LibLoader::initialize();
 		
-		TheJIT = llvm::make_unique<JIT>();
+		//TheJIT = llvm::make_unique<JIT>();
+		TheJIT = ExitOnErr(JIT::Create());
 		
 		/*
 		// Create a new pass manager attached to it.

@@ -1,6 +1,6 @@
 #ifndef JIT_H
 #define JIT_H
-
+/*
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
@@ -20,6 +20,26 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
+*/
+
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ExecutionEngine/JITSymbol.h"
+#include "llvm/ExecutionEngine/Orc/CompileUtils.h"
+#include "llvm/ExecutionEngine/Orc/Core.h"
+#include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
+#include "llvm/ExecutionEngine/Orc/IRCompileLayer.h"
+#include "llvm/ExecutionEngine/Orc/IRTransformLayer.h"
+#include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
+#include "llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h"
+#include "llvm/ExecutionEngine/SectionMemoryManager.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/Transforms/InstCombine/InstCombine.h"
+#include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/GVN.h"
+#include <memory>
+
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -30,99 +50,76 @@ namespace intro
 /// Simple JIT class based on LLVM Tutorials
 class JIT {
 private:
-
-	std::unique_ptr<llvm::TargetMachine> TM;
-	const llvm::DataLayout DL;
+	llvm::orc::ExecutionSession ES;
 	llvm::orc::RTDyldObjectLinkingLayer ObjectLayer;
-	llvm::orc::IRCompileLayer<decltype(ObjectLayer), llvm::orc::SimpleCompiler> CompileLayer;
-
-	using OptimizeFunction =
-		std::function<std::shared_ptr<llvm::Module>(std::shared_ptr<llvm::Module>)>;
-
-	llvm::orc::IRTransformLayer<decltype(CompileLayer), OptimizeFunction> OptimizeLayer;
+	llvm::orc::IRCompileLayer CompileLayer;
+	llvm::orc::IRTransformLayer TransformLayer;
+	llvm::DataLayout DL;
+	llvm::orc::MangleAndInterner Mangle;
+	llvm::orc::ThreadSafeContext Ctx;
 
 public:
 
-	using ModuleHandle = decltype(OptimizeLayer)::ModuleHandleT;
-
-	//typedef decltype(CompileLayer)::ModuleSetHandleT ModuleHandleT;
-
-	JIT()
-		: TM(llvm::EngineBuilder().selectTarget())
-		, DL(TM->createDataLayout())
-		, ObjectLayer([]() { 
-			return std::make_shared<llvm::SectionMemoryManager>(); 
-		})
-		, CompileLayer(ObjectLayer, llvm::orc::SimpleCompiler(*TM))
-		, OptimizeLayer(CompileLayer,[this](std::shared_ptr<llvm::Module> M) {
-			return optimizeModule(std::move(M));
-		}) 
+	JIT(llvm::orc::JITTargetMachineBuilder JTMB, llvm::DataLayout DL)
+		: ObjectLayer(ES,
+			[]() { return llvm::make_unique<llvm::SectionMemoryManager>(); })
+		, CompileLayer(ES, ObjectLayer, llvm::orc::ConcurrentIRCompiler(std::move(JTMB)))
+		, TransformLayer(ES, CompileLayer, optimizeModule)
+		, DL(std::move(DL)), Mangle(ES, this->DL)
+		, Ctx(llvm::make_unique<llvm::LLVMContext>())
 	{
-		llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
+		ES.getMainJITDylib().setGenerator(
+			llvm::cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(DL)));
 	}
 
-	
-	llvm::TargetMachine &getTargetMachine() { return *TM; }
+	llvm::LLVMContext &getContext() { return *Ctx.getContext(); }
+	const llvm::DataLayout &getDataLayout() const { return DL; }
 
-	ModuleHandle addModule(std::unique_ptr<llvm::Module> M)
+	static llvm::Expected<std::unique_ptr<JIT>> Create() 
 	{
-		auto Resolver = llvm::orc::createLambdaResolver(
-			[&](const std::string &Name) {
-			auto Sym = OptimizeLayer.findSymbol(Name, false);
-			if (Sym)
-				return Sym;
-			return llvm::JITSymbol(nullptr);
-		},
-			[](const std::string &Name) {
-			auto SymAddr = llvm::RTDyldMemoryManager::getSymbolAddressInProcess(Name);
-			if (SymAddr)
-				return llvm::JITSymbol(SymAddr, llvm::JITSymbolFlags::Exported);
-			return llvm::JITSymbol(nullptr);
-			});
+		auto JTMB = llvm::orc::JITTargetMachineBuilder::detectHost();
 
-		// Add the set to the JIT with the resolver we created above and a newly
-		// created SectionMemoryManager.
-		return cantFail(OptimizeLayer.addModule(std::move(M),
-			std::move(Resolver)));
-	}
-	
-	llvm::JITSymbol findSymbol(const std::string Name) 
-	{
-		std::string MangledName;
-		llvm::raw_string_ostream MangledNameStream(MangledName);
-		llvm::Mangler::getNameWithPrefix(MangledNameStream, Name, DL);
-		return OptimizeLayer.findSymbol(MangledNameStream.str(), false);
+		if (!JTMB)
+			return JTMB.takeError();
+
+		auto DL = JTMB->getDefaultDataLayoutForTarget();
+		if (!DL)
+			return DL.takeError();
+
+		return llvm::make_unique<JIT>(std::move(*JTMB), std::move(*DL));
 	}
 
-	void removeModule(ModuleHandle H) 
+
+	llvm::Error addModule(std::unique_ptr<llvm::Module> M) 
 	{
-		cantFail(OptimizeLayer.removeModule(H));
+		return TransformLayer.add(ES.getMainJITDylib(),
+			llvm::orc::ThreadSafeModule(std::move(M), Ctx));
+	}
+
+	llvm::Expected<llvm::JITEvaluatedSymbol> lookup(llvm::StringRef Name) 
+	{
+		return ES.lookup({ &ES.getMainJITDylib() }, Mangle(Name.str()));
 	}
 
 private:
-	std::shared_ptr<llvm::Module> optimizeModule(std::shared_ptr<llvm::Module> M) 
+	static llvm::Expected<llvm::orc::ThreadSafeModule>
+		optimizeModule(llvm::orc::ThreadSafeModule M, const llvm::orc::MaterializationResponsibility &R)
 	{
 		// Create a function pass manager.
-		auto FPM = llvm::make_unique<llvm::legacy::FunctionPassManager>(M.get());
+		auto FPM = llvm::make_unique<llvm::legacy::FunctionPassManager>(M.getModule());
 
 		// Add some optimizations.
-		FPM->add(llvm::createVerifierPass());
-		FPM->add(llvm::createPromoteMemoryToRegisterPass());
 		FPM->add(llvm::createInstructionCombiningPass());
 		FPM->add(llvm::createReassociatePass());
-		//FPM->add(llvm::createJumpThreadingPass());
-		//FPM->add(llvm::createGVNPass());
-		FPM->add(llvm::createDeadCodeEliminationPass());
+		FPM->add(llvm::createGVNPass());
 		FPM->add(llvm::createCFGSimplificationPass());
 		FPM->doInitialization();
 
 		// Run the optimizations over all functions in the module being added to
 		// the JIT.
-		for (auto &F : *M)
-		{
+		for (auto &F : *M.getModule())
 			FPM->run(F);
-		}
-		//M->dump();
+
 		return M;
 	}
 };

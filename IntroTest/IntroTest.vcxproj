@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -22,28 +22,29 @@
     <ProjectGuid>{CCF01A45-A0DC-411E-A64B-48E356D54156}</ProjectGuid>
     <RootNamespace>IntroTest</RootNamespace>
     <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -74,8 +75,8 @@
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(Platform)\$(Configuration)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\gtest\include;C:\LLVM5\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\gtest\lib_dbg;C:\LLVM5\lib_dbg;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\gtest\include;C:\LLVM-debug\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\gtest\lib_dbg;C:\LLVM-debug\lib_dbg;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
@@ -86,8 +87,8 @@
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(Platform)\$(Configuration)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\gtest\include;C:\LLVM5\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\gtest\lib;C:\LLVM5\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\gtest\include;C:\LLVM5-release\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\gtest\lib;C:\LLVM-release\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -124,6 +125,7 @@
       <PrecompiledHeader>Create</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies>gtest.lib;LLVMAnalysis.lib;LLVMCore.lib;LLVMExecutionEngine.lib;LLVMInstCombine.lib;LLVMObject.lib;LLVMRuntimeDyld.lib;LLVMScalarOpts.lib;LLVMSupport.lib;LLVMX86CodeGen.lib;LLVMX86AsmPrinter.lib;LLVMX86AsmParser.lib;LLVMX86Desc.lib;LLVMX86Info.lib;LLVMX86Disassembler.lib;LLVMX86Utils.lib;LLVMAsmPrinter.lib;LLVMDebugInfoCodeView.lib;LLVMDebugInfoMSF.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMCodeGen.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMBitWriter.lib;LLVMProfileData.lib;LLVMBitReader.lib;LLVMBinaryFormat.lib;LLVMMCParser.lib;LLVMMCDisassembler.lib;LLVMMC.lib;LLVMDemangle.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -169,6 +171,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies>gtest.lib;LLVMAnalysis.lib;LLVMCore.lib;LLVMExecutionEngine.lib;LLVMInstCombine.lib;LLVMObject.lib;LLVMRuntimeDyld.lib;LLVMScalarOpts.lib;LLVMSupport.lib;LLVMX86CodeGen.lib;LLVMX86AsmPrinter.lib;LLVMX86AsmParser.lib;LLVMX86Desc.lib;LLVMX86Info.lib;LLVMX86Disassembler.lib;LLVMX86Utils.lib;LLVMAsmPrinter.lib;LLVMDebugInfoCodeView.lib;LLVMDebugInfoMSF.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMCodeGen.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMBitWriter.lib;LLVMProfileData.lib;LLVMBitReader.lib;LLVMBinaryFormat.lib;LLVMMCParser.lib;LLVMMCDisassembler.lib;LLVMMC.lib;LLVMDemangle.lib;%(AdditionalDependencies)</AdditionalDependencies>
