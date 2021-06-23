@@ -32,10 +32,6 @@ namespace intro
 	void runStatements(const std::vector<intro::Statement*> &statements);
 	void cleanupSourceFiles();
 
-	//extern llvm::LLVMContext theContext;
-	//extern std::unique_ptr<llvm::Module> TheModule;
-	//extern intro::CodeGenEnvironment global;
-	//extern llvm::IRBuilder<> Builder;
 }
 
 namespace llvm
@@ -43,45 +39,22 @@ namespace llvm
 	void llvm_shutdown();
 }
 
-/*
-	#include <cstdlib>
-	std::string output_path;
-	std::string cmdbuffer("llvm-link -o " + output_path + "-linked.buf.bc IntroRuntime.bc " + gerated_code_file);
-	std::system(cmdbuffer.c_str());
-	cmdbuffer="llc -O3 -o" + output_path +" "+ output_path + "-linked.buf.bc";
-	std::system(cmdbuffer.c_str());
-*/
-
-llvm::cl::opt<std::string> Script(llvm::cl::Positional, llvm::cl::desc("<input script>"), llvm::cl::init("-"));
-llvm::cl::list<std::string>  Argv(llvm::cl::ConsumeAfter, llvm::cl::desc("<program arguments>..."));
-llvm::cl::opt<bool> runTests("test", llvm::cl::desc("Run hard-coded basic tests"));
-llvm::cl::opt<bool> runTestsOpt("testopt", llvm::cl::desc("Run hard-coded basic tests with optimization (overrides test)"));
-
-//#include <dlfcn.h>
 
 int main(int argc,const char *argv[])
 {
+	llvm::cl::opt<std::string> Script(llvm::cl::Positional, llvm::cl::desc("<input script>"), llvm::cl::init("-"));
+	llvm::cl::list<std::string>  Argv(llvm::cl::ConsumeAfter, llvm::cl::desc("<program arguments>..."));
+	llvm::cl::opt<bool> runTests("test", llvm::cl::desc("Run hard-coded basic tests"));
+	llvm::cl::opt<bool> runTestsOpt("testopt", llvm::cl::desc("Run hard-coded basic tests with optimization (overrides test)"));
+
 	llvm::cl::ParseCommandLineOptions(argc, argv);
 	
+	//intro::initModule();
 	intro::initRuntime();
 	
-	//std::string error;
-	//bool ok=llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr,&error);
-	//std::cout << "Loaded OK: " << ok << " with msg "<<error<<std::endl;
-	/*
-	void* handle = ::dlopen(nullptr, RTLD_LAZY|RTLD_GLOBAL);
-	std::cout << "Handle is " << (uint64_t)handle << " vs default " << (uint64_t)RTLD_DEFAULT  <<std::endl;
-	
-	uint64_t sym1 = (uint64_t) ::dlsym(handle, "allocString");
-	uint64_t sym2 = (uint64_t) ::dlsym(RTLD_DEFAULT, "allocString");
-	std::cout << "Sym from handle is "<< sym1 << " vs RTLD_DEFAULT " << sym2  <<std::endl;
-	
-	uint64_t ptr=(uint64_t)llvm::sys::DynamicLibrary::SearchForAddressOfSymbol("allocString");
-	std::cout << "Pointer is "<<ptr<<std::endl;
-	*/
 	if (runTests || runTestsOpt)
 	{
-		intro::initModule();
+		//intro::initModule();
 		runBasicTests();
 		intro::dumpModule(runTestsOpt);
 		printf("Done!\n");
@@ -93,7 +66,7 @@ int main(int argc,const char *argv[])
 		if (Script=="-") // Interactive Mode
 		{
 			// run interactive command line
-			intro::initModule();
+			//intro::initModule();
 			parse::Scanner scanner(stdin);
 			parse::Parser parser(&scanner);
 			parser.isInteractive=true;
@@ -102,7 +75,7 @@ int main(int argc,const char *argv[])
 		}
 		else // Run script
 		{
-			intro::initModule();
+			//intro::initModule();
 			parse::Scanner scanner(Script.c_str());
 			if (!scanner.isOk())
 			{

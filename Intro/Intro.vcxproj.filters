@@ -63,6 +63,12 @@
     <ClCompile Include="LibSIO.cxx">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="LibBasic.cxx">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Statement.cxx">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CodeGen.h">
@@ -135,6 +141,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="LibSIO.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ErrorLogger.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LibBasic.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

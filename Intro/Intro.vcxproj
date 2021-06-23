@@ -76,8 +76,9 @@
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(Platform)\$(Configuration)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\LLVM-debug\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\LLVM-debug\lib;$(LibraryPath)</LibraryPath>
+
+    <IncludePath>C:\LLVM\include;C:\Program Files %28x86%29\Visual Leak Detector\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\LLVM\lib_dbg;C:\Program Files %28x86%29\Visual Leak Detector\lib\Win64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
@@ -87,9 +88,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(Platform)\$(Configuration)\</IntDir>
-    <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\LLVM-release\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\LLVM-release\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Program Files %28x86%29\Visual Leak Detector\include;C:\LLVM\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\LLVM\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -128,7 +128,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>LLVMAnalysis.lib;LLVMCore.lib;LLVMExecutionEngine.lib;LLVMInstCombine.lib;LLVMObject.lib;LLVMOrcJIT.lib;LLVMRuntimeDyld.lib;LLVMScalarOpts.lib;LLVMSupport.lib;LLVMX86CodeGen.lib;LLVMX86AsmParser.lib;LLVMX86AsmPrinter.lib;LLVMX86Desc.lib;LLVMX86Disassembler.lib;LLVMX86Info.lib;LLVMX86Utils.lib;LLVMAsmPrinter.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMCodeGen.lib;LLVMAggressiveInstCombine.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMBitWriter.lib;LLVMProfileData.lib;LLVMBitReader.lib;LLVMMCParser.lib;LLVMMCDisassembler.lib;LLVMMC.lib;LLVMBinaryFormat.lib;LLVMDebugInfoCodeView.lib;LLVMDebugInfoMSF.lib;LLVMDemangle.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>LLVMAnalysis.lib;LLVMCore.lib;LLVMExecutionEngine.lib;LLVMInstCombine.lib;LLVMObject.lib;LLVMOrcJIT.lib;LLVMRuntimeDyld.lib;LLVMScalarOpts.lib;LLVMSupport.lib;LLVMX86CodeGen.lib;LLVMX86AsmParser.lib;LLVMX86Desc.lib;LLVMX86Disassembler.lib;LLVMX86Info.lib;LLVMPasses.lib;LLVMCoroutines.lib;LLVMHelloNew.lib;LLVMipo.lib;LLVMFrontendOpenMP.lib;LLVMIRReader.lib;LLVMAsmParser.lib;LLVMLinker.lib;LLVMObjCARCOpts.lib;LLVMVectorize.lib;LLVMInstrumentation.lib;LLVMJITLink.lib;LLVMOrcTargetProcess.lib;LLVMOrcShared.lib;LLVMAsmPrinter.lib;LLVMDebugInfoDWARF.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMCodeGen.lib;LLVMAggressiveInstCombine.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMBitWriter.lib;LLVMProfileData.lib;LLVMBitReader.lib;LLVMTextAPI.lib;LLVMCFGuard.lib;LLVMRemarks.lib;LLVMBitstreamReader.lib;LLVMMCParser.lib;LLVMMCDisassembler.lib;LLVMMC.lib;LLVMBinaryFormat.lib;LLVMDebugInfoCodeView.lib;LLVMDebugInfoMSF.lib;LLVMDemangle.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <TargetMachine>MachineX64</TargetMachine>
@@ -180,13 +180,14 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>LLVMAnalysis.lib;LLVMCore.lib;LLVMExecutionEngine.lib;LLVMInstCombine.lib;LLVMObject.lib;LLVMOrcJIT.lib;LLVMRuntimeDyld.lib;LLVMScalarOpts.lib;LLVMSupport.lib;LLVMX86CodeGen.lib;LLVMX86AsmParser.lib;LLVMX86AsmPrinter.lib;LLVMX86Desc.lib;LLVMX86Disassembler.lib;LLVMX86Info.lib;LLVMX86Utils.lib;LLVMAsmPrinter.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMCodeGen.lib;LLVMAggressiveInstCombine.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMBitWriter.lib;LLVMProfileData.lib;LLVMBitReader.lib;LLVMMCParser.lib;LLVMMCDisassembler.lib;LLVMMC.lib;LLVMBinaryFormat.lib;LLVMDebugInfoCodeView.lib;LLVMDebugInfoMSF.lib;LLVMDemangle.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>LLVMAnalysis.lib;LLVMCore.lib;LLVMExecutionEngine.lib;LLVMInstCombine.lib;LLVMObject.lib;LLVMOrcJIT.lib;LLVMRuntimeDyld.lib;LLVMScalarOpts.lib;LLVMSupport.lib;LLVMX86CodeGen.lib;LLVMX86AsmParser.lib;LLVMX86Desc.lib;LLVMX86Disassembler.lib;LLVMX86Info.lib;LLVMPasses.lib;LLVMCoroutines.lib;LLVMHelloNew.lib;LLVMipo.lib;LLVMFrontendOpenMP.lib;LLVMIRReader.lib;LLVMAsmParser.lib;LLVMLinker.lib;LLVMObjCARCOpts.lib;LLVMVectorize.lib;LLVMInstrumentation.lib;LLVMJITLink.lib;LLVMOrcTargetProcess.lib;LLVMOrcShared.lib;LLVMAsmPrinter.lib;LLVMDebugInfoDWARF.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMCodeGen.lib;LLVMAggressiveInstCombine.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMBitWriter.lib;LLVMProfileData.lib;LLVMBitReader.lib;LLVMTextAPI.lib;LLVMCFGuard.lib;LLVMRemarks.lib;LLVMBitstreamReader.lib;LLVMMCParser.lib;LLVMMCDisassembler.lib;LLVMMC.lib;LLVMBinaryFormat.lib;LLVMDebugInfoCodeView.lib;LLVMDebugInfoMSF.lib;LLVMDemangle.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <TargetMachine>MachineX64</TargetMachine>
       <ForceSymbolReferences>%(ForceSymbolReferences)</ForceSymbolReferences>
+      <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
     </Link>
     <ProjectReference>
       <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>

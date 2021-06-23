@@ -30,7 +30,7 @@ __pragma(warning(pop))
 
 namespace intro 
 {
-	extern llvm::LLVMContext theContext;
+	extern std::unique_ptr<llvm::LLVMContext> theContext;
 	extern llvm::IRBuilder<> Builder;
 	extern std::unique_ptr<llvm::Module> TheModule;
 	

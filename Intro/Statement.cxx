@@ -475,7 +475,6 @@ namespace intro
 				//std::wcout << L"Error: Could not load file '"
 				//	<< path << "'!\n";
 				errors->addError(new ErrorDescription(getLine(), getColumn(), std::wstring(L"Failed to load file")));
-				files.erase(iter->first);
 				return false;
 			}
 
