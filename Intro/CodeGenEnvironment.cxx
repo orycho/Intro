@@ -7,7 +7,7 @@ using namespace std;
 
 namespace intro 
 {
-	extern llvm::LLVMContext theContext;
+	extern std::unique_ptr<llvm::LLVMContext> theContext;
 	
 	extern llvm::PointerType *builtin_t;
 	extern llvm::Type *rttype_t;
@@ -17,13 +17,13 @@ namespace intro
 	static Expression::cgvalue getGeneratorMemory(llvm::IRBuilder<> &builder, llvm::Value *generator, size_t field_index, const std::string &name)
 	{
 		llvm::Value *idxs[] = {
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 0), // the struct directly pointed to
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), GeneratorFields), // index of fields array in struct
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), (std::uint32_t)field_index), // index of field in array
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 0)	// Value of field
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext), 0), // the struct directly pointed to
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext), GeneratorFields), // index of fields array in struct
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext), (std::uint32_t)field_index), // index of field in array
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext), 0)	// Value of field
 		};
 		llvm::Value *fieldptr = builder.CreateGEP(generator_t, generator, idxs, name+"!ptr");
-		idxs[3] = llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 1);	// Type of  field
+		idxs[3] = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext), 1);	// Type of  field
 		llvm::Value *fieldrtt = builder.CreateGEP(generator_t, generator, idxs, name + "!rtt!ptr");
 		return std::make_pair(fieldptr, fieldrtt);
 	}
@@ -97,8 +97,8 @@ namespace intro
 			//llvm::Function *TheFunction = env->function;
 			llvm::Value *generator = env->closure;
 			Expression::cgvalue undef;
-			undef.first = llvm::Constant::getNullValue(llvm::Type::getInt8Ty(theContext)->getPointerTo());
-			undef.second = llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext), 0, false);
+			undef.first = llvm::Constant::getNullValue(llvm::Type::getInt8Ty(*theContext)->getPointerTo());
+			undef.second = llvm::ConstantInt::get(llvm::Type::getInt16Ty(*theContext), 0, false);
 			for (auto varmapping : generatorVarMap)
 			{
 				//auto elem = elements.find(varmapping.first);
@@ -221,7 +221,7 @@ namespace intro
 
 	llvm::Value *CodeGenEnvironment::getRTT(rtt::RTType rtt)
 	{
-		return llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext), rtt,false);
+		return llvm::ConstantInt::get(llvm::Type::getInt16Ty(*theContext), rtt,false);
 	}
 	
 	llvm::Value *CodeGenEnvironment::getRTT(Type *type)
@@ -295,7 +295,7 @@ namespace intro
 			rtt =
 				new llvm::GlobalVariable(*TheModule,rttype_t, false,
 									 llvm::GlobalValue::CommonLinkage,
-									 llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext), 0,false),
+									 llvm::ConstantInt::get(llvm::Type::getInt16Ty(*theContext), 0,false),
 									 rtname+"!rtt");
 		}
 			break;
@@ -335,10 +335,10 @@ namespace intro
 			builder.CreateBitCast(closure, builtin_t, "boxed_gen")
 		};
 		llvm::Value *gen_state=builder.CreateCall(getStateF, argsGetState ,"gen_state");
-		leave = llvm::BasicBlock::Create(theContext, "leave");
+		leave = llvm::BasicBlock::Create(*theContext, "leave");
 		generatorStateDispatch=builder.CreateSwitch(gen_state,leave); 
-		llvm::BasicBlock *statezero = llvm::BasicBlock::Create(theContext, "state_zero",function);
-		generatorStateDispatch->addCase(llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), 0,false),statezero);
+		llvm::BasicBlock *statezero = llvm::BasicBlock::Create(*theContext, "state_zero",function);
+		generatorStateDispatch->addCase(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext), 0,false),statezero);
 		builder.SetInsertPoint(statezero);
 	}
 	
@@ -391,7 +391,7 @@ namespace intro
 		// Finally, add free variables from closure
 		setClosure(builder,closureparam,closure_t,free);
 		// We get to add the leave block for the function, not to the function
-		leave = llvm::BasicBlock::Create(theContext, "leave");
+		leave = llvm::BasicBlock::Create(*theContext, "leave");
 	}
 	
 	void CodeGenEnvironment::setClosure(llvm::IRBuilder<> &builder,llvm::Value *closure, llvm::StructType *myclosure_t,const VariableSet &freeVars)
@@ -401,17 +401,17 @@ namespace intro
 		std::uint32_t field_base = isInGenerator() ? (std::uint32_t)GeneratorFields:(std::uint32_t)ClosureFields;
 		std::uint32_t field_index=0;
 		llvm::Value *idxs[]= {
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 0), // the struct directly pointed to
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), field_base), // index of fields array in struct
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext), 0), // the struct directly pointed to
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext), field_base), // index of fields array in struct
 			nullptr, // index of field in array
 			nullptr	// element of field
 		};
 		for (auto vars : freeVars)
 		{
-			idxs[2]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), field_index);
-			idxs[3]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 0);
+			idxs[2]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext), field_index);
+			idxs[3]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext), 0);
 			llvm::Value *fieldptr=builder.CreateGEP(myclosure_t,closure,idxs,"closure_field_ptr");
-			idxs[3]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 1);	// Type of  field
+			idxs[3]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext), 1);	// Type of  field
 			llvm::Value *fieldrtt=builder.CreateGEP(myclosure_t,closure,idxs,"closure_field_rtt");
 			// Probably need to load the actual rtt value here...
 			elements.insert(std::make_pair(vars.first,element(fieldptr,fieldrtt)));

@@ -44,10 +44,11 @@ using namespace std;
 
 namespace intro {
 
-	llvm::LLVMContext theContext;
+	std::unique_ptr <llvm::LLVMContext> theContext;
 	std::unique_ptr<llvm::Module> TheModule;
 	static std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
 	static std::unique_ptr<JIT> TheJIT;
+	static ExitOnError exitOnError;
 
 	void dumpModule(bool optimize)
 	{
@@ -55,7 +56,7 @@ namespace intro {
 		if (optimize)
 		{
 			// Create a function pass manager.
-			auto FPM = llvm::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
+			auto FPM = std::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
 
 			// Add some optimizations.
 			FPM->add(llvm::createVerifierPass());
@@ -110,7 +111,7 @@ namespace intro {
 		fun_name = "__AnonFunc";
 		fun_name += std::to_string(anonCount);
 		std::vector<llvm::Type*> args;
-		llvm::FunctionType *FT = llvm::FunctionType::get(llvm::Type::getVoidTy(theContext), args, false);
+		llvm::FunctionType *FT = llvm::FunctionType::get(llvm::Type::getVoidTy(*theContext), args, false);
 		anonCount++;
 		return llvm::Function::Create(FT, llvm::Function::ExternalLinkage, fun_name, TheModule.get());
 	}
@@ -119,10 +120,10 @@ namespace intro {
 	llvm::Function *generateCode(const std::list<intro::Statement*> &statements)
 	{
 		std::vector<llvm::Type*> args;
-		llvm::IRBuilder<> Builder(theContext);
-		llvm::FunctionType *FT = llvm::FunctionType::get(llvm::Type::getVoidTy(theContext),args, false);
+		llvm::IRBuilder<> Builder(*theContext);
+		llvm::FunctionType *FT = llvm::FunctionType::get(llvm::Type::getVoidTy(*theContext),args, false);
 		llvm::Function *func = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, "rootfunc", TheModule.get());
-		BasicBlock *BB = BasicBlock::Create(theContext, "entry", func);
+		BasicBlock *BB = BasicBlock::Create(*theContext, "entry", func);
 		Builder.SetInsertPoint(BB);
 		//CodeGenEnvironment env(nullptr,CodeGenEnvironment::GlobalScope);
 		CodeGenEnvironment *env = CodeGenModule::getRoot();
@@ -142,9 +143,11 @@ namespace intro {
 		//llvm::Function *root = 
 		intro::generateCode(statements);
 		//TheModule->dump();
-		TheJIT->addModule(std::move(TheModule));
-		auto ExprSymbol = TheJIT->findSymbol("rootfunc"); // name by agreement with codegen.cxx
-		void(*FP)() = (void(*)())(intptr_t)cantFail(ExprSymbol.getAddress());
+		auto RT = TheJIT->getMainJITDylib().createResourceTracker();
+		auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), std::move(theContext));
+		TheJIT->addModule(std::move(TSM), RT);
+		auto ExprSymbol = exitOnError(TheJIT->lookup("rootfunc")); // name by agreement with codegen.cxx
+		void(*FP)() = (void(*)())(intptr_t)ExprSymbol.getAddress();
 		FP();
 	}
 
@@ -155,8 +158,8 @@ namespace intro {
 	{
 		std::string fun_name;
 		llvm::Function *func = getRootFunction(fun_name);
-		llvm::BasicBlock *BB = llvm::BasicBlock::Create(theContext, "entry", func);
-		llvm::IRBuilder<> builder(theContext);
+		llvm::BasicBlock *BB = llvm::BasicBlock::Create(*theContext, "entry", func);
+		llvm::IRBuilder<> builder(*theContext);
 		builder.SetInsertPoint(BB);
 		CodeGenEnvironment *env = CodeGenModule::getRoot();
 		env->setAnonFunction(func);
@@ -169,18 +172,19 @@ namespace intro {
 		}
 		builder.CreateRetVoid();
 		llvm::verifyFunction(*func);
-		TheJIT->addModule(std::move(TheModule));
+		exitOnError(TheJIT->addModule(
+			llvm::orc::ThreadSafeModule(std::move(TheModule), std::move(theContext))));
 		initModule();
 		env->addExternalsForGlobals();
 		// Search the JIT for the "fun_name" symbol.
-		auto ExprSymbol = TheJIT->findSymbol(fun_name);
+		auto ExprSymbol = exitOnError(TheJIT->lookup(fun_name));
 		assert(ExprSymbol && "Function not found");
 		// Get the symbol's address and cast it to the right type so we can call it as a native function.
 		if (!ExprSymbol) printf("ExprSymbol '%s' not found!\n", fun_name.c_str());
 		else if (!ExprSymbol.getAddress()) printf("ExprSymbol has no address!\n");
 		else
 		{
-			void(*FP)() = (void(*)())(intptr_t)cantFail(ExprSymbol.getAddress());
+			void(*FP)() = (void(*)())(intptr_t)ExprSymbol.getAddress();
 			FP();
 		}
 	}
@@ -202,27 +206,27 @@ namespace intro {
 				elements.push_back((uint16_t)s[i]);
 			elements.push_back(0); // make sure we have a null terminator for strings.
 
-			llvm::Constant *genstr=ConstantDataArray::get(theContext,elements);
+			llvm::Constant *genstr=ConstantDataArray::get(*theContext,elements);
 			GV = new llvm::GlobalVariable(*TheModule,genstr->getType(), false,
 						llvm::GlobalValue::ExternalLinkage,genstr, "global");
-			GV->setAlignment(sizeof(wchar_t));
+			GV->setAlignment(llvm::MaybeAlign(sizeof(wchar_t)));
 			//global_strings.insert(make_pair(s,GV));
 		}
-		return ConstantExpr::getBitCast(GV, llvm::Type::getInt16Ty(theContext)->getPointerTo());
+		return ConstantExpr::getBitCast(GV, llvm::Type::getInt16Ty(*theContext)->getPointerTo());
 		//return GV;
 	}
 
 	void createInternalTypes()
 	{
-		void_t=llvm::Type::getVoidTy(theContext);
-		integer_t=llvm::Type::getInt64Ty(theContext);
-		int32_t=llvm::Type::getInt32Ty(theContext);
-		charptr_t=llvm::Type::getInt16Ty(theContext)->getPointerTo();
-		double_t=llvm::Type::getDoubleTy(theContext);
-		boolean_t=llvm::Type::getInt1Ty(theContext);
-		rttype_t=llvm::Type::getInt16Ty(theContext);
+		void_t=llvm::Type::getVoidTy(*theContext);
+		integer_t=llvm::Type::getInt64Ty(*theContext);
+		int32_t=llvm::Type::getInt32Ty(*theContext);
+		charptr_t=llvm::Type::getInt16Ty(*theContext)->getPointerTo();
+		double_t=llvm::Type::getDoubleTy(*theContext);
+		boolean_t=llvm::Type::getInt1Ty(*theContext);
+		rttype_t=llvm::Type::getInt16Ty(*theContext);
 		
-		builtin_t=llvm::Type::getInt8Ty(theContext)->getPointerTo();
+		builtin_t=llvm::Type::getInt8Ty(*theContext)->getPointerTo();
 		//llvm::Type *v_i[]={integer_t};
 		//builtin_t=llvm::StructType::create(theContext,v_i,"builtin_t");
 
@@ -231,9 +235,9 @@ namespace intro {
 			builtin_t,	// result value
 			rttype_t, 	// result rtt
 		};
-		field_t = llvm::StructType::create(theContext,vField,"field_t");
+		field_t = llvm::StructType::create(*theContext,vField,"field_t");
 
-		closure_t=llvm::StructType::create(theContext,"closure_t");
+		closure_t=llvm::StructType::create(*theContext,"closure_t");
 		//std::vector<llvm::Type*> vClose {
 		llvm::Type *vClose[]= {
 			integer_t,	// GC
@@ -243,7 +247,7 @@ namespace intro {
 		};
 		closure_t->setBody(vClose);
 
-		generator_t=llvm::StructType::create(theContext,"generator_t");
+		generator_t=llvm::StructType::create(*theContext,"generator_t");
 		//std::vector<llvm::Type*> vGenArg {
 		llvm::Type *vGenArg[] = {
 			generator_t->getPointerTo()
@@ -270,7 +274,7 @@ namespace intro {
 		AttrBuilder B;
 		B.addAttribute(Attribute::ZExt);
 		//llvm::AttributeSet attrs=AttributeSet::get(theContext,llvm::AttributeSet::ReturnIndex,B);
-		llvm::AttributeList attrs = AttributeList::get(theContext, llvm::AttributeList::ReturnIndex, B);
+		llvm::AttributeList attrs = AttributeList::get(*theContext, llvm::AttributeList::ReturnIndex, B);
 		fun->setAttributes(attrs);
 	}
 
@@ -403,25 +407,27 @@ namespace intro {
 
 	void initModule(void)
 	{
-		TheModule = llvm::make_unique<llvm::Module>("Intro jit", theContext);
-		TheModule->setDataLayout(TheJIT->getTargetMachine().createDataLayout());
+		theContext = std::make_unique<LLVMContext>();
+		TheModule = std::make_unique<llvm::Module>("Intro jit", *theContext);
+		TheModule->setDataLayout(TheJIT->getDataLayout());
+		createInternalTypes();
 		declareRuntimeFunctions();
 		CodeGenModule::nextLLVMModule();
 	}
 
 	void initRuntime(void)
 	{
+
 		llvm::InitializeNativeTarget();
 		llvm::InitializeNativeTargetAsmPrinter();
 		llvm::InitializeNativeTargetAsmParser();
-		
-		createInternalTypes();
-		
-		TheJIT = llvm::make_unique<JIT>();
-		
 
+		TheJIT = exitOnError(JIT::create());
+
+		initModule();
+		
 		// Create a new pass manager attached to it.
-		TheFPM = llvm::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
+		TheFPM = std::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
 
 		// Provide basic AliasAnalysis support for GVN.
 		//TheFPM->add(llvm::createBasicAliasAnalysisPass());
@@ -488,7 +494,7 @@ namespace intro {
 	{
 		//llvm::StructType *value=llvm::StructType::create(theContext,"dictelem");
 		fields.clear();
-		fields.push_back(llvm::Type::getInt64Ty(theContext));
+		fields.push_back(llvm::Type::getInt64Ty(*theContext));
 	}
 
 	/////////////////////////////////////////////////////////////////////
@@ -587,9 +593,9 @@ namespace intro {
 	{
 		intro::Type typeInt(intro::Type::Integer);
 		intro::Type typeReal(intro::Type::Real);
-		llvm::BasicBlock *convert = llvm::BasicBlock::Create(theContext, "convert");
-		llvm::BasicBlock *keep = llvm::BasicBlock::Create(theContext, "keep");
-		llvm::BasicBlock *merge = llvm::BasicBlock::Create(theContext, "mergecoerce");
+		llvm::BasicBlock *convert = llvm::BasicBlock::Create(*theContext, "convert");
+		llvm::BasicBlock *keep = llvm::BasicBlock::Create(*theContext, "keep");
+		llvm::BasicBlock *merge = llvm::BasicBlock::Create(*theContext, "mergecoerce");
 		builder.CreateCondBr(otherIsInt,convert,keep);
 		
 		TheFunction->getBasicBlockList().push_back(convert);
@@ -668,9 +674,9 @@ namespace intro {
 				llvm::Value *lhsInt=builder.CreateICmpEQ(lhs.second, llvm::ConstantInt::get(rttype_t, intro::rtt::Integer,false), "lhsIntDesKa");
 				llvm::Value *rhsInt=builder.CreateICmpEQ(rhs.second, llvm::ConstantInt::get(rttype_t, intro::rtt::Integer,false), "rhsIntDesKa");
 				llvm::Value *bothInt=builder.CreateAnd(lhsInt,rhsInt,"bothintdeska");
-				llvm::BasicBlock *intopblock = llvm::BasicBlock::Create(theContext, "intopblock");
-				llvm::BasicBlock *realopblock = llvm::BasicBlock::Create(theContext, "realopblock");
-				llvm::BasicBlock *mergeblock = llvm::BasicBlock::Create(theContext, "mergeblock");
+				llvm::BasicBlock *intopblock = llvm::BasicBlock::Create(*theContext, "intopblock");
+				llvm::BasicBlock *realopblock = llvm::BasicBlock::Create(*theContext, "realopblock");
+				llvm::BasicBlock *mergeblock = llvm::BasicBlock::Create(*theContext, "mergeblock");
 				builder.CreateCondBr(bothInt,intopblock,realopblock);
 				
 				TheFunction->getBasicBlockList().push_back(intopblock);
@@ -746,7 +752,7 @@ namespace intro {
 		//llvm::Function *TheFunction = builder.GetInsertBlock()->getParent();
 		llvm::Function *TheFunction = env->currentFunction();
 		
-		llvm::BasicBlock *postcase = llvm::BasicBlock::Create(theContext, "postrtt");
+		llvm::BasicBlock *postcase = llvm::BasicBlock::Create(*theContext, "postrtt");
 		llvm::BasicBlock *startblock = builder.GetInsertBlock();
 		llvm::SwitchInst *jumptable=builder.CreateSwitch(input.second,postcase); // add to current block
 		// add phi nodes after switch to collect values and their rtt.
@@ -758,14 +764,14 @@ namespace intro {
 			result=builder.CreatePHI(returned_type,op_count+1,"result");
 			resultrtt=builder.CreatePHI(rttype_t,op_count+1,"resultrtt");
 			result->addIncoming(llvm::Constant::getNullValue(returned_type),startblock);
-			resultrtt->addIncoming(llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext), rtt::Undefined,false),startblock);
+			resultrtt->addIncoming(llvm::ConstantInt::get(llvm::Type::getInt16Ty(*theContext), rtt::Undefined,false),startblock);
 		}
 		for (size_t i=0;i<op_count;++i)
 		{
-			llvm::BasicBlock *current = llvm::BasicBlock::Create(theContext, "typecase");
+			llvm::BasicBlock *current = llvm::BasicBlock::Create(*theContext, "typecase");
 			TheFunction->getBasicBlockList().push_back(current);
 			builder.SetInsertPoint(current);
-			llvm::ConstantInt *rttval=llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext), ops[i].type,false);
+			llvm::ConstantInt *rttval=llvm::ConstantInt::get(llvm::Type::getInt16Ty(*theContext), ops[i].type,false);
 			jumptable->addCase(rttval, current);
 			llvm::Value *output=ops[i].callback(builder,args);
 			builder.CreateBr(postcase);
@@ -788,7 +794,7 @@ namespace intro {
 
 	Expression::cgvalue IntegerConstant::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
-		llvm::Value *constant=llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), value,true);
+		llvm::Value *constant=llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext), value,true);
 		constant=createBoxValue(TmpB,env,constant,getType());
 		// Value type need not be made intermediate
 		return makeRTValue(constant,rtt::Integer);
@@ -796,7 +802,7 @@ namespace intro {
 
 	Expression::cgvalue BooleanConstant::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
-		llvm::Value *constant=llvm::ConstantInt::get(llvm::Type::getInt1Ty(theContext), value,false);
+		llvm::Value *constant=llvm::ConstantInt::get(llvm::Type::getInt1Ty(*theContext), value,false);
 		constant=createBoxValue(TmpB,env,constant,getType());
 		// Value type need not be made intermediate
 		return makeRTValue(constant,rtt::Boolean);
@@ -804,7 +810,7 @@ namespace intro {
 
 	Expression::cgvalue RealConstant::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
-		llvm::Value *constant=llvm::ConstantFP::get(theContext, llvm::APFloat(value));
+		llvm::Value *constant=llvm::ConstantFP::get(*theContext, llvm::APFloat(value));
 		constant=createBoxValue(TmpB,env,constant,getType());
 		// Value type need not be made intermediate
 		return makeRTValue(constant,rtt::Real);
@@ -815,7 +821,7 @@ namespace intro {
 		//// Prepare tokenization of string based on regular expressions (regex does efficient preprocessing here...)
 		Value *strsz=NULL;
 		Value *retval=NULL;
-		Value *zero=llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), 0,true);
+		Value *zero=llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext), 0,true);
 		vector<Value*> doubleo(2,zero);
 		std::list<std::pair<llvm::Value*,Value*> > stringparts;
 		std::list<std::pair<llvm::Value*,Value*> >::iterator iter;
@@ -826,7 +832,7 @@ namespace intro {
 		// Generate call to string allocation intrisic, guesstimate length by taking source string length
 		// For each part, it's a constant string, or a variable interpolation
 		std::vector<Value*> ArgsV;
-		Value *targetsize = llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext),value.size(),false);
+		Value *targetsize = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext),value.size(),false);
 		ArgsV.push_back(targetsize);
 		retval=TmpB.CreateCall(allocStringF, ArgsV, "newstring");
 		for (iterator i=parts.begin();i!=parts.end();i++) 
@@ -847,7 +853,7 @@ namespace intro {
 			{
 				// Append constant string element
 				llvm::Constant *GV=createGlobalString(i->s);
-				strsz=ConstantInt::get(llvm::Type::getInt64Ty(theContext), i->s.size(),false);
+				strsz=ConstantInt::get(llvm::Type::getInt64Ty(*theContext), i->s.size(),false);
 				ArgsV.clear();
 				ArgsV.push_back(retval);
 				ArgsV.push_back(GV);
@@ -868,9 +874,9 @@ namespace intro {
 		// Generate call to string allocation intrisic, guesstimate length by taking source string length
 		// For each part, it's a constant string, or a variable interpolation
 		std::vector<llvm::Value*> ArgsV;
-		Value *targetsize = llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext),elements.size(),false);
+		Value *targetsize = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext),elements.size(),false);
 		rtt::tag_t rttbuf=myType->getFirstParameter()->find()->getRTKind();
-		Value *elem_rtt = llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext),rttbuf,false);
+		Value *elem_rtt = llvm::ConstantInt::get(llvm::Type::getInt16Ty(*theContext),rttbuf,false);
 		ArgsV.push_back(targetsize);
 		ArgsV.push_back(elem_rtt);
 		llvm::Value *retval=TmpB.CreateCall(allocListF, ArgsV, "newlist");
@@ -920,9 +926,9 @@ namespace intro {
 		// For each part, it's a constant string, or a variable interpolation
 		std::vector<llvm::Value*> ArgsV;
 		rtt::tag_t rttbuf=myType->getParameter(0)->find()->getRTKind();
-		Value *key_rtt = llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext),rttbuf,false);
+		Value *key_rtt = llvm::ConstantInt::get(llvm::Type::getInt16Ty(*theContext),rttbuf,false);
 		rttbuf=myType->getParameter(1)->find()->getRTKind();
-		Value *value_rtt = llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext),rttbuf,false);
+		Value *value_rtt = llvm::ConstantInt::get(llvm::Type::getInt16Ty(*theContext),rttbuf,false);
 		ArgsV.push_back(key_rtt);
 		ArgsV.push_back(value_rtt);
 		llvm::Value *retval=TmpB.CreateCall(allocDictF, ArgsV, "newdict");
@@ -1024,12 +1030,12 @@ namespace intro {
 	template<class T>
 	llvm::Value *createGlobal(llvm::ArrayRef<T> &elements,std::string name)
 	{
-		llvm::Constant *genstr=ConstantDataArray::get(theContext,elements);
+		llvm::Constant *genstr=ConstantDataArray::get(*theContext,elements);
 		llvm::GlobalVariable *GV =
 			new llvm::GlobalVariable(*TheModule,genstr->getType(), true,
 					llvm::GlobalValue::ExternalLinkage,genstr, name);
 		GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
-		GV->setAlignment(sizeof(T));
+		GV->setAlignment(llvm::MaybeAlign(sizeof(T)));
 		return GV;
 	}
 	// Make a global constant holding the offsets for a perfect hash for the given set of keys.
@@ -1041,7 +1047,7 @@ namespace intro {
 		const size_t size=keys.size();
 		llvm::ArrayRef<std::uint32_t> offset_ref((std::uint32_t*)offsets,size);
 		llvm::Value *val= createGlobal(offset_ref,"recoffsets");
-		return TmpB.CreateBitCast(val, llvm::Type::getInt32Ty(theContext)->getPointerTo());
+		return TmpB.CreateBitCast(val, llvm::Type::getInt32Ty(*theContext)->getPointerTo());
 	}
 
 	// Code Gen a constant array with pointers to strings for the labels
@@ -1053,8 +1059,8 @@ namespace intro {
 		labels.resize(size,nullptr);
 		llvm::Value *zeros[]=
 		{
-			llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext),0,false),
-			llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext),0,false)
+			llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext),0,false),
+			llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext),0,false)
 		};
 		for (const std::wstring &label : keys)
 		{
@@ -1062,13 +1068,13 @@ namespace intro {
 			llvm::Constant *gstr=createGlobalString(label);
 			labels[slot]=gstr;
 		}
-		llvm::ArrayType *ty=llvm::ArrayType::get(llvm::Type::getInt16Ty(theContext)->getPointerTo(),size);
+		llvm::ArrayType *ty=llvm::ArrayType::get(llvm::Type::getInt16Ty(*theContext)->getPointerTo(),size);
 		llvm::Constant *constants=llvm::ConstantArray::get(ty,labels);
 		llvm::GlobalVariable *GV =
 			new llvm::GlobalVariable(*TheModule,constants->getType(), true,
 					llvm::GlobalValue::ExternalLinkage,constants, "reclabels");
 		GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
-		GV->setAlignment(sizeof(wchar_t*));
+		GV->setAlignment(llvm::MaybeAlign(sizeof(wchar_t*)));
 		return TmpB.CreateGEP(GV,zeros);
 	}
 	
@@ -1094,11 +1100,11 @@ namespace intro {
 		else
 		{
 			// ... nope, pass a nullptr
-			args.push_back(llvm::Constant::getNullValue(llvm::Type::getInt32Ty(theContext)->getPointerTo()));
+			args.push_back(llvm::Constant::getNullValue(llvm::Type::getInt32Ty(*theContext)->getPointerTo()));
 			args.push_back(llvm::Constant::getNullValue(charptr_t->getPointerTo()));
 		}
 		// Now allocate the record, after adding size argument
-		args.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext),size,false));
+		args.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext),size,false));
 		llvm::Function *allocRecordF = TheModule->getFunction("allocRecord");
 		llvm::Value *record=TmpB.CreateCall(allocRecordF, args, "newrecord");
 		// also write fields
@@ -1110,7 +1116,7 @@ namespace intro {
 		{
 			// void setFieldRecord(rtrecord *record,std::uint32_t slot,rtdata value,rtt_t rtt)
 			std::int32_t slot=util::find(iter->first.c_str(),iter->first.size(),offsets,size);
-			args[1]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext),slot,false);
+			args[1]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext),slot,false);
 			Expression::cgvalue fieldval=iter->second->codeGen(TmpB,env);
 			env->removeIntermediateOrIncrement(TmpB, iter->second->getType()->find(), fieldval.first, fieldval.second);
 			env->decrementIntermediates(TmpB);
@@ -1149,13 +1155,13 @@ namespace intro {
 		else
 		{
 			// ... nope, pass a nullptr
-			args.push_back(llvm::Constant::getNullValue(llvm::Type::getInt32Ty(theContext)->getPointerTo()));
+			args.push_back(llvm::Constant::getNullValue(llvm::Type::getInt32Ty(*theContext)->getPointerTo()));
 			args.push_back(llvm::Constant::getNullValue(charptr_t->getPointerTo()));
 		}
 		// tag param for allocator
-		args.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext),getTag(tag),false));
+		args.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext),getTag(tag),false));
 		// size param for allocator
-		args.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext),size,false));
+		args.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext),size,false));
 		llvm::Function *allocVariantF = TheModule->getFunction("allocVariant");
 		llvm::Value *variant=TmpB.CreateCall(allocVariantF, args, "newvariant");
 		// also write fields
@@ -1166,7 +1172,7 @@ namespace intro {
 		for (RecordExpression::iterator iter=record->begin();iter!=record->end();++iter)
 		{
 			std::int32_t slot=util::find(iter->first.c_str(),iter->first.size(),offsets,size);
-			args[1]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext),slot,false);
+			args[1]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext),slot,false);
 			Expression::cgvalue fieldval=iter->second->codeGen(TmpB,env);
 			args[2]=fieldval.first;
 			args[3]=fieldval.second;
@@ -1184,7 +1190,7 @@ namespace intro {
 		std::vector<llvm::Value*> argsSlot {
 			source.first,
 			createGlobalString(label),
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext),label.size(),false)
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext),label.size(),false)
 		};
 		llvm::Function *getSlotRecordF = TheModule->getFunction("getSlotRecord");
 		llvm::Value *slot = TmpB.CreateCall(getSlotRecordF, argsSlot,"fieldslot");
@@ -1205,7 +1211,7 @@ namespace intro {
 		std::vector<llvm::Value*> argsSlot {
 			source.first,
 			createGlobalString(label),
-			llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext),label.size(),false)
+			llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext),label.size(),false)
 		};
 		llvm::Function *getSlotRecordF = TheModule->getFunction("getSlotRecord");
 		llvm::Value *slot = TmpB.CreateCall(getSlotRecordF, argsSlot,"fieldslot");
@@ -1231,8 +1237,8 @@ namespace intro {
 		std::uint32_t field_base=isGenerator?(std::uint32_t)GeneratorFields:(std::uint32_t)ClosureFields;
 		std::uint32_t field_index=0;
 		llvm::Value *idxs[]= {
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 0), // the struct directly pointed to
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), field_base), // index of fields array in struct
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext), 0), // the struct directly pointed to
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext), field_base), // index of fields array in struct
 			nullptr,
 			nullptr
 		};	
@@ -1242,11 +1248,11 @@ namespace intro {
 			//CodeGenEnvironment::iterator iter=env->find(variables[i]);
 			CodeGenEnvironment::iterator iter=env->find(vars.first);
 			// Copy the value to the closure
-			idxs[2]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), field_index); // index of field in array
+			idxs[2]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext), field_index); // index of field in array
 			
-			idxs[3]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 0);	// Value of field
+			idxs[3]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext), 0);	// Value of field
 			llvm::Value *fieldptr=builder.CreateGEP(myclosure_t,closure,idxs,"closure_field_ptr");
-			idxs[3]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), 1);	// Type of  field
+			idxs[3]=llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext), 1);	// Type of  field
 			llvm::Value *fieldrtt=builder.CreateGEP(myclosure_t,closure,idxs,"closure_field_rtt");
 			Expression::cgvalue value = iter->second.load(builder);
 			env->removeIntermediateOrIncrement(builder, vars.second, value);
@@ -1292,7 +1298,7 @@ namespace intro {
 		getFreeVariables(free,bound);
 		// Allocate closure with space for all free variables
 		Value *ArgsAlloc[]={
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext),free.size(),false)
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext),free.size(),false)
 		};
 		llvm::Value *closure=TmpB.CreateCall(TheModule->getFunction("allocClosure"), ArgsAlloc, "closureAlloc" );
 		llvm::Value *cast_closure=TmpB.CreateBitCast(closure,closure_t->getPointerTo(),"closure");
@@ -1337,7 +1343,7 @@ namespace intro {
 		llvm::Type *returned;
 		if (returnsValue)
 			returned=builtin_t;
-		else returned=llvm::Type::getVoidTy(theContext);
+		else returned=llvm::Type::getVoidTy(*theContext);
 		return llvm::FunctionType::get(returned, paramtypes, false);
 	}
 	
@@ -1350,10 +1356,10 @@ namespace intro {
 		// Set up a function for the generator body
 		llvm::Function *GF = llvm::Function::Create(genfunc_t, llvm::Function::ExternalLinkage, "function", TheModule.get());
 		makeReturnTypeZExt(GF);
-		llvm::BasicBlock *entry = llvm::BasicBlock::Create(theContext, "entry", GF);
+		llvm::BasicBlock *entry = llvm::BasicBlock::Create(*theContext, "entry", GF);
 
 		// Create new builder for generator body...
-		llvm::IRBuilder<> builder(theContext);
+		llvm::IRBuilder<> builder(*theContext);
 		builder.SetInsertPoint(entry);
 		CodeGenEnvironment local(closure_env,CodeGenEnvironment::Generator);
 		local.setGenerator(builder,GF,freeset);
@@ -1362,13 +1368,13 @@ namespace intro {
 		GF->getBasicBlockList().push_back(local.getExitBlock());
 		builder.SetInsertPoint(local.getExitBlock());
 		// Always return false if we know not what to to with an iteration function.
-		builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt1Ty(theContext), 0,false));
+		builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt1Ty(*theContext), 0,false));
 		llvm::verifyFunction(*GF);
 		std::uint32_t closurecount = freeset.size(); // Number of variables captured in closure
 		std::uint32_t varcount = local.getClosureSize()-closurecount; // number of generator variables captured after closure values.
 		std::vector<llvm::Value*> ArgsAlloc {
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), closurecount,false),
-			llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), varcount,false),
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext), closurecount,false),
+			llvm::ConstantInt::get(llvm::Type::getInt32Ty(*theContext), varcount,false),
 			GF
 		};
 		llvm::Value *generator=closure_builder.CreateCall(TheModule->getFunction("allocGenerator"), ArgsAlloc, "generator" );
@@ -1388,9 +1394,9 @@ namespace intro {
 		llvm::FunctionType *FT = buildFunctionType(myType);
 		llvm::Function *F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, "function", TheModule.get());
 
-		llvm::BasicBlock *entry = llvm::BasicBlock::Create(theContext, "entry", F);
+		llvm::BasicBlock *entry = llvm::BasicBlock::Create(*theContext, "entry", F);
 		// Create new builder for function body...
-		llvm::IRBuilder<> builder(theContext);
+		llvm::IRBuilder<> builder(*theContext);
 		builder.SetInsertPoint(entry);
 
 		CodeGenEnvironment local(parent,CodeGenEnvironment::Closure);
@@ -1480,7 +1486,7 @@ namespace intro {
 		
 		if (returnsValue)
 		{
-			retval = TmpB.CreateCall(fun, ArgsV, "application");
+			retval = TmpB.CreateCall(FT,fun, ArgsV, "application");
 			returntype = TmpB.CreateLoad(returntypeptr, "retvalrtt");
 			// Function return values are intermediate
 			env->decrementIntermediates(TmpB);
@@ -1489,7 +1495,7 @@ namespace intro {
 		}
 		else
 		{
-			TmpB.CreateCall(fun, ArgsV);
+			TmpB.CreateCall(FT,fun, ArgsV);
 			returntype = env->getRTT(intro::rtt::Undefined);
 			env->decrementIntermediates(TmpB);
 		}
@@ -1729,9 +1735,9 @@ namespace intro {
 			{
 				// May be a number due to var being top bound!
 				llvm::Value *lhsString=cgTestRTT(TmpB,lhs.second, intro::rtt::String);
-				stropblock = llvm::BasicBlock::Create(theContext, "stropblock");
-				numopblock = llvm::BasicBlock::Create(theContext, "numopblock");
-				mergeblock = llvm::BasicBlock::Create(theContext, "mergeblock");
+				stropblock = llvm::BasicBlock::Create(*theContext, "stropblock");
+				numopblock = llvm::BasicBlock::Create(*theContext, "numopblock");
+				mergeblock = llvm::BasicBlock::Create(*theContext, "mergeblock");
 
 				TmpB.CreateCondBr(lhsString,stropblock,numopblock);
 				TheFunction->getBasicBlockList().push_back(stropblock);
@@ -1902,7 +1908,7 @@ namespace intro {
 		{
 			// Allocate a string
 			llvm::Function *allocStringF = TheModule->getFunction("allocString");
-			llvm::Value *argsAlloc[] = { llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), 0,true) };
+			llvm::Value *argsAlloc[] = { llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext), 0,true) };
 			llvm::Value *theStr = TmpB.CreateCall(allocStringF, argsAlloc, "valstr");
 			// Serialize value into it
 			llvm::Value *argsToStr[] =
@@ -1917,7 +1923,7 @@ namespace intro {
 			llvm::Value *argsPrint[] = { theStr };
 			llvm::Function *subF = TheModule->getFunction("print");
 			TmpB.CreateCall(subF, argsPrint);
-			llvm::Value *argsDecr[] = { theStr, llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext), rtt::String,false) };
+			llvm::Value *argsDecr[] = { theStr, llvm::ConstantInt::get(llvm::Type::getInt16Ty(*theContext), rtt::String,false) };
 			// Then get rid of the allocated buffer again...
 			subF = TheModule->getFunction("decrement");
 			TmpB.CreateCall(subF, argsDecr);
@@ -1967,13 +1973,13 @@ namespace intro {
 		llvm::Function *TheFunction = env->currentFunction();
 		for (i=0;i<conditions.size();i++)
 		{
-			alternatives.push_back(BasicBlock::Create(theContext, "test_if"));
+			alternatives.push_back(BasicBlock::Create(*theContext, "test_if"));
 		}
 		llvm::BasicBlock *post_ite;
 		if (isTerminatorLike()) post_ite = env->getExitBlock();
-		else post_ite = BasicBlock::Create(theContext, "post_ite");
+		else post_ite = BasicBlock::Create(*theContext, "post_ite");
 		if (otherwise!=NULL)
-			alternatives.push_back(BasicBlock::Create(theContext, "else"));
+			alternatives.push_back(BasicBlock::Create(*theContext, "else"));
 		else 
 			alternatives.push_back(post_ite);
 		
@@ -1990,7 +1996,7 @@ namespace intro {
 			llvm::Value *condval=createUnboxValue(TmpB,env,condition.first,&TBoolean);
 			env->decrementIntermediates(TmpB);
 			// Body block and conditional branch
-			llvm::BasicBlock *block=BasicBlock::Create(theContext, "if_body");
+			llvm::BasicBlock *block=BasicBlock::Create(*theContext, "if_body");
 			TmpB.CreateCondBr(condval, block, alternatives[i+1]);
 			// Generate body
 			CodeGenEnvironment local(env);
@@ -2056,9 +2062,9 @@ namespace intro {
 	{
 		// Create blocks for while condition test, loop body and the block after
 		llvm::Function *TheFunction = env->currentFunction();
-		BasicBlock *test = BasicBlock::Create(theContext, "test", TheFunction);
-		BasicBlock *loopbody = BasicBlock::Create(theContext, "body", TheFunction);
-		BasicBlock *after = BasicBlock::Create(theContext, "after");
+		BasicBlock *test = BasicBlock::Create(*theContext, "test", TheFunction);
+		BasicBlock *loopbody = BasicBlock::Create(*theContext, "body", TheFunction);
+		BasicBlock *after = BasicBlock::Create(*theContext, "after");
 		TmpB.CreateBr(test); // Go to next basic block - it has another entry point, hence the branch
 		// Test the condition, if false skip body and done
 		TmpB.SetInsertPoint(test);
@@ -2124,15 +2130,15 @@ namespace intro {
 		}
 		else // not ret like, so create a block to go on in. that becomes our default
 		{
-			postcase = llvm::BasicBlock::Create(theContext, "postcase");
+			postcase = llvm::BasicBlock::Create(*theContext, "postcase");
 			jumptable=TmpB.CreateSwitch(variant_tag,postcase); // add to current block
 		}
 		for (iterator iter=cases.begin();iter!=cases.end();++iter)
 		{
 			// create case for iter, then bind variables it extracts from variaat
 			size_t current_tag=getTag((*iter)->tag);
-			llvm::BasicBlock *current = llvm::BasicBlock::Create(theContext, "variantcase");
-			jumptable->addCase(llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), current_tag,false),current);
+			llvm::BasicBlock *current = llvm::BasicBlock::Create(*theContext, "variantcase");
+			jumptable->addCase(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext), current_tag,false),current);
 			TheFunction->getBasicBlockList().push_back(current);
 			TmpB.SetInsertPoint(current);
 			// add bound fields from variants to local env
@@ -2144,7 +2150,7 @@ namespace intro {
 				std::vector<llvm::Value*> argsSlot {
 					input.first,
 					createGlobalString(fit->first),
-					llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext),fit->first.size(),false)
+					llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext),fit->first.size(),false)
 				};
 				llvm::Value *slot=TmpB.CreateCall(getSlotVariantF, argsSlot,"fieldptr");
 				std::vector<llvm::Value*> argsGet {
@@ -2234,15 +2240,15 @@ namespace intro {
 			env->removeIntermediateOrIncrement(TmpB, expr->getType(), result.first, result.second);
 			std::vector<llvm::Value*> argsRet{ generator, result.first, result.second };
 			TmpB.CreateCall(setResultF, argsRet);
-			llvm::ConstantInt *nextStateVal=llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), nextStateId,false);
+			llvm::ConstantInt *nextStateVal=llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext), nextStateId,false);
 			std::vector<llvm::Value*> argsNextState{ generator, nextStateVal };
 			TmpB.CreateCall(setStateF, argsNextState);
 			// Save away current state
 			env->storeGeneratorValues(TmpB);
 			// Return the current value!
-			TmpB.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt1Ty(theContext), 1,false));
+			TmpB.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt1Ty(*theContext), 1,false));
 			// Set up the new state for continuation
-			llvm::BasicBlock *nextState = llvm::BasicBlock::Create(theContext, std::string("gen_state_") + std::to_string(nextStateId));
+			llvm::BasicBlock *nextState = llvm::BasicBlock::Create(*theContext, std::string("gen_state_") + std::to_string(nextStateId));
 			dispatch->addCase(nextStateVal, nextState);
 			TheFunction->getBasicBlockList().push_back(nextState);
 			TmpB.SetInsertPoint(nextState);
@@ -2253,17 +2259,17 @@ namespace intro {
 			std::vector<llvm::Value*> args{ 
 				generator,
 				llvm::Constant::getNullValue(builtin_t),
-				llvm::ConstantInt::get(llvm::Type::getInt16Ty(theContext), rtt::Undefined,false)
+				llvm::ConstantInt::get(llvm::Type::getInt16Ty(*theContext), rtt::Undefined,false)
 			};
 			TmpB.CreateCall(setResultF, args);
-			llvm::ConstantInt *nextStateVal=llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), nextStateId,false);
+			llvm::ConstantInt *nextStateVal=llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext), nextStateId,false);
 			std::vector<llvm::Value*> argsNextState{ generator, nextStateVal };
 			TmpB.CreateCall(setStateF, argsNextState);
 			// cleanup envirenment
 			env->closeAllScopes(TmpB);
-			TmpB.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt1Ty(theContext), 0,false));
+			TmpB.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt1Ty(*theContext), 0,false));
 			// Set up the new state that just returns false
-			llvm::BasicBlock *nextState = llvm::BasicBlock::Create(theContext, std::string("gen_state_done"));
+			llvm::BasicBlock *nextState = llvm::BasicBlock::Create(*theContext, std::string("gen_state_done"));
 			dispatch->addCase(nextStateVal, nextState);
 			TheFunction->getBasicBlockList().push_back(nextState);
 			TmpB.SetInsertPoint(nextState);
@@ -2277,10 +2283,10 @@ namespace intro {
 	{
 		// 1: We need the function, and we'll create some blocks
 		llvm::Function *TheFunction = env->currentFunction();
-		loop = llvm::BasicBlock::Create(theContext, "range_next");
-		llvm::BasicBlock *test = llvm::BasicBlock::Create(theContext, "range_test");
-		llvm::BasicBlock *body = llvm::BasicBlock::Create(theContext, "range_body");
-		exit = llvm::BasicBlock::Create(theContext, "range_exit"); // Added to function later by genstmt
+		loop = llvm::BasicBlock::Create(*theContext, "range_next");
+		llvm::BasicBlock *test = llvm::BasicBlock::Create(*theContext, "range_test");
+		llvm::BasicBlock *body = llvm::BasicBlock::Create(*theContext, "range_body");
+		exit = llvm::BasicBlock::Create(*theContext, "range_exit"); // Added to function later by genstmt
 
 		// 2: Compute iteration paramters (from, to and optional by defaults to 1)
 		// and store to variables... from value goes directly into iteration variable, that is stored
@@ -2298,7 +2304,7 @@ namespace intro {
 		Expression::cgvalue by_val;
 		if (by == nullptr)
 		{
-			by_val.first = llvm::ConstantInt::get(llvm::Type::getInt64Ty(theContext), 1, true);
+			by_val.first = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext), 1, true);
 			by_val.first = createBoxValue(TmpB, env, by_val.first, &tI);
 			by_val.second = env->getRTT(rtt::Integer);
 		}
@@ -2347,9 +2353,9 @@ namespace intro {
 	{
 		// 1: We need the function, and we'll create some blocks
 		llvm::Function *TheFunction = env->currentFunction();
-		loop = llvm::BasicBlock::Create(theContext, "container_next");
-		llvm::BasicBlock *body = llvm::BasicBlock::Create(theContext, "container_body");
-		exit = llvm::BasicBlock::Create(theContext, "container_exit"); // Added to function later by genstmt
+		loop = llvm::BasicBlock::Create(*theContext, "container_next");
+		llvm::BasicBlock *body = llvm::BasicBlock::Create(*theContext, "container_body");
+		exit = llvm::BasicBlock::Create(*theContext, "container_exit"); // Added to function later by genstmt
 		rawcontval=container->codeGen(TmpB,env);
 		env->removeIntermediateOrIncrement(TmpB, container->getType()->find(), rawcontval);
 		//llvm::BasicBlock *rawcontblock=TmpB.GetInsertBlock();
@@ -2456,7 +2462,7 @@ namespace intro {
 			if (generators[i].iscondition && lastgen!=nullptr)
 			{
 				// Note that grammar does not allow the statement to begin with a condition!
-				llvm::BasicBlock *postcondbody = llvm::BasicBlock::Create(theContext, "postcondbody");
+				llvm::BasicBlock *postcondbody = llvm::BasicBlock::Create(*theContext, "postcondbody");
 				Expression::cgvalue cond=generators[i].condition->codeGen(TmpB,&local);
 				// If the condition is violated, jump to the current loop's loop start
 				TmpB.CreateCondBr(createUnboxValue(TmpB,env,cond.first,&TBoolean),postcondbody,lastgen->loop);
