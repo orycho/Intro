@@ -176,8 +176,8 @@ void Parser::ContainerElement(intro::Expression *&value, intro::Expression *&key
 void Parser::Container() {
 		intro::Expression *value=NULL, *key=NULL;
 		intro::GeneratorStatement *gen=NULL;
-		std::list<std::pair<intro::Expression*,intro::Expression*> > dict_elem; 
-		std::list<intro::Expression*> list_elem; 
+		std::vector<std::pair<intro::Expression*,intro::Expression*> > dict_elem; 
+		std::vector<intro::Expression*> list_elem; 
 		bool isDictionary=false;
 		
 		Expect(16 /* "{" */);
@@ -377,7 +377,7 @@ void Parser::Atom() {
 			break;
 		}
 		case _ident: case 29 /* "::" */: {
-			bool rel=true; std::list<std::wstring> path; 
+			bool rel=true; std::vector<std::wstring> path; 
 			if (la->kind == 29 /* "::" */) {
 				Get();
 				rel=false; 
@@ -855,7 +855,7 @@ void Parser::Source() {
 
 void Parser::Import() {
 		bool rel=true; 
-		std::list<std::wstring> path; 
+		std::vector<std::wstring> path; 
 		//std::wstring val;
 		
 		
@@ -1182,7 +1182,7 @@ void Parser::ExportedName() {
 
 void Parser::AbstractType() {
 		std::wstring str,name;
-		std::list<intro::TypeExpression*> parameters;
+		std::vector<intro::TypeExpression*> parameters;
 		
 		Expect(77 /* "type" */);
 		Identifier(name);
@@ -1216,7 +1216,7 @@ void Parser::AbstractType() {
 void Parser::Module() {
 		std::wstring name;
 		bool rel=true; 
-		std::list<std::wstring> path; 
+		std::vector<std::wstring> path; 
 		
 		Expect(78 /* "module" */);
 		if (la->kind == 29 /* "::" */) {

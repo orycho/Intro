@@ -13,7 +13,7 @@ using namespace std;
 /// Helpers
 namespace intro
 {
-	llvm::Function * generateCode(const std::list<intro::Statement*> &statements);
+	llvm::Function * generateCode(const std::vector<intro::Statement*> &statements);
 }
 
 void deleteStatements(parse::Parser &parser);
@@ -737,11 +737,11 @@ bool freeVariableDetection(void)
 	parse::Scanner scanner((const unsigned char *)test,strlen(test));
 	parse::Parser parser(&scanner);
 	parser.Parse();
-	std::list<intro::Statement*>::iterator iter;
+	parse::Parser::iterator iter;
 	for (iter=parser.parseResult.begin();iter!=parser.parseResult.end();iter++)
 	{
-		std::list<intro::Function*> funcs;
-		std::list<intro::Function*>::iterator fit;
+		std::vector<intro::Function*> funcs;
+		std::vector<intro::Function*>::iterator fit;
 		(*iter)->collectFunctions(funcs);
 		for (fit=funcs.begin();fit!=funcs.end();fit++)
 		{
@@ -994,7 +994,7 @@ bool variantCodeGen(void)
 bool basicCompareCodeGen(void)
 {
 	cout << "\n---\nBasic Compare Code Generation:\n";
-	const char *test="var x <- 1; var b <- x < 3; var c <- x < 0.8; var d <- \"hello\" > \"world\";";
+	const char *test="var x <- 1; var b <- x < 3; var d <- \"hello\" > \"world\";";
 	//parse::Parser parser=getParser(test);
 	cout << test << endl << endl;
 	parse::Scanner scanner((const unsigned char *)test, strlen(test));

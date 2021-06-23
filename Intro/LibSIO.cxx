@@ -146,20 +146,20 @@ MKCLOSURE(sioSaveFile, sioSaveFile_)
 #endif
 
 namespace {
-	intro::Type unit_type(intro::Type::Unit);
-	intro::Type top_type(intro::Type::Top);
-	intro::Type string_type(intro::Type::String);
-	intro::Type bool_type(intro::Type::Boolean);
-	intro::VariantType maybe_string_type(&string_type);
-	intro::FunctionType sioPrintType(&top_type, &unit_type);
-	intro::FunctionType sioReadType(&string_type);
-	intro::FunctionType sioLoadFileType(&string_type, &maybe_string_type);
-	intro::FunctionType sioSaveFileType(&string_type, &top_type, &bool_type);
+	intro::Type::pointer_t unit_type=std::make_shared<intro::Type>(intro::Type::Unit);
+	intro::Type::pointer_t top_type = std::make_shared<intro::Type>(intro::Type::Top);
+	intro::Type::pointer_t string_type = std::make_shared<intro::Type>(intro::Type::String);
+	intro::Type::pointer_t bool_type = std::make_shared<intro::Type>(intro::Type::Boolean);
+	intro::Type::pointer_t maybe_string_type = std::make_shared<intro::VariantType>(string_type);
+	intro::Type::pointer_t sioPrintType = std::make_shared<intro::FunctionType>(top_type, unit_type);
+	intro::Type::pointer_t sioReadType = std::make_shared<intro::FunctionType>(string_type);
+	intro::Type::pointer_t sioLoadFileType = std::make_shared<intro::FunctionType>(string_type, maybe_string_type);
+	intro::Type::pointer_t sioSaveFileType = std::make_shared<intro::FunctionType>(string_type, top_type, bool_type);
 
 	REGISTER_MODULE(sio)
-		EXPORT(L"print", "sioPrint", &sioPrintType)
-		EXPORT(L"read", "sioRead", &sioReadType)
-		EXPORT(L"loadFile", "sioLoadFile", &sioLoadFileType)
-		EXPORT(L"saveFile", "sioSaveFile", &sioSaveFileType)
+		EXPORT(L"print", "sioPrint", sioPrintType)
+		EXPORT(L"read", "sioRead", sioReadType)
+		EXPORT(L"loadFile", "sioLoadFile", sioLoadFileType)
+		EXPORT(L"saveFile", "sioSaveFile", sioSaveFileType)
 	CLOSE_MODULE
 }

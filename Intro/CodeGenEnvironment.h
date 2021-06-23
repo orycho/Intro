@@ -26,7 +26,7 @@ namespace intro
 {
 
 // We need this from CodeGen.cxx to assign types to variables
-llvm::Type *toTypeLLVM(intro::Type *type);
+llvm::Type *toTypeLLVM(intro::Type::pointer_t type);
 
 class CodeGenModule;
 
@@ -199,8 +199,8 @@ public:
 		intermediates.insert(std::make_pair(address,rtt));
 	}
 	
-	bool removeIntermediateOrIncrement(llvm::IRBuilder<> &builder,Type *type,llvm::Value *address,llvm::Value *rtt);
-	inline bool removeIntermediateOrIncrement(llvm::IRBuilder<> &builder, Type *type, Expression::cgvalue &value)
+	bool removeIntermediateOrIncrement(llvm::IRBuilder<> &builder, Type::pointer_t type,llvm::Value *address,llvm::Value *rtt);
+	inline bool removeIntermediateOrIncrement(llvm::IRBuilder<> &builder, Type::pointer_t type, Expression::cgvalue &value)
 	{
 		return removeIntermediateOrIncrement(builder, type, value.first, value.second);
 	}
@@ -356,7 +356,7 @@ public:
 
 	/// Get a types runtime encoding
 	llvm::Value *getRTT(rtt::RTType rtt);
-	llvm::Value *getRTT(Type *type);
+	llvm::Value *getRTT(Type::pointer_t type);
 
 	/// Create a new variable in the current scope (global or local)
 	iterator createVariable(const std::wstring &name);

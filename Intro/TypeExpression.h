@@ -10,17 +10,19 @@ class TypeVariableExpression : public TypeExpression
 {
 	std::wstring name;
 	TypeExpression *super;
-	Type *mytype;
-	Type mytop;
+	Type::pointer_t mytype;
+	Type::pointer_t mytop;
 protected:
-	virtual Type *makeType(Environment *env, ErrorLocation *errors)
+	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors)
 	{
 		mytype = env->get(name);
-		if (mytype == NULL)
+		if (mytype.get() == nullptr)
 		{
 			//mytype=env->fresh(name,super->copy());
-			Type *mysuper = &mytop;
+			//Type *mysuper = &mytop;
+			Type::pointer_t mysuper;
 			if (super != nullptr) mysuper = super->getType(env, errors);
+			else mysuper.reset(new Type(Type::Top));
 			mytype = env->fresh(name, mysuper);
 			env->put(name, mytype);
 		}
@@ -32,8 +34,8 @@ public:
 		: TypeExpression(l, p)
 		, name(varname)
 		, super(nullptr)
-		, mytype(nullptr)
-		, mytop(Type::Top)
+		, mytype()
+		//, mytop(Type::Top)
 	{
 	}
 
@@ -41,8 +43,8 @@ public:
 		: TypeExpression(l, p)
 		, name(varname)
 		, super(nullptr)
-		, mytype(nullptr)
-		, mytop(Type::Top)
+		, mytype()
+		//, mytop(Type::Top)
 	{
 	}
 
@@ -56,7 +58,7 @@ public:
 		super = expr;
 	};
 
-	virtual Type *getExposedType(void)
+	virtual Type::pointer_t getExposedType(void)
 	{
 		return mytype;
 	};
@@ -65,11 +67,11 @@ public:
 class TypeSimpleExpression : public TypeExpression
 {
 	Type::Types type;
-	Type *mytype;
+	Type::pointer_t mytype;
 protected:
-	virtual Type *makeType(Environment *,ErrorLocation *)
+	virtual Type::pointer_t makeType(Environment *,ErrorLocation *)
 	{
-		mytype=new Type(type);
+		mytype= Type::pointer_t (new Type(type));
 		return mytype;
 	};
 
@@ -82,10 +84,10 @@ public:
 
 	~TypeSimpleExpression(void)
 	{
-		delete mytype;
+		//delete mytype;
 	};
 
-	virtual Type *getExposedType(void)
+	virtual Type::pointer_t getExposedType(void)
 	{
 		return mytype;
 	};
@@ -95,21 +97,22 @@ public:
 class TypeListExpression : public TypeExpression
 {
 	TypeExpression *elemtype;
-	Type *myexptype,*mytype;
+	Type::pointer_t  myexptype;
+	Type::pointer_t  mytype;
 protected:
-	virtual Type *makeType(Environment *env, ErrorLocation *errors)
+	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors)
 	{
 		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"list  type parameter"));
-		Type *inner = elemtype->getType(env,logger);
+		Type::pointer_t inner = elemtype->getType(env,logger);
 		if (inner->getKind() == Type::Error)
 		{
 			errors->addError(logger);
-			mytype = new ErrorType(getLine(), getColumn(), L"error in list type");
+			mytype = Type::pointer_t(new ErrorType(getLine(), getColumn(), L"error in list type"));
 		}
 		else
 		{
 			delete logger;
-			mytype = new Type(Type::List, inner);
+			mytype = Type::pointer_t(new Type(Type::List, inner));
 		}
 		return mytype;
 	};
@@ -118,20 +121,20 @@ public:
 	TypeListExpression(int l,int p,TypeExpression *elems) 
 		: TypeExpression(l,p)
 		, elemtype(elems)
-		, myexptype(nullptr)
+		//, myexptype(nullptr)
 		, mytype(nullptr)
 	{ };
 
 	~TypeListExpression(void)
 	{
 		delete elemtype;
-		delete mytype;
-		delete myexptype;
+		//delete mytype;
+		//delete myexptype;
 	};
 
-	virtual Type *getExposedType(void)
+	virtual Type::pointer_t getExposedType(void)
 	{ 
-		if (myexptype == nullptr) myexptype = new Type(Type::List, elemtype->getExposedType());
+		if (myexptype.get() == nullptr) myexptype = Type::pointer_t(new Type(Type::List, elemtype->getExposedType()));
 		return myexptype; 
 	};
 };
@@ -140,30 +143,34 @@ class TypeDictionaryExpression : public TypeExpression
 {
 	TypeExpression *keytype;
 	TypeExpression *valtype;
-	Type *myval,*mykey,*mytype,*myexptype;
+	Type::pointer_t myval;
+	Type::pointer_t mykey;
+	Type::pointer_t mytype;
+	Type::pointer_t myexptype;
+
 
 protected:
-	virtual Type *makeType(Environment *env, ErrorLocation *errors)
+	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors)
 	{
 		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"dictionary key type"));
-		Type *kt = keytype->getType(env,logger);
+		Type::pointer_t kt = keytype->getType(env,logger);
 		if (kt->getKind() == Type::Error)
 		{
 			errors->addError(logger);
-			mytype = new ErrorType(getLine(), getColumn(), L"error in dictionary key type");
+			mytype = Type::pointer_t (new ErrorType(getLine(), getColumn(), L"error in dictionary key type"));
 			return mytype;
 		}
 		else delete logger;
 		logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"dictionary value type"));
-		Type *vt = valtype->getType(env,logger);
+		Type::pointer_t vt = valtype->getType(env,logger);
 		if (vt->getKind() == Type::Error)
 		{
 			errors->addError(logger);
-			mytype = new ErrorType(getLine(), getColumn(), L"error in dictionary value type");
+			mytype = Type::pointer_t(new ErrorType(getLine(), getColumn(), L"error in dictionary value type"));
 			return mytype;
 		}
 		else delete logger;
-		mytype = new Type(Type::Dictionary, kt);
+		mytype = Type::pointer_t (new Type(Type::Dictionary, kt));
 		mytype->addParameter(vt);
 		return mytype;
 	};
@@ -182,16 +189,16 @@ public:
 	{
 		delete keytype;
 		delete valtype;
-		delete myval;
-		delete mykey;
-		delete myexptype;
+		//delete myval;
+		//delete mykey;
+		//delete myexptype;
 	};
 
-	virtual Type *getExposedType(void)
+	virtual Type::pointer_t getExposedType(void)
 	{
-		if (myexptype == nullptr)
+		if (myexptype.get() == nullptr)
 		{
-			myexptype = new Type(Type::Dictionary, keytype->getExposedType());
+			myexptype = Type::pointer_t (new Type(Type::Dictionary, keytype->getExposedType()));
 			myexptype->addParameter(valtype->getExposedType());
 		}
 		return myexptype;
@@ -202,10 +209,10 @@ public:
 class TypeRecordExpression : public TypeExpression
 {
 	std::vector<std::pair<std::wstring,TypeExpression*> > members;
-	Type *myrec;
-	RecordType *myexptype;
+	Type::pointer_t myrec;
+	Type::pointer_t myexptype;
 protected:
-	virtual Type *makeType(Environment *env, ErrorLocation *errors)
+	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors)
 	{
 		RecordType *retval=new RecordType();
 		std::vector<std::pair<std::wstring,TypeExpression*> >::iterator it;
@@ -213,7 +220,7 @@ protected:
 		for (it = members.begin();it != members.end();it++)
 		{
 			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"record member type for ")+it->first);
-			Type *rmt = it->second->getType(env, logger);
+			Type::pointer_t rmt = it->second->getType(env, logger);
 			if (rmt->getKind() == Type::Error)
 				errors->addError(logger);
 			else
@@ -223,9 +230,9 @@ protected:
 		if (errors->hasErrors())
 		{
 			delete retval;
-			myrec = new ErrorType(getLine(), getColumn(), L"error in dictionary type");
+			myrec = Type::pointer_t (new ErrorType(getLine(), getColumn(), L"error in dictionary type"));
 		}
-		else myrec = retval;
+		else myrec = Type::pointer_t (retval);
 		return myrec;
 	};
 
@@ -242,8 +249,8 @@ public:
 		std::vector<std::pair<std::wstring,TypeExpression*> >::iterator it;
 		for (it=members.begin();it!=members.end();it++)
 			delete it->second;
-		delete myrec;
-		delete myexptype;
+		//delete myrec;
+		//delete myexptype;
 	};
 
 	void addMember(const std::wstring &name,TypeExpression *te)
@@ -251,14 +258,15 @@ public:
 		members.push_back(std::make_pair(name,te));
 	};
 
-	virtual Type *getExposedType(void)
-	{ 
+	virtual Type::pointer_t getExposedType(void)
+	{
 		if (myexptype == nullptr)
 		{
-			myexptype = new RecordType();
+			RecordType *rec = new RecordType();
 			std::vector<std::pair<std::wstring, TypeExpression*> >::iterator it;
 			for (it = members.begin();it != members.end();it++)
-				myexptype->addMember(it->first, it->second->getExposedType());
+				rec->addMember(it->first, it->second->getExposedType());
+			myexptype = Type::pointer_t(rec);
 		}
 		return myexptype;
 	};
@@ -268,29 +276,29 @@ class TypeVariantExpression : public TypeExpression
 {
 	std::vector<std::pair<std::wstring, TypeRecordExpression*> > tags;
 	typedef std::vector<std::pair<std::wstring, TypeRecordExpression*> >::iterator iterator;
-	Type *myvariant;
-	VariantType *myexptype;
+	Type::pointer_t myvariant;
+	Type::pointer_t myexptype;
 protected:
-	virtual Type *makeType(Environment *env, ErrorLocation *errors)
+	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors)
 	{
 		iterator it;
 		VariantType *retval = new VariantType();
 		for (it = tags.begin();it != tags.end();it++)
 		{
 			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"variant type tag ") + it->first);
-			Type *rmt = it->second->getType(env, logger);
+			Type::pointer_t rmt = it->second->getType(env, logger);
 			if (rmt->getKind() == Type::Error)
 				errors->addError(logger);
 			else
 				delete logger;
-			retval->addTag(it->first, (RecordType*) rmt);
+			retval->addTag(it->first, rmt);
 		}
 		if (errors->hasErrors())
 		{
 			delete retval;
-			myvariant = new ErrorType(getLine(), getColumn(), L"error in dictionary type");
+			myvariant = Type::pointer_t(new ErrorType(getLine(), getColumn(), L"error in dictionary type"));
 		}
-		else myvariant = retval;
+		else myvariant = Type::pointer_t(retval);
 		return myvariant;
 	};
 
@@ -308,8 +316,8 @@ public:
 		iterator it;
 		for (it = tags.begin();it != tags.end();it++)
 			delete it->second;
-		delete myvariant;
-		delete myexptype;
+		//delete myvariant;
+		//delete myexptype;
 	};
 
 	void addTag(const std::wstring &tag, TypeRecordExpression *contents)
@@ -317,14 +325,15 @@ public:
 		tags.push_back(std::make_pair(tag, contents));
 	};
 
-	virtual Type *getExposedType(void)
+	virtual Type::pointer_t getExposedType(void)
 	{
 		if (myexptype == nullptr)
 		{
-			myexptype = new VariantType();
+			VariantType *var = new VariantType();
 			iterator it;
 			for (it = tags.begin();it != tags.end();it++)
-				myexptype->addTag(it->first, (RecordType*)it->second->getExposedType());
+				var->addTag(it->first, it->second->getExposedType());
+			myexptype = Type::pointer_t(var);
 		}
 		return myexptype;
 	};
@@ -332,39 +341,39 @@ public:
 
 class TypeFunctionExpression : public TypeExpression
 {
-	std::list<TypeExpression*> parameters;
+	std::vector<TypeExpression*> parameters;
 	TypeExpression *returned;
-	Type *mytype;
-	FunctionType *myexptype;
+	Type::pointer_t mytype;
+	Type::pointer_t myexptype;
 protected:
-	virtual Type *makeType(Environment *env, ErrorLocation *errors)
+	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors)
 	{
 		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"function return type "));
-		Type *rt = returned->getType(env,logger);
+		Type::pointer_t rt = returned->getType(env,logger);
 		if (rt->getKind() == Type::Error)
 		{
 			errors->addError(logger);
-			mytype = new ErrorType(getLine(), getColumn(), L"error in function return type");
+			mytype = Type::pointer_t(new ErrorType(getLine(), getColumn(), L"error in function return type"));
 			return mytype;
 		}
 		else delete logger;
 		FunctionType *ft=new FunctionType(rt);
-		std::list<TypeExpression*>::iterator it;
+		std::vector<TypeExpression*>::iterator it;
 		for (it = parameters.begin();it != parameters.end();it++)
 		{
 			logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"function parameter type "));
-			Type *pt = (*it)->getType(env,logger);
+			Type::pointer_t pt = (*it)->getType(env,logger);
 			if (pt->getKind() == Type::Error)
 			{
 				delete ft;
 				errors->addError(logger);
-				mytype = new ErrorType(getLine(), getColumn(), L"error in function parameter type");
+				mytype = Type::pointer_t(new ErrorType(getLine(), getColumn(), L"error in function parameter type"));
 				return mytype;
 			}
 			else delete logger;
 			ft->addParameter(pt);
 		}
-		mytype = ft;
+		mytype = Type::pointer_t(ft);
 		return mytype;
 	};
 
@@ -379,11 +388,11 @@ public:
 	~TypeFunctionExpression(void)
 	{
 		delete returned;
-		std::list<TypeExpression*>::iterator it;
+		std::vector<TypeExpression*>::iterator it;
 		for (it=parameters.begin();it!=parameters.end();it++)
 			delete *it;
-		delete mytype;
-		delete myexptype;
+		//delete mytype;
+		//delete myexptype;
 	};
 
 	void setReturnType(TypeExpression *ret)	{ returned=ret; };
@@ -393,14 +402,16 @@ public:
 		parameters.push_back(te);
 	};
 
-	virtual Type *getExposedType(void)
+	virtual Type::pointer_t getExposedType(void)
 	{ 
 		if (myexptype == nullptr)
 		{
-			myexptype = new FunctionType(returned->getExposedType());
-			std::list<TypeExpression*>::iterator it;
+			myexptype = std::make_shared<FunctionType>(returned->getExposedType());
+			FunctionType *func = (FunctionType *)myexptype.get();
+			std::vector<TypeExpression*>::iterator it;
 			for (it = parameters.begin();it != parameters.end();it++)
 				myexptype->addParameter((*it)->getExposedType());
+			
 		}
 		return myexptype;
 	};
@@ -409,15 +420,15 @@ public:
 
 class TypeOpaqueExpression : public TypeExpression
 {
-	std::list<TypeExpression*> parameters;
+	std::vector<TypeExpression*> parameters;
 	std::wstring name;
-	Type *myhidden;
-	OpaqueType *myexptype;
+	Type::pointer_t myhidden;
+	Type::pointer_t myexptype;
 protected:
-	virtual Type *makeType(Environment *env, ErrorLocation *errors)
+	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors)
 	{
 		myhidden = NULL;
-		Type *buf = env->get(name);
+		Type::pointer_t buf = env->get(name);
 		if (buf == NULL)
 		{
 			myhidden = Environment::fresh();
@@ -430,13 +441,13 @@ protected:
 		}
 		else
 		{
-			OpaqueType *other = dynamic_cast<OpaqueType*>(buf);
-			std::list<TypeVariable*> paramtypes;
-			std::list<TypeExpression*>::iterator pit;
+			OpaqueType *other = dynamic_cast<OpaqueType*>(buf.get());
+			std::vector<Type::pointer_t > paramtypes;
+			std::vector<TypeExpression*>::iterator pit;
 			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"opaque type parameters"));
 			for (pit = parameters.begin();pit != parameters.end();pit++)
 			{
-				Type *paramtype = (*pit)->getType(env,logger);
+				Type::pointer_t paramtype = (*pit)->getType(env,logger);
 				if (paramtype->getKind() == Type::Error)
 				{
 					errors->addError(logger);
@@ -447,7 +458,7 @@ protected:
 					errors->addError(new ErrorDescription(getLine(), getColumn(), L"Parameters in opaque types must be variables!"));
 					return getError(L"Parameters in opaque types must be variables!");
 				};
-				paramtypes.push_back(dynamic_cast<TypeVariable*>(paramtype));
+				paramtypes.push_back(paramtype);
 			}
 			delete logger;
 			// Instantiate Opaque type here!
@@ -466,11 +477,11 @@ public:
 
 	~TypeOpaqueExpression(void)
 	{
-		std::list<TypeExpression*>::iterator it;
+		std::vector<TypeExpression*>::iterator it;
 		for (it=parameters.begin();it!=parameters.end();it++)
 			delete *it;
-		delete myhidden;
-		delete myexptype;
+		//delete myhidden;
+		//delete myexptype;
 	};
 
 	std::wstring getName(void) { return name; };
@@ -480,24 +491,25 @@ public:
 		parameters.push_back(te);
 	};
 
-	virtual Type *getExposedType(void)
+	virtual Type::pointer_t getExposedType(void)
 	{ 
 //		return myexptype;
 		//OpaqueType *ret=new OpaqueType(*dynamic_cast<OpaqueType*>(myexptype));
 		if (myexptype == nullptr)
 		{
-			myexptype = new OpaqueType(name);
-			std::list<TypeExpression*>::iterator pit;
+			OpaqueType *ot = new OpaqueType(name);
+			std::vector<TypeExpression*>::iterator pit;
 			for (pit = parameters.begin();pit != parameters.end();pit++)
 			{
-				Type *paramtype = (*pit)->getExposedType();
+				Type::pointer_t paramtype = (*pit)->getExposedType();
 				if (paramtype->getKind() == Type::Error) return paramtype;
 				else if (paramtype->getKind() != Type::Variable)
 				{
 					return getError(L"Parameters in opaque types must be variables!");
 				};
-				myexptype->addParameter(dynamic_cast<TypeVariable*>(paramtype));
+				ot->addParameter(paramtype);
 			}
+			myexptype = Type::pointer_t(Type::pointer_t(ot));
 		}
 		return myexptype;
 
@@ -507,34 +519,36 @@ public:
 class TypeGeneratorExpression : public TypeExpression
 {
 	TypeExpression *valtype;
-	Type *mytype,*myexptype;
+	Type::pointer_t mytype;
+	Type::pointer_t myexptype;
 protected:
-	virtual Type *makeType(Environment *env, ErrorLocation *errors)
+	virtual Type::pointer_t makeType(Environment *env, ErrorLocation *errors)
 	{
-		mytype=new Type(Type::Generator,valtype->getType(env,errors));
+		mytype = Type::pointer_t(new Type(Type::Generator, valtype->getType(env, errors)));
 		return mytype;
 	};
 
 public:
-	TypeGeneratorExpression(int l,int p,TypeExpression *val) 
-		: TypeExpression(l,p)
+	TypeGeneratorExpression(int l, int p, TypeExpression *val)
+		: TypeExpression(l, p)
 		, valtype(val)
-		, mytype(nullptr)
-		, myexptype(NULL)
-	{ };
+		//, mytype(nullptr)
+		//, myexptype(NULL)
+	{ }
 
 	~TypeGeneratorExpression(void)
 	{
 		delete valtype;
-		delete mytype;
-		delete myexptype;
-	};
+		//delete mytype;
+		//delete myexptype;
+	}
 
-	virtual Type *getExposedType(void)
-	{ 
-		if (myexptype == nullptr) myexptype=new Type(Type::Generator,valtype->getExposedType());
+	virtual Type::pointer_t getExposedType(void)
+	{
+		if (myexptype == nullptr)
+			myexptype = Type::pointer_t(new Type(Type::Generator, valtype->getExposedType()));
 		return myexptype;
-	};
+	}
 
 };
 

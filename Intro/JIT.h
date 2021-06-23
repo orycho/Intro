@@ -20,6 +20,7 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Scalar/GVN.h"
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -37,9 +38,11 @@ private:
 	llvm::DataLayout DL;
 	llvm::orc::MangleAndInterner Mangle;
 
+
 	llvm::orc::RTDyldObjectLinkingLayer ObjectLayer;
 	llvm::orc::IRCompileLayer CompileLayer;
 	llvm::orc::IRTransformLayer OptimizeLayer;
+
 
 	llvm::orc::JITDylib& MainJD;
 

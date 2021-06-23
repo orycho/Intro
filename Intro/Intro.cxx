@@ -29,7 +29,7 @@ namespace intro
 	void initRuntime(void);
 	void deleteRuntime(void);
 	void dumpModule(bool optimize=false);
-	void runStatements(const std::list<intro::Statement*> &statements);
+	void runStatements(const std::vector<intro::Statement*> &statements);
 	void cleanupSourceFiles();
 
 }
@@ -128,7 +128,7 @@ int main(int argc,const char *argv[])
 	// should decrement all gloals to make VLD shut up about them
 	intro::Environment::deleteAllModules();
 	intro::cleanupSourceFiles();
-	intro::Environment::clearTypeVariables();
+	//intro::Environment::clearTypeVariables();
 	intro::deleteRuntime();
 	intro::CodeGenModule::deleteRootModule();
 	intro::Environment::deleteRootModule();

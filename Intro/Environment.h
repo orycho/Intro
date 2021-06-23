@@ -63,11 +63,11 @@ public:
 		std::wstring name; ///< of the module
 		struct entry
 		{
-			Type *type;	/// Internal type for code generation
+			Type::pointer_t type;	/// Internal type for code generation
 			bool owned;
 			//Value value;
 
-			entry(Type *t,bool owned_=true) : type(t), owned(owned_)
+			entry(Type::pointer_t t,bool owned_=true) : type(t), owned(owned_)
 			{};
 		};
 		
@@ -116,12 +116,9 @@ public:
 			this->name=name;
 		};
 
-		~Module()
-		{};
-
 		inline std::wstring getName() { return name; };
 
-		inline void addExport(std::wstring name,Type *type,bool owned=true)
+		inline void addExport(std::wstring name, Type::pointer_t type,bool owned=true)
 		{
 			exports.insert(make_pair(name,entry(type, owned)));
 		};
@@ -141,9 +138,9 @@ public:
 		export_iter findExport(std::wstring s)
 		{ return exports.find(s); };
 
-		Module *getCreatePath(const std::list<std::wstring> &path)
+		Module *getCreatePath(const std::vector<std::wstring> &path)
 		{
-			std::list<std::wstring>::const_iterator iter;
+			std::vector<std::wstring>::const_iterator iter;
 			Module *mod=this;
 			for (iter=path.begin();iter!=path.end();iter++)
 			{
@@ -152,9 +149,9 @@ public:
 			return mod;
 		};
 
-		Module *followPath(const std::list<std::wstring> &path)
+		Module *followPath(const std::vector<std::wstring> &path)
 		{
-			std::list<std::wstring>::const_iterator iter;
+			std::vector<std::wstring>::const_iterator iter;
 			Module *mod=this;
 			for (iter=path.begin();iter!=path.end();iter++)
 			{
@@ -176,10 +173,6 @@ public:
 
 		void deleteAll(void)
 		{
-			for (std::map<std::wstring,entry>::iterator iter=exports.begin();iter!=exports.end();iter++)
-			{
-				if (iter->second.owned) deleteCopy(iter->second.type);
-			}
 			for(std::map<std::wstring,Module*>::iterator iter=submodules.begin();iter!=submodules.end();iter++)
 			{
 				iter->second->deleteAll();
@@ -207,16 +200,12 @@ protected:
 	static std::stack<Module*> current; ///< The stack of the current module, used for relative access
 
 	Environment *parent;
-	std::map<std::wstring,Type*> members;
+	std::map<std::wstring, Type::pointer_t > members;
 
-	typedef std::map<std::wstring,Type*>::iterator iterator;
+	typedef std::map<std::wstring, Type::pointer_t >::iterator iterator;
 
 	/// Unique names for intermediate type variables
 	static long _fresh;
-	/// Env owns all type vars, deletes on shutdown
-	static std::set<TypeVariable*> _typevars;
-	/// Type inference can add intermediates without sensible owner here...
-	static std::set<Type*> _intermediates;
 
 public:
 	//
@@ -255,26 +244,6 @@ public:
 		root = nullptr;
 	}
 
-	static void addIntermediate(Type *t)
-	{
-		_intermediates.insert(t); 
-	};
-	static void clearTypeVariables(void)
-	{
-		for (std::set<TypeVariable*>::iterator iter = _typevars.begin();iter != _typevars.end();iter++)
-		{
-			(*iter)->replaceSupertype(nullptr);
-		}
-		for (std::set<TypeVariable*>::iterator iter = _typevars.begin();iter != _typevars.end();iter++)
-		{
-			delete *iter;
-		}
-		for (std::set<Type*>::iterator iter = _intermediates.begin();iter != _intermediates.end();iter++)
-		{
-			delete *iter;
-		}
-	}
-
 	static void deleteAllModules(void)
 	{
 		getRootModule()->deleteAll();
@@ -287,9 +256,6 @@ public:
 
 	~Environment()
 	{
-		//iterator iter;
-		//for (iter=members.begin();iter!=members.end();iter++)
-		//	if (iter->second->getKind()!=Type::Variable)deleteCopy(iter->second);
 	}
 
 #ifdef _TEST
@@ -300,33 +266,25 @@ public:
 #endif
 
 	/// Add a fresh type variable to the environment, which is bound by the given super-type.
-	static TypeVariable *fresh(const std::wstring &name,Type *super)
+	static Type::pointer_t fresh(const std::wstring &name, Type::pointer_t super)
 	{
-		TypeVariable *t=new TypeVariable(name,super);
-		_typevars.insert(t);
-		//members.insert(make_pair(str,t));
-		return t;
+		return std::make_shared<TypeVariable>(name,super);
 	}
 
 	/// Add a fresh type variable to the environment, which is bound by the given super-type.
-	static TypeVariable *fresh(const std::wstring &name, Type *super, Type::TypeVariableMap &conv)
+	static Type::pointer_t fresh(const std::wstring &name, Type::pointer_t super, Type::TypeVariableMap &conv)
 	{
-		TypeVariable *t = new TypeVariable(name, super,conv);
-		_typevars.insert(t);
-		//members.insert(make_pair(str,t));
-		return t;
+		return std::make_shared<TypeVariable>(name, super,conv);
 	}
 
 	/// Add a fresh type variable to the environment, bound by the top type.
-	static TypeVariable *fresh(const std::wstring &name)
+	static Type::pointer_t fresh(const std::wstring &name)
 	{
-		TypeVariable *t=new TypeVariable(name);
-		_typevars.insert(t);
-		return t;
+		return std::make_shared<TypeVariable>(name);
 	}
 
 	/// Add a fresh (anonymous/intermediate)) type variable to the environment, which is bound by the given super-type.
-	static TypeVariable *fresh(Type *super)
+	static Type::pointer_t fresh(Type::pointer_t super)
 	{
 		std::wstringstream bufstream;
 		bufstream <<  L"?T"<< _fresh;
@@ -335,7 +293,7 @@ public:
 	}
 
 	/// Add a fresh anonymous/intermediate type variable to the environment, bound by the top type.
-	static TypeVariable *fresh(void)
+	static Type::pointer_t fresh(void)
 	{
 		std::wstringstream bufstream;
 		bufstream <<  L"?T"<< _fresh;
@@ -344,13 +302,13 @@ public:
 	}
 
 	/// Return the type of the given identifier, or NULL if it does not exist (checks parent environments).
-	Type *get(const std::wstring &ident)
+	Type::pointer_t get(const std::wstring &ident)
 	{
 		iterator iter=members.find(ident);
 		
 		if (iter==members.end()) 
 		{
-			if (parent==NULL) return NULL;
+			if (parent==NULL) return Type::pointer_t();
 			else return parent->get(ident);
 		}
 		else
@@ -362,12 +320,10 @@ public:
 	/// Add a new name to the environment, with the given type.
 	/** Returns true if the variable was created, false if it already existed.
 	*/
-	bool put(const std::wstring &ident,Type *type)
+	bool put(const std::wstring &ident, Type::pointer_t type)
 	{
 		iterator iter=members.find(ident);
 		if (iter!=members.end()) return false;
-
-		//members.insert(make_pair(ident,type->copy()));
 		members.insert(make_pair(ident,type));
 		return true;
 	}
@@ -375,26 +331,21 @@ public:
 	/// Add a new name to the environment, with the given type.
 	/** Returns a pointer to the variable's new type variable if it was created, nullptr if it already existed.
 	*/
-	Type *put(const std::wstring &ident)
+	Type::pointer_t put(const std::wstring &ident)
 	{
 		iterator iter=members.find(ident);
-		//if (iter!=members.end()) return iter->second;
 		if (iter!=members.end()) return nullptr;
-		//Type *t=fresh(std::wstring(L"?")+ident);
-		Type *t=fresh();
-		if (t!=NULL) members.insert(make_pair(ident,t));
+		Type::pointer_t t=fresh();
+		if (t.get()!=NULL) members.insert(make_pair(ident,t));
 		return t;
 	}
 
 		/// Replace type of identifier given, environmentgains ownership of type.
-	bool replace(const std::wstring &ident,Type *type)
+	bool replace(const std::wstring &ident, Type::pointer_t type)
 	{
 		iterator iter=members.find(ident);
 		if (iter==members.end()) return false;
-		
-		//delete iter->second; // TODO: Use deleteCopy?!
 		iter->second=type;
-		//members.insert(make_pair(ident,type));
 		return true;
 	}
 	
