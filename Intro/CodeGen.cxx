@@ -45,7 +45,7 @@ using namespace std;
 
 namespace intro {
 
-	static llvm::ExitOnError ExitOnErr; 
+	static llvm::ExitOnError exitOnError; 
 	std::unique_ptr <llvm::LLVMContext> theContext;
 
 	std::unique_ptr<llvm::Module> TheModule;
@@ -431,6 +431,8 @@ namespace intro {
 		TheJIT = exitOnError(JIT::create());
 
 		initModule();
+
+		LibLoader::initialize();
 		
     // Create a new pass manager attached to it.
 		TheFPM = std::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
@@ -801,7 +803,7 @@ namespace intro {
 	Expression::cgvalue IntegerConstant::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
 		llvm::Value *constant=llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext), value,true);
-		constant=createBoxValue(TmpB,env,constant,getType());
+		constant=createBoxValue(TmpB,env,constant,getType()->getKind());
 		// Value type need not be made intermediate
 		return makeRTValue(constant,rtt::Integer);
 	}
@@ -809,7 +811,7 @@ namespace intro {
 	Expression::cgvalue BooleanConstant::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
 		llvm::Value *constant=llvm::ConstantInt::get(llvm::Type::getInt1Ty(*theContext), value,false);
-		constant=createBoxValue(TmpB,env,constant,getType());
+		constant=createBoxValue(TmpB,env,constant,getType()->getKind());
 		// Value type need not be made intermediate
 		return makeRTValue(constant,rtt::Boolean);
 	}
@@ -817,7 +819,7 @@ namespace intro {
 	Expression::cgvalue RealConstant::codeGen(IRBuilder<> &TmpB,CodeGenEnvironment *env)
 	{
 		llvm::Value *constant=llvm::ConstantFP::get(*theContext, llvm::APFloat(value));
-		constant=createBoxValue(TmpB,env,constant,getType());
+		constant=createBoxValue(TmpB,env,constant,getType()->getKind());
 		// Value type need not be made intermediate
 		return makeRTValue(constant,rtt::Real);
 	}
@@ -881,7 +883,7 @@ namespace intro {
 		// For each part, it's a constant string, or a variable interpolation
 		std::vector<llvm::Value*> ArgsV;
 		Value *targetsize = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext),elements.size(),false);
-		rtt::tag_t rttbuf=myType->getFirstParameter()->find()->getRTKind();
+		rtt::tag_t rttbuf=getType()->getFirstParameter()->find()->getRTKind();
 		Value *elem_rtt = llvm::ConstantInt::get(llvm::Type::getInt16Ty(*theContext),rttbuf,false);
 		ArgsV.push_back(targetsize);
 		ArgsV.push_back(elem_rtt);
@@ -933,9 +935,9 @@ namespace intro {
 		// Generate call to string allocation intrisic, guesstimate length by taking source string length
 		// For each part, it's a constant string, or a variable interpolation
 		std::vector<llvm::Value*> ArgsV;
-		rtt::tag_t rttbuf=myType->getParameter(0)->find()->getRTKind();
+		rtt::tag_t rttbuf=getType()->getParameter(0)->find()->getRTKind();
 		Value *key_rtt = llvm::ConstantInt::get(llvm::Type::getInt16Ty(*theContext),rttbuf,false);
-		rttbuf=myType->getParameter(1)->find()->getRTKind();
+		rttbuf=getType()->getParameter(1)->find()->getRTKind();
 		Value *value_rtt = llvm::ConstantInt::get(llvm::Type::getInt16Ty(*theContext),rttbuf,false);
 		ArgsV.push_back(key_rtt);
 		ArgsV.push_back(value_rtt);
@@ -2331,12 +2333,12 @@ namespace intro {
 		CodeGenEnvironment::iterator to_ptr=env->createVariable(param_vals_base+L"to");
 		to_ptr->second.store(TmpB, to_val);
 
-		Type tI(Type::Integer);
+		//Type tI(Type::Integer);
 		Expression::cgvalue by_val;
 		if (by == nullptr)
 		{
 			by_val.first = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*theContext), 1, true);
-			by_val.first = createBoxValue(TmpB, env, by_val.first, &tI);
+			by_val.first = createBoxValue(TmpB, env, by_val.first, Type::Integer);
 			by_val.second = env->getRTT(rtt::Integer);
 		}
 		else by_val=by->codeGen(TmpB,env);
