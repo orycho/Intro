@@ -16,7 +16,7 @@ struct LibLoader
 	};
 protected:
 	std::vector<std::wstring> path;
-	static std::vector<LibLoader*> instances;
+	static std::vector<LibLoader *> instances;
 	void load(const elem elems[])
 	{
 		size_t i = 0;
@@ -26,7 +26,7 @@ protected:
 		while (elems[i].name != nullptr)
 		{
 			// Add to module
-			ti_module->addExport(elems[i].name, elems[i].type,false);
+			ti_module->addExport(elems[i].name, elems[i].type, false);
 			cg_module->importElement(elems[i].name, cgelem)->second.altname = elems[i].sourcename;
 			++i;
 		}

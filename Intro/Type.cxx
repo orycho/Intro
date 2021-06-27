@@ -632,7 +632,6 @@ bool VariantType::internalUnify(Type::pointer_t other, bool specialize)
 			if (bi != vb->endTag())
 			{
 				if (!ai->second->unify(bi->second, specialize))
-					//if (!ai->second->unify(bi->second))
 					return false;
 			}
 		}
@@ -644,7 +643,6 @@ bool VariantType::internalUnify(Type::pointer_t other, bool specialize)
 				addTag(bi);
 		}
 		vb->setParent(va->shared_from_this());
-		//vb->tags.clear();
 	}
 	else
 	{
@@ -663,8 +661,6 @@ bool VariantType::internalUnify(Type::pointer_t other, bool specialize)
 				return false;
 		}
 		vb->setParent(va->shared_from_this());
-		//vb->tags.clear();
-		//va->setParent(vb);
 	}
 	return true;
 }

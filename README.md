@@ -1,5 +1,5 @@
 # Intro
-Intro is a programming language intended to be easy to learn. It is a script language, 
+Intro is a programming language intended to be easy to learn. It is a script language,
 and like most such languages it provides a read-evaluate-print loop.
 
 It is also supposed to be a useful language throughout a programmer's career.
@@ -11,12 +11,12 @@ It is also supposed to be a useful language throughout a programmer's career.
 * Simple Module system to help organize larger projects (probably buggy, and only basic opaque type features work)
 * LLVM based code generation - performance is not a primary concern, yet decent despite some features incurring overhead (e.g. polymorphism, closures).
 
-Note that object orientation is not considered sufficiently fundamental or necessary to be included. 
-Its application is complex enough that beginners are usually not able to say when it is needed, 
+Note that object orientation is not considered sufficiently fundamental or necessary to be included.
+Its application is complex enough that beginners are usually not able to say when it is needed,
 and actual exploitation requires design for OOP. OO also leads to an undecidable type inference problem,
-and type inference is much more helpful for programmers at any skill level. 
+and type inference is much more helpful for programmers at any skill level.
 
-That said, only the core trait of inheritance cannot be emulated, 
+That said, only the core trait of inheritance cannot be emulated,
 as higher order functions with closures can be placed in records
 and records are structurally sub-typed.
 
@@ -27,18 +27,18 @@ This is version 0.2 and a few things are still missing:
 * the repl is flaky, it likes to exit on syntax errors and arrow keys and the like... no getline.
 
 ## Building the source
-tested with 
+tested with
 
-* MSVC 2015: use solution file to build.
+* MSVC 2019: use solution file to build.
 * cygwin gcc: use makefile. Just type "make" in the shell, from the project root directory.
 
 ### Requirements
 #### Core Requirements
-* [LLVM 5](http://llvm.org/) 
+* [LLVM 12](http://llvm.org/)
 * Building tests requires [google-test](https://github.com/google/googletest).
 
 #### MS Visual Studio Requirements
-* The [Visual Leak Detector](https://vld.codeplex.com/) is used in debug mode.
+* The [Visual Leak Detector](https://kinddragon.github.io/vld/) is used in debug mode.
 
 Check the project directories configured under VC++ to make sure the libraries and headers are found.
 
@@ -61,7 +61,7 @@ This can be shown with some simple arithmetic, using the interpreter as a calcul
 
 When a script is passed to the interpreter it is not in interactive mode, and then will
 not print out the results. In such cases the program is expected to use library functions
-to produce output. And even in interactive mode expressions inside functions are never pritned out.
+to produce output. And even in interactive mode expressions inside functions are never printed out.
 
 Next up: strings! It's always useful to concatenate strings, using string interpolation:
 <pre>
@@ -73,10 +73,10 @@ cat:(?T2&lt;:Top,?T3&lt;:Top) -> String
  = 48true
 </pre>
 
-It turns out that "cat" does not care about the inputs' types, it just converts everthing to strings first!
+It turns out that "cat" does not care about the inputs' types, it just converts everything to strings first!
 
 
-Let's compute a list of right angled triangles, using two helper functions 
+Let's compute a list of right angled triangles, using two helper functions
 and a list defined by a generator statement.
 Triple returns a record that contains three labels (a,b and c), while cond returns true
 if the passed values satisfy Pythagoras' theorem.
@@ -101,7 +101,7 @@ f:(?T27sup&lt;:{ [ :A x : ?asup&lt;:Number; ] + [ :B a : ?asup&lt;:Number; b : ?
  = 7
 </pre>
 
-Dictionaries are as easy: 
+Dictionaries are as easy:
 <pre>
 > var d&lt;-{"a"=>1, "b"=>2, "c"=>3, "d"=>4};
 d:Dictionary(String,Integer)
@@ -232,10 +232,10 @@ classification schemes:
 >map:Dictionary(String,() -> { [ :A ] + [ :B ] + [ :C ]})
 >> case map["A"] of None then | Some value then ::sio::print(value()); end;
 >[ :A ]>
->> case map["C"] of 
->>	None then 
->>	| Some value then 
->>		case value() of 
+>> case map["C"] of
+>>	None then
+>>	| Some value then
+>>		case value() of
 >>			A then ::sio::print("A\n");
 >>			| B then ::sio::print("B\");
 >>			| C then ::sio::print("C\n");
@@ -245,17 +245,17 @@ classification schemes:
 >>
 >> case map["A"] of None then | Some value then ::sio::print(value()); end;
 >[ :A ]>
->> case map["C"] of 
-	None then 
-	| Some value then 
-		case value() of 
+>> case map["C"] of
+	None then
+	| Some value then
+		case value() of
 			A then ::sio::print("A");
 			| C then ::sio::print("C\n");
 		end;
 	end;
 
 
-	
+
 # Super short quick start guide
 (This is so short that even the cheatsheet.pdf in docs is more in depth.)
 
@@ -269,11 +269,11 @@ All values in Intro are just written out, each built in type has distinct syntax
 ## Simple types (are expressions represented by a single literal):
 * Booleans can be: <pre>true, false</pre>
 * Strings are in quotes: <pre>"some string", "abc"</pre>
-* The backspace \ character in strings has special meaning to insert special characters (e.g. "\\n" new line, 
+* The backspace \ character in strings has special meaning to insert special characters (e.g. "\\n" new line,
 "\\t" tabulator, "\\\\" backslash, "\\"" quote), check the cheatsheet for a list.
-* String interpolation: any occurence of ${id}, for some variable identifier id, inside the string is 
+* String interpolation: any occurence of ${id}, for some variable identifier id, inside the string is
 replaced with a string representing the value of 'id'. For instance an integer variabela with value 123
-would turn 
+would turn
 
 >"the value is ${a}!!!"
 
@@ -299,9 +299,9 @@ foo(1-a,1/a)</pre>
 * Dictionaries are like lists, but contain key-value pairs connected with a => (all keys must be of the same type and all values as well): <pre>{ "a"=>1,"b"=>2,"c"=>3 }</pre>
 * Dictionary lookup uses the [] operator which returns a maybe variant on lookup: <pre>d["a"]</pre> Can also be used for assignment
 <pre>d["x"]&lt;-6;</pre>
-* Elements can be removed from dictionaries using the "\\" operator (backslash), it can be chained since the operator 
+* Elements can be removed from dictionaries using the "\\" operator (backslash), it can be chained since the operator
 returns the dictionary (which has been modified): <pre>d\\"a"\\"b"</pre>
-* lists and dictionaries may also have one expression for element or key-value pair, followed by a pipe 
+* lists and dictionaries may also have one expression for element or key-value pair, followed by a pipe
 symbol | and a generator statement. See below
 * Records contain an arbitrary number of fields, which are labeled by an identifier. Fields may have distinct types.
 The records consists of square brackets with semicolon terminated field assignments identifier &lt;- Expression; e.g.
@@ -320,7 +320,7 @@ and then used in a generator statement.
 The maybe variant has type <pre>{[:None]+[:Some value:?Value]}</pre>
 To actually use dictionary lookup, inspect the maybe variant with a case stament (both branches required):
 <pre>
-case d["a"] of 
+case d["a"] of
 Some value then workon(value);
 | None then # throw a fit
 end;
@@ -331,16 +331,16 @@ That may look verbose, but it just forces the programmer to handle lookup failur
 * Arithmetic (integer and real): <pre>+,*,-,/,%</pre>
 * boolean: <pre>and, or, xor, not</pre>
 * compares: <pre>==, !=</pre> (all types) and <pre>>, <, >=, <=</pre> (only string, integer, real)
-* sequence (list and string) splice returns a subsequence based on the start and end index of the subsequence. Inside the square brackets, 
-a special variable "last" holds the index of the last element in the input sequence : <pre>l[1:last]</pre> 
+* sequence (list and string) splice returns a subsequence based on the start and end index of the subsequence. Inside the square brackets,
+a special variable "last" holds the index of the last element in the input sequence : <pre>l[1:last]</pre>
 (new list without the first element)
 * Assignment "&lt;-" (read: "is assigned") returns the value that was written to the destination on the left. E.g.: <pre>y&lt;-2</pre>
 
 ## Statements (must end with a semicolon):
 * Every expression is a statement. No other statements return values.
 * variable definitions are "var" followed by an identifier followed by "&lt;-" (read "is assigned") followed by an initializer expression.
-Variables must always be initialized explicitly when defined: 
-<pre>var x&lt;-3; 
+Variables must always be initialized explicitly when defined:
+<pre>var x&lt;-3;
 var f&lt;-fun(a,b)->return a*a+b*b; end;</pre>
 * Identifiers may consist of letters, digits and underscores, but may not begin with a digit. "abc", "_long_ident_344" are ok, "3d" is not.
 (Quotes for readability only!)
@@ -361,14 +361,14 @@ end;
 * for loops: are basically a wrapper for generator statements and will be discussed there
 * case statements are conditionals that branch not on a boolean condition, but on variant tags. The keyword case
 is followed by an expression that must be a variant, and the word "of".
-Each branch begins with a tag and is followed by labels that must exist in the variant with that label 
-(otherwise there will be a type error). Those labels are bound to the corresponding fields in the variant. 
-After the tag and labels comes the word "then", followed by the branch's statements. 
+Each branch begins with a tag and is followed by labels that must exist in the variant with that label
+(otherwise there will be a type error). Those labels are bound to the corresponding fields in the variant.
+After the tag and labels comes the word "then", followed by the branch's statements.
 The branches are separated by pipe symbols "|":
 
-> case variantExpr of 
-> A x then return x; 
-> | B a b then return a+b; 
+> case variantExpr of
+> A x then return x;
+> | B a b then return a+b;
 > end;
 
 The <tt>source</tt> statement tries to load a file and interpret it as a intro source file.
@@ -387,7 +387,7 @@ Note the string passed to the source statement is static, string interpolation w
 It is not possible to select source files to load at runtime.
 
 ## Generator Statements
-Generators can only be used in these statements, which are actually always part of another construct: 
+Generators can only be used in these statements, which are actually always part of another construct:
 in list or dictionary expressions, they provide the values that are turned into the contents of the containers.
 The for statements just combines a generator statements with a list of statements that operate on each set of values generated.
 
@@ -401,7 +401,7 @@ variables of the same name in the outer environments.
 
 Special syntax sugar is provided for generating integer values:
 identifier "from" startvalue "to" endvalue "by" stepvalue.
-Where the values generated starts at start value, goes up to at most endvalue and is incremented by stepvalue. 
+Where the values generated starts at start value, goes up to at most endvalue and is incremented by stepvalue.
 Stepvalue is optional and defaults to one, e.g. to generate all values from 1 to 10 in variable x:
 
 >x from 1 to 10
@@ -444,17 +444,17 @@ Example relative paths:
 
 Example absolute paths:
 
-> ::sio, ::gui::controls::buttons, 
+> ::sio, ::gui::controls::buttons,
 
-The module at the root module is also called the global scope, and is written simply as a double colon without a prefix. 
+The module at the root module is also called the global scope, and is written simply as a double colon without a prefix.
 All variables defined outside any other module or scope are placed in here, and it is always accessible.
-If the path begins with an identifier, it is relative to the current module. 
+If the path begins with an identifier, it is relative to the current module.
 The path may end with a module name where a module is expected, or with a member of the modules interface.
-The last identifier in a path may refer to a module or a variable, that is context dependent: 
+The last identifier in a path may refer to a module or a variable, that is context dependent:
 in an import statement or module definition, it ends with a module - in expressions it is a prefixed variable.
 
 Modules make some or all variables defined in their body accessible to the outside by declaring them as part of their exports,
-the exports make up the module'S interface. The values in a module are also called members to distinguish them from global 
+the exports make up the module'S interface. The values in a module are also called members to distinguish them from global
 or local variables. The interface only names the value and it's type.
 
 ## Defining Modules
@@ -470,8 +470,8 @@ The syntax for modules is:
 distinguishes the end of a long module from another statement.
 * Also, modules can be placed in other modules via the path in their name.
 
-The interface of a module is the only place in Intro where types are explicitly written out: 
-it contains names of variables in the module and their type (or a super-type) of the variable 
+The interface of a module is the only place in Intro where types are explicitly written out:
+it contains names of variables in the module and their type (or a super-type) of the variable
 with the same name in the body of the module. Name and type are separated by a colon ":"
 just like when the REPL prints out a variable type, e.g. fib:(Integer)->Integer.
 
@@ -481,20 +481,20 @@ Any variables defined inside persist, but only those named in the interface are 
 Interfaces may also define opaque types, i.e. types where the implementation is not known outside the module.
 An opaque type definition begins with the keyword "type", a name for the type and zero or more
 parameters for the type in parentheses (just like in Dictionary(?A&lt;:Top,?B&lt;:Top)). A type with parameters is called polymorphic.
-If no parameters are used the type is called monomorphic.In that case the parentheses can be omitted. 
+If no parameters are used the type is called monomorphic.In that case the parentheses can be omitted.
 
-?? The type can be followed by a subtype-of symbol "&lt;:" and the opaque type's 
+?? The type can be followed by a subtype-of symbol "&lt;:" and the opaque type's
 super-type. This can be used to make part of the type known, e.g. a subset of the fields in the record
 that implements the type. ??
 
 Opaque types may have constructors which are functions with the same name as the type and a parameter for any parameter the
-type has. This function must be in the body of the exporting module. A constructor must return a value of the opaque type's 
+type has. This function must be in the body of the exporting module. A constructor must return a value of the opaque type's
 implementation, and the opaque type's parameters must match the constructor's parameters. If such a constructor is present,
-the opaque type can be created by using it's name like a function. 
+the opaque type can be created by using it's name like a function.
 The constructor also helps the interpreter determine the relation between the type parameters and the values in the implementation.
 
-?? If there is no one-to-one mapping between the type's parameter(s) and the constructors 
-desired parameters, then the constructor short hand cannot be used. 
+?? If there is no one-to-one mapping between the type's parameter(s) and the constructors
+desired parameters, then the constructor short hand cannot be used.
 This can happen for example with 3D vectors which have three numbers of the same concrete type. ??
 
 NOTE TO ORY: how about using the opaque type's super-type, e.g. Vector3(?a&lt;:Number)&lt;:[x:?a;y:?a;z:?a;]!
@@ -512,29 +512,29 @@ module ::Pair exports
 	# first is a function that takes a pair and returns the first element of the passed pair (note return type).
 	first:(Pair(?a,?b))-> ?a;
 	# second is a function that takes a pair and returns the second element of the passed pair (note return type).
-	second:(Pair(?a,?b))-> ?b; 
+	second:(Pair(?a,?b))-> ?b;
 	# swap returns a new pair, which has the same contents as the parameter, but in reversed order.
 	# Compare the parameters of the input and output pairs!
-	swap:(Pair(?a,?b))->Pair(?b,?a); 
-from 
+	swap:(Pair(?a,?b))->Pair(?b,?a);
+from
 	# he constructor for pairs, it has type Pair:(a:?a,b:?b)->Pair(?a,?b).
 	var Pair(a,b)->
-		return [first&lt;-a;second&lt;-b;]; 
-	end; 
+		return [first&lt;-a;second&lt;-b;];
+	end;
 	# implementation of function first.
-	var first(a)-> 
-		return a.first; 
-	end; 
+	var first(a)->
+		return a.first;
+	end;
 	# implementation of function second.
-	var second(a)-> 
-		return a.second; 
-	end; 
+	var second(a)->
+		return a.second;
+	end;
 	# implementation of function swap, which does not use constructor but could/should.
 	# Note that in-place swapping of pairs is only possible if both elements have the same type,
 	# so the creation of a new pair here enables a more general operation at the cost of speed.
 	var swap(a)->
-		return [first&lt;-a.second;second&lt;-a.first;]; 
-	end; 
+		return [first&lt;-a.second;second&lt;-a.first;];
+	end;
 end.
 </pre>
 
@@ -542,7 +542,7 @@ In this example, the Pair type is implemented as a record type [first:?a&lt;:Top
 The module is also implemented in ./examples/pair.intro.
 
 ## Importing from Modules
-While any interface member can always be named with an absolute path, this can become cumbersome. 
+While any interface member can always be named with an absolute path, this can become cumbersome.
 The import statement is provided to copy a modules interface (all of it) into the current scope, e.g.
 
 > import ::sio;
@@ -556,7 +556,7 @@ static closures with run-time types for module members
 and second register the library modules with the type inference and code generation environments
 (This makes the addresses known to the interpreter).
 
-The modules must also provide Intro Types (as opposed to e.g. LLVM Types) for all exported members, 
+The modules must also provide Intro Types (as opposed to e.g. LLVM Types) for all exported members,
 so that type inference has something to work with when checking the module.
 
 # ::sio (Simple Input Output)
@@ -566,7 +566,7 @@ designed for ease of use.
 It also servers as a very simple example for implementing RTL modules, even though no types are defined in it.
 
 ## print
-The function 
+The function
 
 > ::sio::print(data) : (?a<:Top)->Unit
 
@@ -582,7 +582,7 @@ Hello World
 Note there is no equal sign in the output, as this was not printed by the REPL.
 
 ## read
-The function 
+The function
 
 > ::sio::read() : ()->String
 
@@ -600,7 +600,7 @@ Note the line that says only "Hello World!" was entered after ::sio::read was ex
 The line with an equal sign in front was the return value of read, printed by the REPL.
 
 ## saveFile
-The function 
+The function
 
 > ::sio::saveFile(path,data) : (String,?a<:Top)->Boolean
 
@@ -614,7 +614,7 @@ It returns true on success, and false if any error occurred. Usage is dead simpl
 
 
 ## loadFile
-The function 
+The function
 
 > ::sio::loadFile(path) : (String)->{[:None] + [:Some value:String]}
 

@@ -309,7 +309,7 @@ TEST(SubtypeRelationTests, VariantSubtyping) {
 	intro::RecordType::membermap members;
 	intro::Type::pointer_t recEmpty = std::make_shared<intro::RecordType>();	// [] : Empty record, supertype of all records
 
-	members.insert(std::make_pair(L"value", var));
+	members.insert(std::make_pair(L"value", integer));
 	intro::Type::pointer_t recA = std::make_shared<intro::RecordType>(members);	// [ a:Integer; ]
 
 	intro::VariantType::tagmap tagmap;

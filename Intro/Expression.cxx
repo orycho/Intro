@@ -15,20 +15,17 @@ namespace intro {
 		L"|\\\\\\$"
 		L"|[^\\\\\\$\\\"]+"
 		L")");
-//		L"|[^\\\\$]+"
 
 	Type::pointer_t Expression::getType(CodeGenEnvironment *env)
 	{
-		if (type==NULL) return NULL; // Nothing to see here
-		//if (type->find()->getKind()!=Type::Variable) return type->find(); // give what we got
-		//return env->getSpecialization(type->find()); // Variables get mapped using env
+		if (type == NULL) return NULL; // Nothing to see here
 		return type->find();
 	}
 
 	/////////////////////////////////////////////////////////////////////
 	// Expression Type Inference methods - note several expressions are specializations of application
 	//		and thus only need to define the function type describing them (i.e. operators).
-	
+
 	Type::pointer_t IntegerConstant::makeType(Environment *, ErrorLocation *)
 	{
 		return std::make_shared<Type>(Type::Integer);
@@ -43,62 +40,59 @@ namespace intro {
 	{
 		return std::make_shared<Type>(Type::Real);
 	}
-	
+
 	Type::pointer_t StringConstant::makeType(Environment *env, ErrorLocation *errors)
 	{
 		// Trim quotation marks read from source from string
-		std::wstring trimmed=value.substr(1,value.size()-2);
+		std::wstring trimmed = value.substr(1, value.size() - 2);
 		// Prepare tokenization of string based on regular expressions (regex does efficint preprocessing here...)
-		std::wsregex_token_iterator i(trimmed.begin(),trimmed.end(), tokens, 1);
+		std::wsregex_token_iterator i(trimmed.begin(), trimmed.end(), tokens, 1);
 		std::wsregex_token_iterator eot; // represents end of token stream
 		std::wstring curbuf; // Collect a sequence of consecutive tokens that are not interpolations (constant)
-		while(i != eot)
+		while (i != eot)
 		{
-			if (i->str().size()==1)
+			if (i->str().size() == 1)
 			{
 				curbuf.append(i->str());
-			} 
-			else switch(i->str()[0])
+			}
+			else switch (i->str()[0])
 			{
-				case L'\\': // Escapes
-					switch(i->str()[1])
+			case L'\\': // Escapes
+				switch (i->str()[1])
+				{
+				case L'n': curbuf.append(L"\n"); break;
+				case L'r': curbuf.append(L"\r"); break;
+				case L't': curbuf.append(L"\t"); break;
+				case L'0': curbuf.append(L"\0"); break;
+				default: curbuf.append(i->str().substr(1)); // If it has no special meaning, copy as is (e.g. backslash and dollar sign).
+				}
+
+				break;
+			case L'$': // Interpolation (neither single $, nor escaped...)
+				if (curbuf.size() != 0)
+				{
+					parts.push_back(part(curbuf, Type::pointer_t()));
+					curbuf.clear();
+				}
+				{
+					// Extract variable name, and the variable
+					std::wstring varname = i->str().substr(2, i->str().size() - 3);
+					Type::pointer_t vartype = env->get(varname);
+					if (vartype == NULL)
 					{
-					case L'n': curbuf.append(L"\n"); break;
-					case L'r': curbuf.append(L"\r"); break;
-					case L't': curbuf.append(L"\t"); break;
-					case L'0': curbuf.append(L"\0"); break;
-					default: curbuf.append(i->str().substr(1)); // If it has no special meaning, copy as is (e.g. backslash and dollar sign).
+						std::wstring msg = L"Variable '" + varname + L"' not found for string interpolation.";
+						errors->addError(new ErrorDescription(getLine(), getColumn(), msg));
+						return getError(msg);
 					}
-					
-					break;
-				case L'$': // Interpolation (neither single $, nor escaped...)
-					if (curbuf.size()!=0)
-					{
-						parts.push_back(part(curbuf, Type::pointer_t()));
-						curbuf.clear();
-					}
-					{
-						// Extract variable name, and the variable
-						std::wstring varname=i->str().substr(2,i->str().size()-3);
-						Type::pointer_t vartype=env->get(varname);
-						if (vartype == NULL)
-						{
-							std::wstring msg = L"Variable '" + varname + L"' not found for string interpolation.";
-							errors->addError(new ErrorDescription(getLine(), getColumn(), msg));
-							return getError(msg);
-						}
-						//parts.push_back(part(varname,vartype->copy()));
-						parts.push_back(part(varname, vartype));
-						// convert to string
-						// store intermediate string in env for removal
-					}
-					break;
-				default: // Just Text...
-					curbuf.append(i->str());
+					parts.push_back(part(varname, vartype));
+				}
+				break;
+			default: // Just Text...
+				curbuf.append(i->str());
 			}
 			i++;
 		}
-		if (curbuf.size()!=0)
+		if (curbuf.size() != 0)
 		{
 			parts.push_back(part(curbuf, Type::pointer_t()));
 			curbuf.clear();
@@ -106,24 +100,23 @@ namespace intro {
 
 
 		return std::make_shared<Type>(Type::String);
-		//return new Type(Type::Boolean);
 	}
 
 	Type::pointer_t ListConstant::makeType(Environment *env, ErrorLocation *errors)
 	{
-		Type::pointer_t param=NULL;
-		if (elements.empty()) param=Environment::fresh();
-		else if (generators==NULL)
+		Type::pointer_t param = NULL;
+		if (elements.empty()) param = Environment::fresh();
+		else if (generators == NULL)
 		{
-			std::vector<intro::Expression*>::iterator iter=elements.begin();
-			if (iter==elements.end())
+			std::vector<intro::Expression *>::iterator iter = elements.begin();
+			if (iter == elements.end())
 			{
-				param=Environment::fresh();
-			} 
+				param = Environment::fresh();
+			}
 			else
 			{
 				ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"list of constants"));
-				param=(*iter)->getType(env,logger)->find();
+				param = (*iter)->getType(env, logger)->find();
 				if (param->getKind() == Type::Error)
 				{
 					errors->addError(logger);
@@ -132,16 +125,14 @@ namespace intro {
 				iter++;
 				// check that all other expressions in the element list are subtypes of the first one.
 				// Note: in the implementation, extra information will be list
-				for (;iter!=elements.end();iter++)
+				for (; iter != elements.end(); iter++)
 				{
-					Type::pointer_t ct = (*iter)->getType(env,logger);
+					Type::pointer_t ct = (*iter)->getType(env, logger);
 					if (ct->getKind() == Type::Error)
 					{
 						errors->addError(logger);
 						return getError(L"error in list element.");
 					}
-					//PartialOrder po=param->checkSubtype(ct);
-					//if (po!=LESS && po!=EQUAL ) 
 					if (!param->unify(ct))
 					{
 						errors->addError(new ErrorDescription(getLine(), getColumn(), L"Subtyping mismatch in list elements: all items must be subtypes or of the first item."));
@@ -173,8 +164,8 @@ namespace intro {
 				return getError(L"Error in list generators.");
 			}
 			logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"list element expression"));
-			param=elements.front()->getType(&localenv,logger);
-			if (param->getKind()!=Type::Error)
+			param = elements.front()->getType(&localenv, logger);
+			if (param->getKind() != Type::Error)
 				delete logger;
 			else
 			{
@@ -189,16 +180,16 @@ namespace intro {
 	{
 		Type::pointer_t tkey;
 		Type::pointer_t tval;
-		if (elements.empty()) 
+		if (elements.empty())
 		{
-			tkey=Environment::fresh();
-			tval=Environment::fresh();
+			tkey = Environment::fresh();
+			tval = Environment::fresh();
 		}
-		else if (generators==NULL)
+		else if (generators == NULL)
 		{
-			memberlist::iterator iter=elements.begin();
+			memberlist::iterator iter = elements.begin();
 			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"dictionary element key"));
-			tkey = iter->first->getType(env,logger)->find();
+			tkey = iter->first->getType(env, logger)->find();
 			if (tkey->getKind() == Type::Error)
 			{
 				errors->addError(logger);
@@ -206,7 +197,7 @@ namespace intro {
 			}
 			else delete logger;
 			logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"dictionary element value"));
-			tval=iter->second->getType(env,logger)->find();
+			tval = iter->second->getType(env, logger)->find();
 			if (tval->getKind() == Type::Error)
 			{
 				errors->addError(logger);
@@ -216,18 +207,16 @@ namespace intro {
 			iter++;
 			// check that all other expressions in the element list are subtypes of the first one.
 			// Note: in the implementation, extra information will be list
-			for (;iter!=elements.end();iter++)
+			for (; iter != elements.end(); iter++)
 			{
 				ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"dictionary element key"));
-				Type::pointer_t ct = iter->first->getType(env,logger);
+				Type::pointer_t ct = iter->first->getType(env, logger);
 				if (ct->getKind() == Type::Error)
 				{
 					errors->addError(logger);
 					return getError(L"error in dictionary element key.");
 				}
 				else delete logger;
-				//PartialOrder po=tkey->checkSubtype(ct);
-				//if (po!=LESS && po!=EQUAL )
 				if (!tkey->unify(ct))
 				{
 					errors->addError(new ErrorDescription(getLine(), getColumn(), L"Subtyping mismatch in dictionary key: all keys must be subtypes of the first element's key."));
@@ -242,11 +231,9 @@ namespace intro {
 					return getError(L"error in dictionary element key.");
 				}
 				else delete logger;
-				//po=tval->checkSubtype(ct);
-				//if (po!=LESS && po!=EQUAL)
 				// We will generalize the dictionary values, so that they
 				// can be different and we accept the topmost supertype only.
-				if (!tval->unify(ct,true))
+				if (!tval->unify(ct, true))
 				{
 					errors->addError(new ErrorDescription(getLine(), getColumn(), L"Subtyping mismatch in dictionary value: all vauesmust be subtypes or of the first element's value."));
 					return getError(L"Subtyping mismatch in dictionary value: all values must be subtypes or of the first item.");
@@ -293,23 +280,22 @@ namespace intro {
 				return getError(L"Error in dictionary value.");
 			}
 		}
-		return make_shared<Type>(Type::Dictionary,tkey,tval);
+		return make_shared<Type>(Type::Dictionary, tkey, tval);
 	}
 
 	//RecordExpression
 	Type::pointer_t RecordExpression::makeType(Environment *env, ErrorLocation *errors)
 	{
-		//std::list<std::pair<std::wstring,Expression*> >::iterator iter;
 		iterator iter;
-		Type::pointer_t myType= std::make_shared<RecordType>();
+		Type::pointer_t myType = std::make_shared<RecordType>();
 		std::wstring errmsg;
 		Environment localenv(env);
 		// For functions defined inside, put all record members in localenv.
-		for (iter=members.begin();iter!=members.end();iter++)
+		for (iter = members.begin(); iter != members.end(); iter++)
 		{
-			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"record member ")+iter->first);
-			Type::pointer_t t=localenv.put(iter->first)->find();
-			Type::pointer_t et=iter->second->getType(env,logger)->find();
+			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"record member ") + iter->first);
+			Type::pointer_t t = localenv.put(iter->first)->find();
+			Type::pointer_t et = iter->second->getType(env, logger)->find();
 			if (et->getKind() == Type::Error)
 			{
 				errors->addError(logger);
@@ -324,7 +310,7 @@ namespace intro {
 				errors->addError(new ErrorDescription(getLine(), getColumn(), msg));
 				return getError(msg);
 			}
-			((RecordType*)myType.get())->addMember(iter->first,et);
+			((RecordType *)myType.get())->addMember(iter->first, et);
 		}
 		return myType;
 	}
@@ -332,9 +318,8 @@ namespace intro {
 	//VariantExpression
 	Type::pointer_t VariantExpression::makeType(Environment *env, ErrorLocation *errors)
 	{
-		//std::list<std::pair<std::wstring,Expression*> >::iterator iter;
 		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"members of variant with tag ") + tag);
-		Type::pointer_t rec=record->getType(env,logger);
+		Type::pointer_t rec = record->getType(env, logger);
 		if (rec->getKind() == Type::Error)
 		{
 			errors->addError(logger);
@@ -342,7 +327,7 @@ namespace intro {
 		}
 		delete logger;
 		Type::pointer_t myType = std::make_shared<VariantType>();
-		((VariantType*)myType.get())->addTag(tag,rec);
+		((VariantType *)myType.get())->addTag(tag, rec);
 		return myType;
 	}
 
@@ -350,10 +335,9 @@ namespace intro {
 	{
 		Type::pointer_t t;
 		// Get fresh type variable with same name
-		if (relative&&path.empty())
+		if (relative && path.empty())
 		{
-			t=env->get(name);
-			//if (t!=NULL) original=t->copy();
+			t = env->get(name);
 		}
 		else
 		{
@@ -378,10 +362,10 @@ namespace intro {
 				return getError(msg);
 			}
 		}
-		if (t!=NULL) return t;
+		if (t != NULL) return t;
 		else
 		{
-			std::wstring msg=L"No variable with the name '" + name + L"' exists.";
+			std::wstring msg = L"No variable with the name '" + name + L"' exists.";
 			errors->addError(new ErrorDescription(getLine(), getColumn(), msg));
 			return getError(msg);
 		}
@@ -391,7 +375,7 @@ namespace intro {
 	Type::pointer_t Application::getCalledFunctionType(Environment *env, ErrorLocation *errors)
 	{
 		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"function being called"));
-		Type::pointer_t ft=func->getType(env,logger); // Get the type of the (assumed) function to be applied
+		Type::pointer_t ft = func->getType(env, logger); // Get the type of the (assumed) function to be applied
 		// Here, returning a copy is very important unless we are dealing with a type variable.
 		// The copy ensures the following unification  does not mess up generic types of the 
 		// source function type sitself.
@@ -407,14 +391,14 @@ namespace intro {
 			return ft;
 		}
 		else if (ft->find()->getKind() == Type::Variable) calledType = ft;
-		else 
+		else
 		{
-			calledType=ft->find()->copy();
+			calledType = ft->find()->copy();
 		}
 		delete logger;
 		return calledType;
 	}
-	
+
 	Type::pointer_t Application::makeType(Environment *env, ErrorLocation *errors)
 	{
 		// intermediate should be a function type for correct unification.
@@ -422,8 +406,6 @@ namespace intro {
 		// this can be unified with a function type!
 		// The variable can actually also be unified with a function if it's bound
 		// is a function type that is a supertype of the called function...
-		//FunctionType *intermediate;//=(FunctionType*)getCalledFunctionType(env);
-		//Type *intermediate;//=(FunctionType*)getCalledFunctionType(env);
 		Type::pointer_t called = getCalledFunctionType(env, errors);
 		int flags = Type::Readable | Type::Writable;
 		if (called->getKind() == Type::Error)
@@ -432,12 +414,11 @@ namespace intro {
 		}
 		else if (called->getKind() == Type::Function)
 		{
-			//intermediate = called;
-			flags = ((FunctionType*)called.get())->getReturnType()->find()->getAccessFlags();
+			flags = ((FunctionType *)called.get())->getReturnType()->find()->getAccessFlags();
 		}
 		else if (called->getKind() == Type::Variable)
 		{
-			
+			// NOP
 		}
 		else
 		{
@@ -450,7 +431,7 @@ namespace intro {
 		Type::pointer_t retval = Environment::fresh();
 		retval->setAccessFlags(flags);
 		// Get parameter types from application expression for function type to unify against.
-		for (size_t i = 0;i < params.size();++i)
+		for (size_t i = 0; i < params.size(); ++i)
 		{
 			// Putting the pointers to type variables in the function type here
 			// causes potential specializations to be communicated back into the environement,
@@ -504,7 +485,7 @@ namespace intro {
 	Type::pointer_t RecordAccess::makeType(Environment *env, ErrorLocation *errors)
 	{
 		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"source record expression"));
-		Type::pointer_t myType=record->getType(env,logger)->find();
+		Type::pointer_t myType = record->getType(env, logger)->find();
 		if (myType->getKind() == Type::Error)
 		{
 			errors->addError(logger);
@@ -512,11 +493,11 @@ namespace intro {
 		}
 		else delete logger;
 
-		if (myType->getKind()==Type::Record)
+		if (myType->getKind() == Type::Record)
 		{
-			RecordType *rt=dynamic_cast<RecordType*>(myType.get());
+			RecordType *rt = dynamic_cast<RecordType *>(myType.get());
 			RecordType::member_iter iter;
-			iter=rt->findMember(label);
+			iter = rt->findMember(label);
 			// Maybe the label does not exist?
 			if (iter == rt->end())
 			{
@@ -527,32 +508,31 @@ namespace intro {
 			// All is ok, return the label's type
 			return iter->second;
 		}
-		else if (myType->getKind()==Type::Variable)
+		else if (myType->getKind() == Type::Variable)
 		{
 			// Subtype polymorphism! We can add new labels with variable type for later unification
 			// Or we have to make sure a existing label has a legal type.
-			TypeVariable *vt=dynamic_cast<TypeVariable *>(myType.get());
-			Type::pointer_t super=vt->getSupertype();
-			if (super->find()->getKind()==Type::Top)
+			TypeVariable *vt = dynamic_cast<TypeVariable *>(myType.get());
+			Type::pointer_t super = vt->getSupertype();
+			if (super->find()->getKind() == Type::Top)
 			{
 				// Replace supertype with record containings new label
-				Type::pointer_t myRecord= std::make_shared<RecordType>();
-				Type::pointer_t buf=Environment::fresh();
-				((RecordType*)myRecord.get())->addMember(label,buf);
+				Type::pointer_t myRecord = std::make_shared<RecordType>();
+				Type::pointer_t buf = Environment::fresh();
+				((RecordType *)myRecord.get())->addMember(label, buf);
 				vt->setSupertype(myRecord);
 				return buf;
 			}
-			else if (super->find()->getKind()==Type::Record)
+			else if (super->find()->getKind() == Type::Record)
 			{
-				RecordType *rt=dynamic_cast<RecordType*>(super->find().get());
+				RecordType *rt = dynamic_cast<RecordType *>(super->find().get());
 				RecordType::member_iter iter;
-				iter=rt->findMember(label);
+				iter = rt->findMember(label);
 				// Maybe the label does not exist?
-				if (iter==rt->end()) 
+				if (iter == rt->end())
 				{	// Add label with new variable type, return variable type.
-					Type::pointer_t buf=Environment::fresh();
-					//Type *buf=new TypeVariable(std::wstring(L"?")+label);
-					rt->addMember(label,buf);
+					Type::pointer_t buf = Environment::fresh();
+					rt->addMember(label, buf);
 					return buf;
 				}
 				else
@@ -583,20 +563,18 @@ namespace intro {
 			Environment::fresh(L"?key"),
 			Environment::fresh(L"?value"),
 			Type::Readable | Type::Writable);
-		//dict->addParameter();
-		//dict->addParameter();
 		Type::pointer_t maybe(new VariantType);
-		VariantType *var = (VariantType*)maybe.get();
+		VariantType *var = (VariantType *)maybe.get();
 		var->addTag(std::wstring(L"None"), Type::pointer_t(new RecordType()));
 		RecordType *some = new RecordType();
 		some->addMember(std::wstring(L"value"), dict->getParameter(1));
 		var->addTag(std::wstring(L"Some"), Type::pointer_t(some));
 		pin.push_back(dict);
 		pin.push_back(dict->getParameter(0));
-		maybe->setAccessFlags(Type::Readable|Type::Writable);
+		maybe->setAccessFlags(Type::Readable | Type::Writable);
 		return std::make_shared<FunctionType>(pin, maybe);
 	}
-	
+
 	Type::pointer_t DictionaryErase::getCalledFunctionType(Environment *env, ErrorLocation *errors)
 	{
 		std::vector<Type::pointer_t> pin;
@@ -615,13 +593,13 @@ namespace intro {
 		std::vector<Type::pointer_t> pin;
 		Type::pointer_t sequence = Type::pointer_t(new Type(Type::Sequence));
 		sequence->addParameter(Environment::fresh());
-		Type::pointer_t tv=Environment::fresh(sequence);
+		Type::pointer_t tv = Environment::fresh(sequence);
 		pin.push_back(tv);
 		pin.push_back(counter);
 		pin.push_back(counter);
-		return std::make_shared<FunctionType>(pin,tv);
+		return std::make_shared<FunctionType>(pin, tv);
 	}
-	
+
 	Type::pointer_t Splice::makeType(Environment *env, ErrorLocation *errors)
 	{
 		// Splice defines an internal value last to help talk about the end of the sequence.
@@ -629,10 +607,10 @@ namespace intro {
 		// strictly speaking, we override a last that could be used for the first parameter...
 		// have to think about that.
 		Environment local(env);
-		local.put(L"last",counter);
+		local.put(L"last", counter);
 		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"splice operation"));
 		Type::pointer_t retval = Application::makeType(&local, logger);
-		if (retval->getKind()==Type::Error)
+		if (retval->getKind() == Type::Error)
 		{
 			errors->addError(logger);
 		}
@@ -643,16 +621,16 @@ namespace intro {
 	Type::pointer_t Assignment::makeType(Environment *env, ErrorLocation *errors)
 	{
 		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"assignment source value"));
-		Type::pointer_t vt=value->getType(env,logger)->find();
-		if (vt->getKind()==Type::Error) 
+		Type::pointer_t vt = value->getType(env, logger)->find();
+		if (vt->getKind() == Type::Error)
 		{
 			errors->addError(logger);
 			return value->getType();
 		}
 		delete logger;
 		logger = new ErrorLocation(getLine(), getColumn(), std::wstring(L"assignment destination value"));
-		Type::pointer_t dt=destination->getType(env,logger)->find();
-		if (dt->getKind()==Type::Error) 
+		Type::pointer_t dt = destination->getType(env, logger)->find();
+		if (dt->getKind() == Type::Error)
 		{
 			errors->addError(logger);
 			return destination->getType();
@@ -663,7 +641,7 @@ namespace intro {
 			errors->addError(new ErrorDescription(getLine(), getColumn(), L"Assignment attempts to write to a constant."));
 			return getError(L"Assignment has constant on the left side!");
 		}
-		if (!destination->getWritableType()->unify(vt)) 
+		if (!destination->getWritableType()->unify(vt))
 		{
 			std::wstringstream strs;
 			strs << L"cannot assign a value with type\n";
@@ -685,7 +663,6 @@ namespace intro {
 			valtype.reset(new Type(Type::Boolean));
 			break;
 		case Negate:
-			//valtype=new TypeVariable(L"?neg",new Type(Type::Number));
 			valtype = env->fresh(L"?neg", Type::pointer_t(new Type(Type::Number)));
 			break;
 		};
@@ -708,8 +685,8 @@ namespace intro {
 	{
 		// Get the type of the funtion valled
 		Type::pointer_t oper;
-		if (op==Equal || op==Different) oper=Environment::fresh(L"?a");
-		else oper=Environment::fresh(L"?a", std::make_shared<Type>(Type::Comparable));
+		if (op == Equal || op == Different) oper = Environment::fresh(L"?a");
+		else oper = Environment::fresh(L"?a", std::make_shared<Type>(Type::Comparable));
 		std::vector<Type::pointer_t> pin;
 		pin.push_back(oper);
 		pin.push_back(oper);
@@ -721,7 +698,6 @@ namespace intro {
 		// Get the type of the funtion valled
 		std::vector<Type::pointer_t> pin;
 		// Variables will be handled elsewhere, deletion wise.
-		//Type number(Type::Number);
 		Type::pointer_t oper = Environment::fresh(L"?a", std::make_shared<Type>(Type::Number));
 		pin.push_back(oper);
 		pin.push_back(oper);
@@ -733,16 +709,13 @@ namespace intro {
 
 	void IntegerConstant::print(std::wostream &s)
 	{
-		//char *buffer=new char[mpz_sizeinbase(value, 10) + 2];
-		//s << mpz_get_str(buffer, 10, value);
 		s << value;
-		Type::pointer_t t=getType();
-		if (t!=NULL)
+		Type::pointer_t t = getType();
+		if (t != NULL)
 		{
 			s << ":";
 			t->print(s);
 		}
-		//delete buffer;
 	}
 
 	void BooleanConstant::print(std::wostream &s)
@@ -760,11 +733,11 @@ namespace intro {
 	{
 		s << "\"";
 		if (parts.empty()) s << value;
-		else 
+		else
 		{
-			for (iterator i=parts.begin();i!=parts.end();i++)
-				if (i->t!=NULL) { 
-					s << "${" << i->s <<':';
+			for (iterator i = parts.begin(); i != parts.end(); i++)
+				if (i->t != NULL) {
+					s << "${" << i->s << ':';
 					i->t->print(s);
 					s << "}";
 
@@ -780,14 +753,14 @@ namespace intro {
 		s << "{ ";
 		if (!elements.empty())
 		{
-			std::vector<Expression*>::iterator iter;
-			for (iter=elements.begin();iter!=elements.end();iter++)
+			std::vector<Expression *>::iterator iter;
+			for (iter = elements.begin(); iter != elements.end(); iter++)
 			{
-				if (iter!=elements.begin()) s << ", ";
+				if (iter != elements.begin()) s << ", ";
 				(*iter)->print(s);
 			}
 		}
-		if (generators!=NULL)
+		if (generators != NULL)
 		{
 			s << " | ";
 			generators->print(s);
@@ -801,44 +774,44 @@ namespace intro {
 		if (!elements.empty())
 		{
 			memberlist::iterator iter;
-			for (iter=elements.begin();iter!=elements.end();iter++)
+			for (iter = elements.begin(); iter != elements.end(); iter++)
 			{
-				if (iter!=elements.begin()) s << ", ";
+				if (iter != elements.begin()) s << ", ";
 				iter->first->print(s);
 				s << " => ";
 				iter->second->print(s);
 			}
-			if (generators!=NULL)
+			if (generators != NULL)
 			{
 				s << " | ";
 				generators->print(s);
 			}
-		} 
-		else 
+		}
+		else
 		{
 			s << " => ";
-			
+
 		}
 		s << " }";
 	}
 
 	void RecordExpression::print(std::wostream &s)
 	{
-		std::vector<std::pair<std::wstring,Expression*> >::iterator iter;
+		std::vector<std::pair<std::wstring, Expression *> >::iterator iter;
 		s << "[\n";
-		for (iter=members.begin();iter!=members.end();iter++)
+		for (iter = members.begin(); iter != members.end(); iter++)
 		{
 			s << "\t" << iter->first;
-			if (iter->second->getType()!=NULL && iter->second->getType()->find()->getKind()!=Type::Function) 
+			if (iter->second->getType() != NULL && iter->second->getType()->find()->getKind() != Type::Function)
 				s << " <- ";
 			iter->second->print(s);
-			if (iter->second->getType()!=NULL) 
+			if (iter->second->getType() != NULL)
 			{
 				s << ":";
 				iter->second->getType()->find()->print(s);
 			}
 			s << ";\n";
-			
+
 		}
 		s << "]";
 	}
@@ -846,38 +819,33 @@ namespace intro {
 	void VariantExpression::print(std::wostream &s)
 	{
 		RecordExpression::iterator iter;
-		s << "[ :"<<tag<<"\n";
-		for (iter=record->begin();iter!=record->end();iter++)
+		s << "[ :" << tag << "\n";
+		for (iter = record->begin(); iter != record->end(); iter++)
 		{
 			s << "\t" << iter->first;
-			if (iter->second->getType()!=NULL && iter->second->getType()->find()->getKind()!=Type::Function) 
-			s << " <- ";
+			if (iter->second->getType() != NULL && iter->second->getType()->find()->getKind() != Type::Function)
+				s << " <- ";
 			iter->second->print(s);
-			if (iter->second->getType()!=NULL) 
+			if (iter->second->getType() != NULL)
 			{
 				s << ":";
 				iter->second->getType()->find()->print(s);
 			}
 			s << ";\n";
-			
+
 		}
 		s << "]";
 	}
-	
+
 	void Variable::print(std::wostream &s)
 	{
 		if (!relative) s << "::";
-		for (std::vector<std::wstring>::iterator pit = path.begin();pit != path.end();pit++) 
-			s <<  *pit << "::";
-		s << name ;
-		if (getType()!=NULL) 
+		for (std::vector<std::wstring>::iterator pit = path.begin(); pit != path.end(); pit++)
+			s << *pit << "::";
+		s << name;
+		if (getType() != NULL)
 		{
 			s << ":";
-			/*if (original!=NULL) 
-			{
-				original->find()->print(s);
-				s << "-->";
-			}*/
 			getType()->find()->print(s);
 		}
 	}
@@ -907,17 +875,17 @@ namespace intro {
 		s << ") : ";
 		getType()->print(s);
 	}
-		
+
 	void Splice::print(std::wostream &s)
 	{
-		iterator iter=params.begin();
+		iterator iter = params.begin();
 		(*iter)->print(s);
 		s << "[";
 		iter++;
 		(*iter)->print(s);
 		s << ":";
 		iter++;
-		if (iter!=params.end()) (*iter)->print(s);
+		if (iter != params.end()) (*iter)->print(s);
 		s << "] :";
 		getType()->print(s);
 	}
@@ -927,7 +895,7 @@ namespace intro {
 		destination->print(s);
 		s << " <- ";
 		value->print(s);
-		if (getType()!=NULL) 
+		if (getType() != NULL)
 		{
 			s << ":";
 			getType()->find()->print(s);
@@ -936,7 +904,7 @@ namespace intro {
 
 	void UnaryOperation::print(std::wostream &s)
 	{
-		if (op==Not) s << "not ";
+		if (op == Not) s << "not ";
 		else s << "-";
 		params.front()->print(s);
 	}
@@ -945,7 +913,7 @@ namespace intro {
 	{
 		s << "(";
 		params.front()->print(s);
-		switch(op)
+		switch (op)
 		{
 		case And: s << " and "; break;
 		case Or: s << " or "; break;
@@ -965,7 +933,7 @@ namespace intro {
 			s << ":";
 			params.front()->getType()->print(s);
 		}
-		switch(op)
+		switch (op)
 		{
 		case Equal:			s << " == "; break;
 		case Different:		s << " != "; break;
@@ -992,7 +960,7 @@ namespace intro {
 	{
 		s << "(";
 		params.front()->print(s);
-		switch(op)
+		switch (op)
 		{
 		case Add: s << " + "; break;
 		case Sub: s << " - "; break;
@@ -1004,87 +972,87 @@ namespace intro {
 		s << ")";
 	}
 
-	void ListConstant::collectFunctions(std::vector<intro::Function*> &funcs)
-	{	
+	void ListConstant::collectFunctions(std::vector<intro::Function *> &funcs)
+	{
 		if (!elements.empty())
 		{
-			std::vector<Expression*>::iterator iter;
-			for (iter=elements.begin();iter!=elements.end();iter++)
+			std::vector<Expression *>::iterator iter;
+			for (iter = elements.begin(); iter != elements.end(); iter++)
 			{
 				(*iter)->collectFunctions(funcs);
 			}
 		}
-		if (generators!=NULL)
+		if (generators != NULL)
 		{
 			generators->collectFunctions(funcs);
 		}
 	}
 
-	void DictionaryConstant::collectFunctions(std::vector<intro::Function*> &funcs)
+	void DictionaryConstant::collectFunctions(std::vector<intro::Function *> &funcs)
 	{
 		if (!elements.empty())
 		{
 			memberlist::iterator iter;
-			for (iter=elements.begin();iter!=elements.end();iter++)
+			for (iter = elements.begin(); iter != elements.end(); iter++)
 			{
 				iter->first->collectFunctions(funcs);
 				iter->second->collectFunctions(funcs);
 			}
-			
+
 		}
-		if (generators!=NULL)
+		if (generators != NULL)
 		{
 			generators->collectFunctions(funcs);
 		}
 	}
-	
-	void Application::collectFunctions(std::vector<intro::Function*> &funcs)
+
+	void Application::collectFunctions(std::vector<intro::Function *> &funcs)
 	{
-		if (func!=NULL) func->collectFunctions(funcs);
-		for (iterator iter=params.begin();iter!=params.end();iter++)
+		if (func != NULL) func->collectFunctions(funcs);
+		for (iterator iter = params.begin(); iter != params.end(); iter++)
 			(*iter)->collectFunctions(funcs);
 	}
 
-	void Assignment::collectFunctions(std::vector<intro::Function*> &funcs)
+	void Assignment::collectFunctions(std::vector<intro::Function *> &funcs)
 	{
 		destination->collectFunctions(funcs);
 		value->collectFunctions(funcs);
 	}
 
-	void RecordExpression::collectFunctions(std::vector<intro::Function*> &funcs)
+	void RecordExpression::collectFunctions(std::vector<intro::Function *> &funcs)
 	{
-		std::vector<std::pair<std::wstring,Expression*> >::iterator iter;
-		for (iter=members.begin();iter!=members.end();iter++)
+		std::vector<std::pair<std::wstring, Expression *> >::iterator iter;
+		for (iter = members.begin(); iter != members.end(); iter++)
 		{
 			iter->second->collectFunctions(funcs);
 		}
 	}
 
-	void VariantExpression::collectFunctions(std::vector<intro::Function*> &funcs)
+	void VariantExpression::collectFunctions(std::vector<intro::Function *> &funcs)
 	{
 		record->collectFunctions(funcs);
 	}
 
-	void RecordAccess::collectFunctions(std::vector<intro::Function*> &funcs)
-	{ 
+	void RecordAccess::collectFunctions(std::vector<intro::Function *> &funcs)
+	{
 		record->collectFunctions(funcs);
 	}
 
-	void Extraction::collectFunctions(std::vector<intro::Function*> &funcs)
+	void Extraction::collectFunctions(std::vector<intro::Function *> &funcs)
 	{
-		for (iterator iter=params.begin();iter!=params.end();iter++)
+		for (iterator iter = params.begin(); iter != params.end(); iter++)
 			(*iter)->collectFunctions(funcs);
 	}
 
-	void DictionaryErase::collectFunctions(std::vector<intro::Function*> &funcs)
+	void DictionaryErase::collectFunctions(std::vector<intro::Function *> &funcs)
 	{
-		for (iterator iter=params.begin();iter!=params.end();iter++)
+		for (iterator iter = params.begin(); iter != params.end(); iter++)
 			(*iter)->collectFunctions(funcs);
 	}
 
-	void Splice::collectFunctions(std::vector<intro::Function*> &funcs)
+	void Splice::collectFunctions(std::vector<intro::Function *> &funcs)
 	{
-		for (iterator iter=params.begin();iter!=params.end();iter++)
+		for (iterator iter = params.begin(); iter != params.end(); iter++)
 			(*iter)->collectFunctions(funcs);
 	}
 

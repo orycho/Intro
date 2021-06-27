@@ -11,15 +11,15 @@ namespace intro
 		Environment localenv(env);
 		bool success = true;
 		ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), L"block scope");
-		std::vector<Statement*>::iterator stmts;
-		for (stmts = body.begin();stmts != body.end();stmts++)
+		std::vector<Statement *>::iterator stmts;
+		for (stmts = body.begin(); stmts != body.end(); stmts++)
 			success &= (*stmts)->makeType(&localenv, logger);
 		if (success) delete logger;
 		else errors->addError(logger);
 		return success;
 	}
 
-	
+
 	Type::pointer_t Function::makeType(Environment *env, ErrorLocation *errors)
 	{
 		Environment localenv(env);
@@ -32,7 +32,7 @@ namespace intro
 		else
 			localenv.put(L"!return", Type::pointer_t(new Type(Type::Unit)));
 		ParameterList::iterator iter;
-		for (iter = parameters.begin();iter != parameters.end();iter++)
+		for (iter = parameters.begin(); iter != parameters.end(); iter++)
 		{
 			iter->type = localenv.put(iter->name);
 			iter->type->setAccessFlags(Type::Readable);
@@ -44,13 +44,13 @@ namespace intro
 		}
 		else delete logger;
 		std::vector<Type::pointer_t> p;
-		for (iter = parameters.begin();iter != parameters.end();iter++)
+		for (iter = parameters.begin(); iter != parameters.end(); iter++)
 		{
 			p.push_back(iter->type);
 		}
 
-		myType = Type::pointer_t (new FunctionType(p, localenv.get(L"!return")));
-		if (((FunctionType*)myType.get())->getReturnType()->getKind() != Type::Unit
+		myType = Type::pointer_t(new FunctionType(p, localenv.get(L"!return")));
+		if (((FunctionType *)myType.get())->getReturnType()->getKind() != Type::Unit
 			&& !body->isReturnLike())
 			errors->addError(new ErrorDescription(getLine(), getColumn(), L"Function returns a value but does not end in a return-like statement!"));
 		//return getError(L"Function returning a value does not end on return-like satement!");
@@ -107,7 +107,7 @@ namespace intro
 		iterator iter;
 		//int cond_count = 0;
 		ErrorLocation *logger;
-		for (iter = conditions.begin();iter != conditions.end();iter++)
+		for (iter = conditions.begin(); iter != conditions.end(); iter++)
 		{
 			logger = new ErrorLocation(getLine(), getColumn(), L"if statement (condition)");
 			Type::pointer_t cond_type = iter->first->getType(env, logger);
@@ -153,25 +153,25 @@ namespace intro
 	bool CaseStatement::Case::makeType(Type::pointer_t variant, Environment *env, ErrorLocation *errors)
 	{
 		Environment local(env);
-		VariantType::iterator iter = ((VariantType*)variant.get())->findTag(tag);
+		VariantType::iterator iter = ((VariantType *)variant.get())->findTag(tag);
 		myRecord = Type::pointer_t(new RecordType);
-		if (iter == ((VariantType*)variant.get())->endTag())
+		if (iter == ((VariantType *)variant.get())->endTag())
 		{
 			std::wstring q = std::wstring(L"?");
-			for (std::vector<std::wstring>::iterator pit = params.begin();pit != params.end();pit++)
+			for (std::vector<std::wstring>::iterator pit = params.begin(); pit != params.end(); pit++)
 			{
 				Type::pointer_t tvar = local.fresh(q + *pit);
 				local.put(*pit, tvar);
-				((RecordType*)myRecord.get())->addMember(*pit, tvar);
+				((RecordType *)myRecord.get())->addMember(*pit, tvar);
 			}
-			((VariantType*)variant.get())->addTag(tag, myRecord);
+			((VariantType *)variant.get())->addTag(tag, myRecord);
 		}
 		else
 		{
 			RecordType::member_iter members;
-			for (members = ((RecordType*)iter->second.get())->begin();members != ((RecordType*)iter->second.get())->end();++members)
+			for (members = ((RecordType *)iter->second.get())->begin(); members != ((RecordType *)iter->second.get())->end(); ++members)
 			{
-				((RecordType*)myRecord.get())->addMember(members->first, members->second);
+				((RecordType *)myRecord.get())->addMember(members->first, members->second);
 				local.put(members->first, members->second);
 			}
 		}
@@ -198,10 +198,10 @@ namespace intro
 			// (Only way to introduce type vars) we need to communicate the
 			// Expected types for each arm to the outside world
 
-			handled = Type::pointer_t (new VariantType);
+			handled = Type::pointer_t(new VariantType);
 			bool success = true;
 			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), L"case statement");
-			for (iterator iter = cases.begin();iter != cases.end();iter++)
+			for (iterator iter = cases.begin(); iter != cases.end(); iter++)
 				success &= (*iter)->makeType(handled, env, logger);
 			if (success) delete logger;
 			else
@@ -239,7 +239,7 @@ namespace intro
 				return false;
 			}
 			ErrorLocation *logger = new ErrorLocation(getLine(), getColumn(), L"case statement");
-			for (iterator iter = cases.begin();iter != cases.end();iter++)
+			for (iterator iter = cases.begin(); iter != cases.end(); iter++)
 				success &= (*iter)->makeType(exprtype, env, logger);
 			if (success) delete logger;
 			else
@@ -278,7 +278,7 @@ namespace intro
 		}
 		return true;
 	}
-	
+
 	bool WhileStatement::makeType(Environment *env, ErrorLocation *errors)
 	{
 		Type::pointer_t t = condition->getType(env, errors);
@@ -316,7 +316,7 @@ namespace intro
 		Type::pointer_t r = env->get(L"!return");
 		// Return is contravariant
 		if (!t->unify(r, true))
-		//if (!t->unify(r))
+			//if (!t->unify(r))
 		{
 			std::wstringstream strs;
 			strs << L"the return type of the function has already been inferred to be\n";
@@ -360,7 +360,7 @@ namespace intro
 		// An empty generator can be concatenated with any other, so top is ok supertype?!
 		// But that could lead to an empty list with element type top...
 		// that means we cannot do much with those elements... but is it a problem?!
-		myType = Type::pointer_t (new Type(Type::Generator, yieldType));
+		myType = Type::pointer_t(new Type(Type::Generator, yieldType));
 		// What is a fact is that variant types can cause trouble
 		// when checking supertypes, because yield needs to specialize, just like return.
 		// But two unrelated variant types will cause the two generators
@@ -370,8 +370,8 @@ namespace intro
 		bool success = false;
 		if (r->getKind() == Type::Generator)
 			success = yieldType->unify(r->getFirstParameter(), true);
-		else 
-			success = myType->unify(r,true);
+		else
+			success = myType->unify(r, true);
 		if (!success)
 		{
 			std::wstringstream strs;
@@ -421,7 +421,7 @@ namespace intro
 
 		std::wstring path; // move to hashmap key
 		/// The statements that where parsed from the file
-		std::list<intro::Statement*> statements;
+		std::list<intro::Statement *> statements;
 		/// The environment used for type inference of the statements
 		intro::Environment env;
 		/** The CGEnv containing any identifiers the file did not put in modules.
@@ -445,7 +445,7 @@ namespace intro
 		}
 	};
 
-	static std::unordered_map<std::wstring, SourceFile*> files;
+	static std::unordered_map<std::wstring, SourceFile *> files;
 
 	void cleanupSourceFiles()
 	{
@@ -466,7 +466,7 @@ namespace intro
 	*/
 	bool SourceStatement::makeType(Environment *env, ErrorLocation *errors)
 	{
-		std::unordered_map<std::wstring, SourceFile*>::iterator iter = files.find(path);
+		std::unordered_map<std::wstring, SourceFile *>::iterator iter = files.find(path);
 		if (iter == files.end())
 		{
 			parse::Scanner scanner(path.c_str());
@@ -498,7 +498,7 @@ namespace intro
 			parser.parseResult.clear();
 			bool isOK = true;
 			ErrorLocation *logger = new ErrorLocation(0, 0, std::wstring(L"source file ") + path);
-			for (auto iter = file->statements.begin();isOK && iter != file->statements.end();iter++)
+			for (auto iter = file->statements.begin(); isOK && iter != file->statements.end(); iter++)
 			{
 				isOK &= (*iter)->makeType(&(file->env), logger);
 			}
@@ -537,17 +537,17 @@ namespace intro
 
 	extern std::unique_ptr<llvm::Module> TheModule;
 
-	bool SourceStatement::codeGen(llvm::IRBuilder<>& TmpB, intro::CodeGenEnvironment * env)
+	bool SourceStatement::codeGen(llvm::IRBuilder<> &TmpB, intro::CodeGenEnvironment *env)
 	{
 		bool isOK = true;
-		std::unordered_map<std::wstring, SourceFile*>::iterator iter = files.find(path);
+		std::unordered_map<std::wstring, SourceFile *>::iterator iter = files.find(path);
 		if (iter->second->cgenv == nullptr)
 		{
 			intro::CodeGenEnvironment *cgenv = new intro::CodeGenEnvironment(nullptr, intro::CodeGenEnvironment::GlobalScope);
 			iter->second->cgenv = cgenv;
 			for (auto inner = iter->second->statements.begin()
-				;isOK && inner != iter->second->statements.end()
-				;inner++)
+				; isOK && inner != iter->second->statements.end()
+				; inner++)
 				isOK &= (*inner)->codeGen(TmpB, cgenv);
 			//TheModule->dump();
 		}
@@ -557,7 +557,7 @@ namespace intro
 			iter->second->cgenv->addExternalsForGlobals();
 			iter->second->current = TheModule.get();
 		}
-		for (eit = iter->second->cgenv->begin();eit != iter->second->cgenv->end();eit++)
+		for (eit = iter->second->cgenv->begin(); eit != iter->second->cgenv->end(); eit++)
 		{
 			//std::wcout << "Found import: " << eit->first << "!\n";
 			env->importElement(eit->first, eit->second);

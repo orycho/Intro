@@ -8,81 +8,83 @@
 namespace intro
 {
 
-class ErrorLogger
-{
-	size_t line,col;
-public:
-	ErrorLogger(size_t line_,size_t col_)
-	: line(line_)
-	, col(col_)
-	{}
-
-	virtual ~ErrorLogger() {}
-	
-	size_t getLine(void) { return line; };
-	size_t getColumn(void) { return col; };
-	virtual bool hasErrors(void)=0;
-	virtual void print(std::wostream &out,unsigned position)=0;
-	void print(std::wostream &out)
-	{ print(out,0); };
-};
-
-class ErrorLocation : public ErrorLogger
-{
-	std::vector<ErrorLogger*> errors;
-	const std::wstring location;
-public:
-	ErrorLocation(int line_,int col_,const std::wstring &location_)
-		: ErrorLogger(line_,col_)
-		, location(location_)
-	{}
-
-	virtual ~ErrorLocation()
+	class ErrorLogger
 	{
-		for (auto error : errors)
-			delete error;
-	}
+		size_t line, col;
+	public:
+		ErrorLogger(size_t line_, size_t col_)
+			: line(line_)
+			, col(col_)
+		{}
 
-	virtual bool hasErrors(void) 
-	{
-		return !errors.empty(); 
-	}
-	virtual void print(std::wostream &out,unsigned position)
-	{
-		out << getLine() <<L", " << getColumn() << L" at " << location << ":\n";
-		for (ErrorLogger * error:errors)
+		virtual ~ErrorLogger() {}
+
+		size_t getLine(void) { return line; };
+		size_t getColumn(void) { return col; };
+		virtual bool hasErrors(void) = 0;
+		virtual void print(std::wostream &out, unsigned position) = 0;
+		void print(std::wostream &out)
 		{
-			error->print(out,position+1);
+			print(out, 0);
+		};
+	};
+
+	class ErrorLocation : public ErrorLogger
+	{
+		std::vector<ErrorLogger *> errors;
+		const std::wstring location;
+	public:
+		ErrorLocation(int line_, int col_, const std::wstring &location_)
+			: ErrorLogger(line_, col_)
+			, location(location_)
+		{}
+
+		virtual ~ErrorLocation()
+		{
+			for (auto error : errors)
+				delete error;
 		}
-	}
-	
-	void addError(ErrorLogger *error)
-	{
-		errors.push_back(error);
-	}
 
-};
+		virtual bool hasErrors(void)
+		{
+			return !errors.empty();
+		}
+		virtual void print(std::wostream &out, unsigned position)
+		{
+			out << getLine() << L", " << getColumn() << L" at " << location << ":\n";
+			for (ErrorLogger *error : errors)
+			{
+				error->print(out, position + 1);
+			}
+		}
 
-class ErrorDescription : public ErrorLogger
-{
-	std::wstring message;
-public:
-	ErrorDescription(size_t line_,size_t col_,const std::wstring &message_)
-	: ErrorLogger(line_,col_)
-	, message(message_)
-	{}
+		void addError(ErrorLogger *error)
+		{
+			errors.push_back(error);
+		}
 
-	virtual bool hasErrors(void) 
+	};
+
+	class ErrorDescription : public ErrorLogger
 	{
-		return true;
-	}
-	virtual void print(std::wostream &out,unsigned position)
-	{
-		out << L"At " << getLine() << L", " << getColumn() 
-			<< L" - Error: " << message << std::endl;
-	}
-	
-};
+		std::wstring message;
+	public:
+		ErrorDescription(size_t line_, size_t col_, const std::wstring &message_)
+			: ErrorLogger(line_, col_)
+			, message(message_)
+		{}
+
+		virtual bool hasErrors(void)
+		{
+			return true;
+		}
+		virtual void print(std::wostream &out, unsigned position)
+		{
+			out << L"At " << getLine() << L", " << getColumn()
+				<< L" - Error: " << message << std::endl;
+		}
+
+	};
 
 }
 

@@ -25,122 +25,121 @@
 #include <string>
 #include <vector>
 
-namespace intro 
+namespace intro
 {
 
-/// Simple JIT class based on LLVM Tutorials
-class JIT {
-private:
+	/// Simple JIT class based on LLVM Tutorials
+	class JIT {
+	private:
 
-	std::unique_ptr<llvm::orc::TargetProcessControl> TPC;
-	std::unique_ptr<llvm::orc::ExecutionSession> ES;
+		std::unique_ptr<llvm::orc::TargetProcessControl> TPC;
+		std::unique_ptr<llvm::orc::ExecutionSession> ES;
 
-	llvm::DataLayout DL;
-	llvm::orc::MangleAndInterner Mangle;
-
-
-	llvm::orc::RTDyldObjectLinkingLayer ObjectLayer;
-	llvm::orc::IRCompileLayer CompileLayer;
-	llvm::orc::IRTransformLayer OptimizeLayer;
+		llvm::DataLayout DL;
+		llvm::orc::MangleAndInterner Mangle;
 
 
-	llvm::orc::JITDylib& MainJD;
+		llvm::orc::RTDyldObjectLinkingLayer ObjectLayer;
+		llvm::orc::IRCompileLayer CompileLayer;
+		llvm::orc::IRTransformLayer OptimizeLayer;
 
-public:
 
-	JIT(std::unique_ptr<llvm::orc::TargetProcessControl> TPC,
-		std::unique_ptr<llvm::orc::ExecutionSession> ES,
-		llvm::orc::JITTargetMachineBuilder JTMB, llvm::DataLayout DL)
-		: TPC(std::move(TPC))
-		, ES(std::move(ES))
-		, DL(std::move(DL))
-		, Mangle(*this->ES, this->DL)
-		, ObjectLayer(*this->ES,
-			[]() { return std::make_unique<llvm::SectionMemoryManager>(); })
-		, CompileLayer(*this->ES, ObjectLayer,
-			std::make_unique<llvm::orc::ConcurrentIRCompiler>(std::move(JTMB)))
-		, OptimizeLayer(*this->ES, CompileLayer, optimizeModule)
-		, MainJD(this->ES->createBareJITDylib("<main>")) 
-	{
-		MainJD.addGenerator(
-			cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(
-				DL.getGlobalPrefix())));
-		ObjectLayer.setOverrideObjectFlagsWithResponsibilityFlags(true);
-	}
+		llvm::orc::JITDylib &MainJD;
 
-	~JIT() {
-		if (auto Err = ES->endSession())
-			ES->reportError(std::move(Err));
-	}
+	public:
 
-	static llvm::Expected<std::unique_ptr<JIT>> create() {
-		auto SSP = std::make_shared<llvm::orc::SymbolStringPool>();
-		auto TPC = llvm::orc::SelfTargetProcessControl::Create(SSP);
-		if (!TPC)
-			return TPC.takeError();
-
-		auto ES = std::make_unique<llvm::orc::ExecutionSession>(std::move(SSP));
-
-		llvm::orc::JITTargetMachineBuilder JTMB((*TPC)->getTargetTriple());
-
-		auto DL = JTMB.getDefaultDataLayoutForTarget();
-		if (!DL)
-			return DL.takeError();
-
-		return std::make_unique<JIT>(std::move(*TPC), std::move(ES),
-			std::move(JTMB), std::move(*DL));
-	}
-	
-	const llvm::DataLayout &getDataLayout() const { return DL; }
-
-	llvm::orc::JITDylib &getMainJITDylib() { return MainJD; }
-
-	llvm::Error addModule(llvm::orc::ThreadSafeModule TSM, llvm::orc::ResourceTrackerSP RT = nullptr) {
-		if (!RT)
-			RT = MainJD.getDefaultResourceTracker();
-
-		return OptimizeLayer.add(RT, std::move(TSM));
-	}
-
-	llvm::Expected<llvm::JITEvaluatedSymbol> lookup(llvm::StringRef Name) {
-		std::cout << "Name: " << Name.str() << " mangled to " << (*Mangle(Name.str())).str() << std::endl;
-		return ES->lookup({ &MainJD },Name.str());
-		//return ES->lookup({ &MainJD }, Mangle(Name.str()));
-	}
-
-private:
-	static llvm::Expected<llvm::orc::ThreadSafeModule> optimizeModule(llvm::orc::ThreadSafeModule TSM
-		, const llvm::orc::MaterializationResponsibility& R)
-	{
-		TSM.withModuleDo([](llvm::Module& M) 
+		JIT(std::unique_ptr<llvm::orc::TargetProcessControl> TPC,
+			std::unique_ptr<llvm::orc::ExecutionSession> ES,
+			llvm::orc::JITTargetMachineBuilder JTMB, llvm::DataLayout DL)
+			: TPC(std::move(TPC))
+			, ES(std::move(ES))
+			, DL(std::move(DL))
+			, Mangle(*this->ES, this->DL)
+			, ObjectLayer(*this->ES,
+				[]() { return std::make_unique<llvm::SectionMemoryManager>(); })
+			, CompileLayer(*this->ES, ObjectLayer,
+				std::make_unique<llvm::orc::ConcurrentIRCompiler>(std::move(JTMB)))
+			, OptimizeLayer(*this->ES, CompileLayer, optimizeModule)
+			, MainJD(this->ES->createBareJITDylib("<main>"))
 		{
-			// Create a function pass manager.
-			auto FPM = std::make_unique<llvm::legacy::FunctionPassManager>(&M);
+			MainJD.addGenerator(
+				cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(
+					DL.getGlobalPrefix())));
+			ObjectLayer.setOverrideObjectFlagsWithResponsibilityFlags(true);
+		}
 
-			// Add some optimizations.
-			FPM->add(llvm::createVerifierPass());
-			//FPM->add(llvm::createPromoteMemoryToRegisterPass());
-			FPM->add(llvm::createInstructionCombiningPass());
-			FPM->add(llvm::createReassociatePass());
-			//FPM->add(llvm::createJumpThreadingPass());
-			FPM->add(llvm::createGVNPass());
-			FPM->add(llvm::createDeadCodeEliminationPass());
-			FPM->add(llvm::createCFGSimplificationPass());
-			FPM->doInitialization();
+		~JIT() {
+			if (auto Err = ES->endSession())
+				ES->reportError(std::move(Err));
+		}
 
-			// Run the optimizations over all functions in the module being added to
-			// the JIT.
-			for (auto &F : M)
-			{
-				FPM->run(F);
-			}
-			M.dump();
-		});
-		//M->dump();
-		return std::move(TSM);
-	}
-};
-	
+		static llvm::Expected<std::unique_ptr<JIT>> create() {
+			auto SSP = std::make_shared<llvm::orc::SymbolStringPool>();
+			auto TPC = llvm::orc::SelfTargetProcessControl::Create(SSP);
+			if (!TPC)
+				return TPC.takeError();
+
+			auto ES = std::make_unique<llvm::orc::ExecutionSession>(std::move(SSP));
+
+			llvm::orc::JITTargetMachineBuilder JTMB((*TPC)->getTargetTriple());
+
+			auto DL = JTMB.getDefaultDataLayoutForTarget();
+			if (!DL)
+				return DL.takeError();
+
+			return std::make_unique<JIT>(std::move(*TPC), std::move(ES),
+				std::move(JTMB), std::move(*DL));
+		}
+
+		const llvm::DataLayout &getDataLayout() const { return DL; }
+
+		llvm::orc::JITDylib &getMainJITDylib() { return MainJD; }
+
+		llvm::Error addModule(llvm::orc::ThreadSafeModule TSM, llvm::orc::ResourceTrackerSP RT = nullptr) {
+			if (!RT)
+				RT = MainJD.getDefaultResourceTracker();
+
+			return OptimizeLayer.add(RT, std::move(TSM));
+		}
+
+		llvm::Expected<llvm::JITEvaluatedSymbol> lookup(llvm::StringRef Name) {
+			std::cout << "Name: " << Name.str() << " mangled to " << (*Mangle(Name.str())).str() << std::endl;
+			return ES->lookup({ &MainJD }, Name.str());
+			//return ES->lookup({ &MainJD }, Mangle(Name.str()));
+		}
+
+	private:
+		static llvm::Expected<llvm::orc::ThreadSafeModule> optimizeModule(llvm::orc::ThreadSafeModule TSM
+			, const llvm::orc::MaterializationResponsibility &R)
+		{
+			TSM.withModuleDo([](llvm::Module &M)
+				{
+					// Create a function pass manager.
+					auto FPM = std::make_unique<llvm::legacy::FunctionPassManager>(&M);
+
+					// Add some optimizations.
+					FPM->add(llvm::createVerifierPass());
+					//FPM->add(llvm::createPromoteMemoryToRegisterPass());
+					FPM->add(llvm::createInstructionCombiningPass());
+					FPM->add(llvm::createReassociatePass());
+					//FPM->add(llvm::createJumpThreadingPass());
+					FPM->add(llvm::createGVNPass());
+					FPM->add(llvm::createDeadCodeEliminationPass());
+					FPM->add(llvm::createCFGSimplificationPass());
+					FPM->doInitialization();
+
+					// Run the optimizations over all functions in the module being added to
+					// the JIT.
+					for (auto &F : M)
+					{
+						FPM->run(F);
+					}
+					M.dump();
+				});
+			return std::move(TSM);
+		}
+	};
+
 } // end namespace intro
 
 

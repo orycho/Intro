@@ -28,8 +28,8 @@ namespace intro
 	void initModule(void);
 	void initRuntime(void);
 	void deleteRuntime(void);
-	void dumpModule(bool optimize=false);
-	void runStatements(const std::vector<intro::Statement*> &statements);
+	void dumpModule(bool optimize = false);
+	void executeStatements(const std::vector<intro::Statement *> &statements);
 	void cleanupSourceFiles();
 
 }
@@ -40,7 +40,7 @@ namespace llvm
 }
 
 
-int main(int argc,const char *argv[])
+int main(int argc, const char *argv[])
 {
 	llvm::cl::opt<std::string> Script(llvm::cl::Positional, llvm::cl::desc("<input script>"), llvm::cl::init("-"));
 	llvm::cl::list<std::string>  Argv(llvm::cl::ConsumeAfter, llvm::cl::desc("<program arguments>..."));
@@ -48,10 +48,10 @@ int main(int argc,const char *argv[])
 	llvm::cl::opt<bool> runTestsOpt("testopt", llvm::cl::desc("Run hard-coded basic tests with optimization (overrides test)"));
 
 	llvm::cl::ParseCommandLineOptions(argc, argv);
-	
+
 	//intro::initModule();
 	intro::initRuntime();
-	
+
 	if (runTests || runTestsOpt)
 	{
 		//intro::initModule();
@@ -63,13 +63,13 @@ int main(int argc,const char *argv[])
 	else
 	{
 		intro::Environment global;
-		if (Script=="-") // Interactive Mode
+		if (Script == "-") // Interactive Mode
 		{
 			// run interactive command line
 			//intro::initModule();
 			parse::Scanner scanner(stdin);
 			parse::Parser parser(&scanner);
-			parser.isInteractive=true;
+			parser.isInteractive = true;
 			parser.Parse();
 			parser.deleteStatements();
 		}
@@ -98,9 +98,9 @@ int main(int argc,const char *argv[])
 					intro::ErrorLocation *logger = new intro::ErrorLocation(0, 0, std::wstring(L"file ") + pathbuf);
 					intro::Environment global;
 					bool isOK = true;
-					for (auto iter = parser.parseResult.begin();isOK && iter != parser.parseResult.end();iter++)
+					for (auto iter = parser.parseResult.begin(); isOK && iter != parser.parseResult.end(); iter++)
 					{
-						isOK = (*iter)->makeType(&global,logger);
+						isOK = (*iter)->makeType(&global, logger);
 						/*
 						if (!isOK)
 						{
@@ -111,11 +111,11 @@ int main(int argc,const char *argv[])
 						*/
 					}
 					if (isOK)
-						runStatements(parser.parseResult);
+						executeStatements(parser.parseResult);
 					else
 					{
 						std::wcout << L"Type errors detected!!!\n";
-						logger->print(std::wcout,0);
+						logger->print(std::wcout, 0);
 						delete logger;
 						logger = nullptr;
 					}
@@ -133,7 +133,7 @@ int main(int argc,const char *argv[])
 	intro::CodeGenModule::deleteRootModule();
 	intro::Environment::deleteRootModule();
 	llvm::llvm_shutdown();
-	
+
 	return 0;
 }
 
