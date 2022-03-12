@@ -9,7 +9,7 @@ TEST(UtilityTests, CollectFunctionsTest) {
 	parse::Parser parser(&scanner);
 	parser.Parse();
 	iter=parser.parseResult.begin();
-	std::list<intro::Function*> funcs;
+	std::vector<intro::Function*> funcs;
 	(*iter)->collectFunctions(funcs);
 	ASSERT_EQ(funcs.size(),2);
 	intro::VariableSet free,bound;

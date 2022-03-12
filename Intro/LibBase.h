@@ -8,15 +8,15 @@
 
 struct LibLoader
 {
-	std::list<std::wstring> path;
-
 	struct elem
 	{
 		const wchar_t *name;
 		const char *sourcename;
-		intro::Type *type;
+		intro::Type::pointer_t type;
 	};
-
+protected:
+	std::vector<std::wstring> path;
+	static std::vector<LibLoader *> instances;
 	void load(const elem elems[])
 	{
 		size_t i = 0;
@@ -26,20 +26,25 @@ struct LibLoader
 		while (elems[i].name != nullptr)
 		{
 			// Add to module
-			ti_module->addExport(elems[i].name, elems[i].type,false);
+			ti_module->addExport(elems[i].name, elems[i].type, false);
 			cg_module->importElement(elems[i].name, cgelem)->second.altname = elems[i].sourcename;
 			++i;
 		}
 	}
-
+public:
 	LibLoader(std::wstring name)
 	{
 		path.push_back(name);
 	};
 
-	LibLoader(std::list<std::wstring> &path_)
+	LibLoader(std::vector<std::wstring> &path_)
 		: path(path_)
 	{};
+	virtual void create() = 0;
+	static void initialize(void)
+	{
+		for (LibLoader *instance : instances) instance->create();
+	};
 };
 
 #define MKCLOSURE(name,codeptr) rtclosure name ## _src = { \
@@ -54,12 +59,13 @@ FORCE_EXPORT extern rtt_t name ## _rtt;
 
 #define REGISTER_MODULE(name) struct name ## Loader_ : public LibLoader { \
 static const elem elems[]; \
-name ## Loader_(void) : LibLoader(L ## #name) {	load(elems); }; \
+name ## Loader_(void) : LibLoader(L ## #name) {	instances.push_back(this); }; \
+virtual void create() { load(elems); }; \
 } name ## loader; \
 const LibLoader::elem name ## Loader_::elems[] = {
 
 #define EXPORT(name,closure,type) {name,closure,type},
 
-#define CLOSE_MODULE { nullptr,nullptr,nullptr } };
+#define CLOSE_MODULE { nullptr,nullptr,nullptr } }; 
 
 #endif

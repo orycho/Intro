@@ -127,9 +127,9 @@ std::vector<intro::Expression*> exprstack;
 	/// Member granting access to environment
 	inline intro::Environment *getEnv(void) {return &global; };
 	/// List contiaining the ASTs of the parsed program.
-	std::list<intro::Statement*> parseResult;
+	std::vector<intro::Statement*> parseResult;
 	/// Iterator Type for result list.
-	typedef std::list<intro::Statement*>::iterator iterator;
+	typedef std::vector<intro::Statement*>::iterator iterator;
 	/// This stack remembers which function scope were in (for return and yield statements)
 	std::stack<intro::Function*> functions;
 	/// This stack remembers which loop scope were in (for break and continue statements)
@@ -139,11 +139,11 @@ std::vector<intro::Expression*> exprstack;
 	/// Stack used for constructing Modules
 	std::stack<intro::ModuleStatement*> modules;
 	/// This map is used during a type expression to assign the same variable to the same name - must be cleared after the type is complete
-	std::map<std::wstring,intro::TypeVariable*> tvarmap;
+	std::map<std::wstring,intro::Type::pointer_t> tvarmap;
 	/// Get a type variable with the given name, create if not existant yet.
-	intro::TypeVariable *getTypeVariable(const std::wstring &name)
+	intro::Type::pointer_t getTypeVariable(const std::wstring &name)
 	{
-		std::map<std::wstring,intro::TypeVariable*>::iterator iter=tvarmap.find(name);
+		std::map<std::wstring,intro::Type::pointer_t>::iterator iter=tvarmap.find(name);
 		if (iter==tvarmap.end())
 		{
 			iter=tvarmap.insert(make_pair(name,intro::Environment::fresh(name))).first;
@@ -160,7 +160,7 @@ std::vector<intro::Expression*> exprstack;
 			delete statementstack.back();
 			statementstack.pop_back();
 		}
-		std::list<intro::Statement*>::iterator iter;
+		iterator iter;
 		for (iter=parseResult.begin();iter!=parseResult.end();++iter)
 			delete *iter;
 		parseResult.clear();
